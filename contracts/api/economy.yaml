@@ -1,7 +1,22 @@
 openapi: 3.0.0
-info: { title: Axessplayer Economy API, version: 0.3.1 }
-# Server-authoritative. Price derived from the catalog. Idempotent on (user_id, client_txn_id).
+info: { title: Axessplayer Economy API, version: 0.3.2 }
+# F1 trust boundary, encoded in the contract so review enforces it, not memory.
+# The acting user is ALWAYS the authenticated session subject, never a value from the request body.
+#   /wallet and /spend are session-scoped (sessionAuth): no user_id field exists to misuse.
+#   /grant is server-to-server only (serviceAuth): coins are granted from verified receipts and ad/payment
+#     callbacks, never a direct client call, so its user_id is the verified subject from that callback.
+# Both the spend_coins and grant RPCs are EXECUTE-granted to service_role only (migration 0003). No em dashes.
 components:
+  securitySchemes:
+    sessionAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: End-user session token. The subject is the acting user. The server never reads a user id from the body.
+    serviceAuth:
+      type: http
+      scheme: bearer
+      description: Trusted server-role token. Required for grant, which must run from verified payment or ad callbacks, never a client.
   schemas:
     Error:
       type: object
@@ -19,45 +34,70 @@ components:
       type: object
       required: [error, options]
       properties: { error: { type: string, example: insufficient_funds }, options: { type: array, items: { type: string, enum: [buy, watch_ad, subscribe] } } }
+security:
+  - sessionAuth: []
 paths:
-  /wallet/{user_id}:
+  /wallet:
     get:
       operationId: getWallet
-      summary: Get balance and entitlements.
-      parameters:
-        - { name: user_id, in: path, required: true, schema: { type: string, format: uuid } }
+      summary: Get the authenticated user's balance and entitlements.
+      description: Self-scoped. The wallet returned is always the session subject's. There is no user id parameter by design (F1).
       responses:
         '200':
-          description: Current balance and entitlements for the user.
+          description: The session user's balance and entitlements.
           content: { application/json: { schema: { $ref: '#/components/schemas/Wallet' } } }
-        '404':
-          description: No wallet exists for that user.
+        '401':
+          description: Missing or invalid session token.
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
   /spend:
     post:
       operationId: spend
-      summary: Unlock an episode or premium variant. Idempotent. Price server-derived.
+      summary: Unlock an episode or premium variant for the authenticated user. Idempotent. Price server-derived.
+      description: The acting user is the session subject. The body carries no user id (F1); the server passes the session subject to spend_coins.
       requestBody:
         required: true
-        content: { application/json: { schema: { type: object, required: [user_id, scope, scope_id, client_txn_id], properties: { user_id: { type: string, format: uuid }, scope: { type: string, enum: [episode, beat_variant] }, scope_id: { type: string, format: uuid }, client_txn_id: { type: string } } } } }
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scope, scope_id, client_txn_id]
+              properties:
+                scope: { type: string, enum: [episode, beat_variant] }
+                scope_id: { type: string, format: uuid }
+                client_txn_id: { type: string }
       responses:
         '200':
-          description: new balance and entitlement granted
+          description: New balance and entitlement granted.
           content: { application/json: { schema: { type: object, required: [balance, entitlement], properties: { balance: { type: integer }, entitlement: { $ref: '#/components/schemas/Entitlement' } } } } }
         '402':
-          description: insufficient funds
+          description: Insufficient funds.
           content: { application/json: { schema: { $ref: '#/components/schemas/PaywallOptions' } } }
+        '401':
+          description: Missing or invalid session token.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
   /grant:
     post:
       operationId: grant
-      summary: Grant coins (IAP, rewarded ad, checkin). Idempotent on (user_id, client_txn_id).
+      security:
+        - serviceAuth: []
+      summary: Grant coins from a verified receipt or callback (IAP, rewarded ad, checkin). Server-to-server only.
+      description: Not a direct client call. The caller is a trusted server role that has verified the receipt or callback; user_id is that verified subject. Idempotent on (user_id, client_txn_id).
       requestBody:
         required: true
-        content: { application/json: { schema: { type: object, required: [user_id, amount, type, client_txn_id], properties: { user_id: { type: string, format: uuid }, amount: { type: integer }, type: { type: string, enum: [iap, rewarded_ad, offer_wall, checkin, refund] }, client_txn_id: { type: string } } } } }
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, amount, type, client_txn_id]
+              properties:
+                user_id: { type: string, format: uuid }
+                amount: { type: integer }
+                type: { type: string, enum: [iap, rewarded_ad, offer_wall, checkin, refund] }
+                client_txn_id: { type: string }
       responses:
         '200':
           description: The new balance after the grant.
           content: { application/json: { schema: { type: object, required: [balance], properties: { balance: { type: integer } } } } }
-        '409':
-          description: Invalid or conflicting grant (for example an unknown grant type).
+        '403':
+          description: Caller is not a trusted service role.
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
