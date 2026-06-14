@@ -25,6 +25,6 @@ You are one of several agents building Axessplayer. Read `00_START_HERE.md` and 
 - The trust layer legal posture: consent, provenance, AI-Act opt-out.
 
 ## The frozen contracts (read-only)
-- `contracts/schema/schema.sql`
+- `contracts/schema/0001_init.sql`
 - `contracts/api/decision.yaml`, `manifest.yaml`, `economy.yaml`, `content.yaml`
 - `contracts/events/events.md`

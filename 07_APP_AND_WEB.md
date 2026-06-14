@@ -2,7 +2,7 @@
 
 ## Principle
 
-There is one backend. The frozen contracts at v0.2.0 (Postgres schema, the decision, manifest, economy, and content OpenAPI specs, and the events schema) are the single source of truth. Every client talks to that backend over those contracts.
+There is one backend. The frozen contracts at v0.3.0 (Postgres schema, the decision, manifest, economy, and content OpenAPI specs, and the events schema) are the single source of truth. Every client talks to that backend over those contracts.
 
 The web app is a second client, not a second backend. Native and web call the identical decision, economy, content, and manifest APIs. They send the identical events. The platform does not gain a parallel API surface, a web-only data store, or a forked schema because a browser client exists. If a behavior is not expressible through the frozen contracts, it does not ship until the contracts say it does.
 

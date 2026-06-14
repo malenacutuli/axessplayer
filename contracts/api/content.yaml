@@ -1,5 +1,5 @@
 openapi: 3.0.0
-info: { title: Axessplayer Content API, version: 0.2.0 }
+info: { title: Axessplayer Content API, version: 0.3.0 }
 paths:
   /series/{id}/graph:
     get:

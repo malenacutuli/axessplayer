@@ -3,7 +3,7 @@
 This directory is the single source of truth for every interface in the system. It is owned by the orchestrator (W0). No other agent edits it.
 
 ## Contents
-- `schema/schema.sql` : the database schema. Content graph, economy, adaptive state, trust.
+- `schema/0001_init.sql` : the database schema. Content graph, economy, adaptive state, trust.
 - `api/decision.yaml` : the sub-50ms decision endpoint.
 - `api/manifest.yaml` : seamless branching manifest.
 - `api/economy.yaml` : wallet, spend, grant, paywall.
