@@ -41,3 +41,5 @@ PF-12 RESOLVED: items 1 to 5 applied. No human decision was required.
 
 ## Freeze gate
 CLEARED 2026-06-14. PF-1..PF-12 resolved; PF-6, PF-8, PF-10 confirmed by the human curator; schema and all API specs at 0.3.0. Contracts are FROZEN and tagged `contracts-v0.3.0`. Any further change now goes through the contract-change protocol (orchestrator only), not this checklist.
+
+Note: `supabase/migrations/0002_spend_rpc.sql` (the spend_coins ledger function) is committed but still requires a security-review pass plus human sign-off before it is trusted in a real build, per 05_SECURITY_AND_COMPLIANCE.md. Freezing the contract does not vet that code.
