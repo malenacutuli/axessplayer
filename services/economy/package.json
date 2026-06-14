@@ -7,7 +7,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo lint ok",
     "test": "node --import tsx --test \"test/*.test.ts\"",
-    "test:concurrency": "node --import tsx --test \"test/spend_coins.concurrency.ts\""
+    "test:concurrency": "node --import tsx --test \"test/spend_coins.concurrency.ts\"",
+    "test:hardening": "node --import tsx --test \"test/spend_coins.hardening.ts\""
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.0",
