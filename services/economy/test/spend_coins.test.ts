@@ -97,11 +97,13 @@ test("bonus coins are spent before the main balance", async () => {
   assert.equal(balance, 8, "then 2 from main: 10 - 2 = 8");
 });
 
-test("draining to zero then spending again raises insufficient_funds", async () => {
+test("an unowned scope with insufficient balance raises insufficient_funds, no ledger row", async () => {
   const db = await freshDb();
-  await spend(db, FIX.userHigh, "beat_variant", FIX.premiumEnding, "drain-1"); // 10 -> 5
-  await spend(db, FIX.userHigh, "beat_variant", FIX.premiumEnding, "drain-2"); // 5 -> 0
-  assert.equal(await walletTotal(db, FIX.userHigh), 0);
+  // Own-once (0003) forbids draining a wallet by re-buying one scope, so set the balance below the
+  // price directly, then attempt to buy an unowned scope priced above it.
+  await db.exec(
+    "update coin_wallet set balance = 3, bonus_balance = 0 where user_id = 'aaaaaaaa-0000-0000-0000-000000000001'"
+  );
   await assert.rejects(
     spend(db, FIX.userHigh, "beat_variant", FIX.premiumEnding, "drain-3"),
     /insufficient_funds/
