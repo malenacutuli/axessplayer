@@ -1,5 +1,5 @@
 openapi: 3.0.0
-info: { title: Axessplayer Economy API, version: 0.3.0 }
+info: { title: Axessplayer Economy API, version: 0.3.1 }
 # Server-authoritative. The server derives price from the catalog. Idempotent on (user_id, client_txn_id).
 # M5: fully typed so codegen produces a working client.
 components:
@@ -34,6 +34,7 @@ paths:
         - { name: user_id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
         '200':
+          description: Current balance and entitlements for the user.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Wallet' }
@@ -85,6 +86,7 @@ paths:
                 client_txn_id: { type: string }
       responses:
         '200':
+          description: The new balance after the grant.
           content:
             application/json:
               schema:

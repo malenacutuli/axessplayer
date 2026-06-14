@@ -1,17 +1,22 @@
 openapi: 3.0.0
-info: { title: Axessplayer Content API, version: 0.3.0 }
+info: { title: Axessplayer Content API, version: 0.3.1 }
+# v0.3.1: correctness fix. Inline summaries are quoted so commas no longer break the YAML flow mapping.
+# Added the path parameter for /series/{id}/graph. No endpoint, field, or status-code change.
+# (Version follows the 0.3.0 baseline from PF-12, not the 0.2.x line.)
 paths:
   /series/{id}/graph:
     get:
-      summary: Resolve a series into a playable graph (episodes, beats, variants, edges).
+      summary: "Resolve a series into a playable graph (episodes, beats, variants, edges)."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses: { '200': { description: graph } }
   /series:
-    post: { summary: Create a series., responses: { '201': { description: created } } }
+    post: { summary: "Create a series.", responses: { '201': { description: created } } }
   /episodes:
-    post: { summary: Create an episode (episode_number, coin_cost, is_free)., responses: { '201': { description: created } } }
+    post: { summary: "Create an episode (episode_number, coin_cost, is_free).", responses: { '201': { description: created } } }
   /beats:
-    post: { summary: Create a beat under an episode., responses: { '201': { description: created } } }
+    post: { summary: "Create a beat under an episode.", responses: { '201': { description: created } } }
   /variants:
-    post: { summary: Attach a variant to a beat (language, accessibility, intensity, tier, is_premium, coin_cost)., responses: { '201': { description: created } } }
+    post: { summary: "Attach a variant to a beat (language, accessibility, intensity, tier, is_premium, coin_cost).", responses: { '201': { description: created } } }
   /edges:
-    post: { summary: Connect two beats with a condition., responses: { '201': { description: created } } }
+    post: { summary: "Connect two beats with a condition.", responses: { '201': { description: created } } }

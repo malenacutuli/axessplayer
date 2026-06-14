@@ -1,5 +1,5 @@
 openapi: 3.0.0
-info: { title: Axessplayer Decision API, version: 0.3.0 }
+info: { title: Axessplayer Decision API, version: 0.3.1 }
 # Latency budget: p99 < 50ms. On timeout or opt-out, return the director's cut.
 paths:
   /decide:
@@ -25,6 +25,7 @@ paths:
                     choice: { type: string }
       responses:
         '200':
+          description: The chosen next variant, top-k prefetch hints, the control flag, and policy version.
           content:
             application/json:
               schema:

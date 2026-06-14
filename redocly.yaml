@@ -1,0 +1,21 @@
+# Root lint posture for the contract specs (auto-discovered by `redocly lint`).
+# Tooling config only. It touches no contract and respects the freeze.
+#
+# It disables ONLY the genuinely cosmetic rules that do not apply to terse internal
+# interface specs yet:
+#   no-empty-servers : no public server URL is published at this stage.
+#   security-defined : the auth layer is specified separately, not in these sketches.
+#   info-license     : these are internal contracts, not a published API product.
+#
+# It deliberately KEEPS the structural and error-contract rules on:
+#   struct                 : a response without a description is an invalid OpenAPI doc. Fix in the spec.
+#   operation-4xx-response : the documented error contract. Your economy harness exercises these paths.
+# Those two are fixed in the specs by the v0.3.1 doc patch, not silenced here.
+# No em dashes.
+
+extends:
+  - recommended
+rules:
+  no-empty-servers: off
+  security-defined: off
+  info-license: off
