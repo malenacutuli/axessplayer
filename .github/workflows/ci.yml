@@ -15,3 +15,56 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+
+  # The two ledger suites need a real multi-connection Postgres (FOR UPDATE contention), so they run
+  # against a service container, not the in-process PGlite used by the fast `pnpm test`. Each suite gets
+  # its OWN postgres service so it applies migrations to a fresh database (the harnesses CREATE TABLE
+  # without IF NOT EXISTS, so they cannot share one database across steps). postgres:15 matches prod
+  # Supabase; local runs use embedded-postgres, but CI pins the production major.
+  ledger-concurrency:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: pw
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @axessplayer/economy test:concurrency
+        env:
+          DATABASE_URL: postgres://postgres:pw@localhost:5432/postgres
+
+  ledger-hardening:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: pw
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @axessplayer/economy test:hardening
+        env:
+          DATABASE_URL: postgres://postgres:pw@localhost:5432/postgres
