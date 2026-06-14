@@ -1,9 +1,16 @@
 openapi: 3.0.0
 info: { title: Axessplayer Decision API, version: 0.3.1 }
 # Latency budget: p99 < 50ms. On timeout or opt-out, return the director's cut.
+components:
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties: { error: { type: string } }
 paths:
   /decide:
     post:
+      operationId: decide
       summary: Choose the next beat variant for a viewer.
       requestBody:
         required: true
@@ -40,3 +47,6 @@ paths:
                     description: "Top-k likely next variants. The player fetches each one's manifest to buffer for the seamless switch."
                   is_control: { type: boolean }
                   policy_version: { type: string }
+        '422':
+          description: "End of graph: no successor variants for the current beat (the handler raises no_successors)."
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }

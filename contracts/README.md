@@ -15,4 +15,4 @@ This directory is the single source of truth for every interface in the system. 
 2. Once human-approved, they are frozen. Implementation agents build against the generated types and mocks.
 3. To change a contract, file a contract-change request to the orchestrator. The orchestrator edits the spec, regenerates clients and mocks, bumps the version, and notifies affected workstreams.
 
-Versioning: bump the `version` field on any change. Breaking changes require notifying every consuming workstream.
+Versioning: each spec is versioned independently by semver. Bump a spec's `version` field only when that spec changes; do not bump unchanged siblings just to match. The version of the contract SET as a whole is the git tag (for example `contracts-v0.3.1`). This supersedes PF-12's uniform-file-version expectation, which forced every spec to one number: that created noise (bumping unchanged files) on every single-spec patch. Breaking changes require notifying every consuming workstream.

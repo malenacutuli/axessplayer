@@ -1,22 +1,53 @@
 openapi: 3.0.0
 info: { title: Axessplayer Content API, version: 0.3.1 }
-# v0.3.1: correctness fix. Inline summaries are quoted so commas no longer break the YAML flow mapping.
-# Added the path parameter for /series/{id}/graph. No endpoint, field, or status-code change.
-# (Version follows the 0.3.0 baseline from PF-12, not the 0.2.x line.)
+components:
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties: { error: { type: string } }
 paths:
   /series/{id}/graph:
     get:
+      operationId: getSeriesGraph
       summary: "Resolve a series into a playable graph (episodes, beats, variants, edges)."
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
-      responses: { '200': { description: graph } }
+      responses:
+        '200': { description: graph }
+        '404': { description: "No series with that id.", content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /series:
-    post: { summary: "Create a series.", responses: { '201': { description: created } } }
+    post:
+      operationId: createSeries
+      summary: "Create a series."
+      responses:
+        '201': { description: created }
+        '400': { description: "Invalid series payload.", content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /episodes:
-    post: { summary: "Create an episode (episode_number, coin_cost, is_free).", responses: { '201': { description: created } } }
+    post:
+      operationId: createEpisode
+      summary: "Create an episode (episode_number, coin_cost, is_free)."
+      responses:
+        '201': { description: created }
+        '400': { description: "Invalid episode payload.", content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /beats:
-    post: { summary: "Create a beat under an episode.", responses: { '201': { description: created } } }
+    post:
+      operationId: createBeat
+      summary: "Create a beat under an episode."
+      responses:
+        '201': { description: created }
+        '400': { description: "Invalid beat payload.", content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /variants:
-    post: { summary: "Attach a variant to a beat (language, accessibility, intensity, tier, is_premium, coin_cost).", responses: { '201': { description: created } } }
+    post:
+      operationId: createVariant
+      summary: "Attach a variant to a beat (language, accessibility, intensity, tier, is_premium, coin_cost)."
+      responses:
+        '201': { description: created }
+        '400': { description: "Invalid variant payload.", content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /edges:
-    post: { summary: "Connect two beats with a condition.", responses: { '201': { description: created } } }
+    post:
+      operationId: createEdge
+      summary: "Connect two beats with a condition."
+      responses:
+        '201': { description: created }
+        '400': { description: "Invalid edge payload.", content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
