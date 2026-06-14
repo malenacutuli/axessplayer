@@ -1,0 +1,9 @@
+node_modules
+.next
+dist
+.turbo
+*.log
+.env
+.env.*
+.vercel
+contracts/types/generated

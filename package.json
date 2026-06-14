@@ -1,0 +1,19 @@
+{
+  "name": "axessplayer",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "gen": "bash scripts/generate.sh",
+    "contracts:validate": "bash scripts/validate-contracts.sh"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.5.0",
+    "openapi-typescript": "^7.0.0",
+    "@redocly/cli": "^1.0.0"
+  }
+}
