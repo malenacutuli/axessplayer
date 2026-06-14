@@ -1,5 +1,7 @@
 # Increment : 0003 spend_coins hardening (PROPOSAL, verified, awaiting sign-off)
 
+> **Status: MERGED to main in 731b689.** The "proposal / awaiting sign-off" language below is historical.
+
 Fixes five of the six security-review findings in one migration, with a regression suite that proves
 each fix against real Postgres and guards against regression. This is a change to frozen ledger code
 and the schema, so it is a proposal for the W2 owner to author or adopt under your sign-off, not a

@@ -1,5 +1,7 @@
 # Security review : spend_coins (0002_spend_rpc.sql)
 
+> **Status: RESOLVED.** F1-F5 fixed and merged in 731b689 (migration 0003); F1's contract half shipped in economy 0.3.2 (6a7343d). F6 decided: kept as-is (deliberate entitlement-record for free unlocks). This document is the point-in-time review; see those commits for the fixes.
+
 Adversarial read of the coin-spend RPC against the v0.3.0 schema and the RLS floor, with the two
 executable specs (the PGlite behavioral suite and the embedded-postgres concurrency suite) read
 alongside. This review recommends; it does not edit the frozen RPC. Every fix below is for the W2 owner

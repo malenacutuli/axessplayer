@@ -1,5 +1,7 @@
 # Increment : spend_coins concurrency suite (W2 definition-of-done)
 
+> **Status: MERGED to main in 731b689.** The "proposal / awaiting sign-off" language below is historical.
+
 The W2 DoD that PGlite structurally cannot prove: fire many concurrent spends at one wallet and assert
 no double-spend and no overspend. PGlite is single-connection, so `FOR UPDATE` is uncontended there.
 This suite runs against a real multi-connection Postgres. No em dashes.
