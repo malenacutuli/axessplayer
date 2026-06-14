@@ -1,0 +1,41 @@
+openapi: 3.0.0
+info: { title: Axessplayer Decision API, version: 0.2.0 }
+# Latency budget: p99 < 50ms. On timeout or opt-out, return the director's cut.
+paths:
+  /decide:
+    post:
+      summary: Choose the next beat variant for a viewer.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, current_beat_id, signals]
+              properties:
+                user_id: { type: string, format: uuid }
+                current_beat_id: { type: string, format: uuid }
+                signals:
+                  type: object
+                  properties:
+                    completion: { type: number }
+                    dwell_ms: { type: integer }
+                    replays: { type: integer }
+                    skipped: { type: boolean }
+                    choice: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [decision_id, next_variant_id, is_control, policy_version]
+                properties:
+                  decision_id: { type: string, format: uuid }       # PF-2: = decision_log.id; client echoes on signals
+                  next_variant_id: { type: string, format: uuid }
+                  prefetch_variant_ids:                              # PF-6: client prefetch hint, not a manifest input
+                    type: array
+                    items: { type: string }
+                    description: "Top-k likely next variants. The player fetches each one's manifest to buffer for the seamless switch."
+                  is_control: { type: boolean }
+                  policy_version: { type: string }

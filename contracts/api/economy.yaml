@@ -1,0 +1,30 @@
+openapi: 3.0.0
+info: { title: Axessplayer Economy API, version: 0.2.0 }
+# Server-authoritative. The server derives price from the catalog. Idempotent on (user_id, client_txn_id).
+paths:
+  /wallet/{user_id}:
+    get:
+      summary: Get balance and entitlements.
+      responses: { '200': { description: wallet } }
+  /spend:
+    post:
+      summary: Unlock an episode or a premium variant. Idempotent. Price is server-derived, not client-supplied.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, scope, scope_id, client_txn_id]
+              properties:
+                user_id: { type: string, format: uuid }
+                scope: { type: string, enum: [episode, beat_variant] }   # PF-4
+                scope_id: { type: string, format: uuid }                 # episodes.id or beat_variants.id
+                client_txn_id: { type: string }                          # PF-5: unique per user
+      responses:
+        '200': { description: "new balance + entitlement granted (scope, scope_id)" }
+        '402': { description: "insufficient funds; returns paywall options (buy, watch ad, subscribe)" }
+  /grant:
+    post:
+      summary: Grant coins (IAP, rewarded ad, checkin). Idempotent on (user_id, client_txn_id).
+      responses: { '200': { description: new balance } }
