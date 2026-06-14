@@ -1,0 +1,17 @@
+openapi: 3.0.0
+info: { title: Axessplayer Content API, version: 0.2.0 }
+paths:
+  /series/{id}/graph:
+    get:
+      summary: Resolve a series into a playable graph (episodes, beats, variants, edges).
+      responses: { '200': { description: graph } }
+  /series:
+    post: { summary: Create a series., responses: { '201': { description: created } } }
+  /episodes:
+    post: { summary: Create an episode (episode_number, coin_cost, is_free)., responses: { '201': { description: created } } }
+  /beats:
+    post: { summary: Create a beat under an episode., responses: { '201': { description: created } } }
+  /variants:
+    post: { summary: Attach a variant to a beat (language, accessibility, intensity, tier, is_premium, coin_cost)., responses: { '201': { description: created } } }
+  /edges:
+    post: { summary: Connect two beats with a condition., responses: { '201': { description: created } } }

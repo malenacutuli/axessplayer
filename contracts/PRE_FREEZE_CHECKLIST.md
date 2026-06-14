@@ -1,25 +1,26 @@
 # contracts/PRE_FREEZE_CHECKLIST.md
 
-**Owner: W0. Status after freeze pass v0.2: PF-1..PF-5 RESOLVED in the amended files. PF-6 OPEN, needs W5 human sign-off. Do not freeze until PF-6 is confirmed and a human approves.** No em dashes.
+**Owner: W0. After freeze pass v0.3: PF-1..PF-5, PF-7, PF-9, PF-11 and minors RESOLVED. OPEN and needing human sign-off: PF-6 (W5), PF-8 (M2 schema decision), PF-10 (M4 manifest decision). Do not freeze until those three are confirmed and a human approves. Target version 0.3.0.** No em dashes.
 
-## Resolved in freeze pass v0.2 (verify the diffs, then check off)
-- **PF-1 viewer_state PK.** Now `(user_id, series_id)`, `series_id NOT NULL`. KV key composite. RESOLVED in `0001_init.sql`.
-- **PF-2 decision id.** `decision.yaml` returns `decision_id`; `events.md` signal events carry `decision_id`. RESOLVED.
-- **PF-3 RLS.** `0001_init.sql` enables RLS on every table (deny-all). Per-table policies tracked per service in `05_SECURITY_AND_COMPLIANCE.md`. RESOLVED at the floor; policies remain a per-service gate.
-- **PF-4 entitlement granularity.** `episodes` table added; `beats.episode_id` added; `entitlements(user_id, scope, scope_id)`; `is_premium` + `coin_cost` on variants and `coin_cost` on episodes. `economy.yaml` `/spend` takes `scope`+`scope_id`. RESOLVED.
-- **PF-5 idempotency scope.** `coin_transactions UNIQUE (user_id, client_txn_id)`. RESOLVED.
+## Resolved in v0.2 (carried)
+- PF-1 viewer_state composite PK. PF-2 decision_id on signals. PF-3 RLS floor. PF-4 episodes + scoped entitlements. PF-5 per-user idempotency.
 
-## Open
-- **PF-6 manifest and prefetch contract (W4 and W5).** [Needs human sign-off]
-  Decision (recommended, applied to the specs): client-side branching. `/manifest` is a pure function of one `variant_id` and returns one seamless playlist. The decision's `prefetch_variant_ids` is a client prefetch hint; the player fetches each candidate's manifest to buffer it and switches client-side (W5 dual-decoder or pre-stitched). The `prefetch` query param is removed from `manifest.yaml`.
-  Why this default: it keeps W4 simple and puts the branching IP in W5 where human design owns it. Confirm with the W5 owner before freezing. If W5 prefers server-side multi-variant stitching, `manifest.yaml` changes and this is a freeze blocker until resolved.
+## Resolved in v0.3 (audit fixes, verify diffs)
+- **PF-7 (was M1).** NOT NULL on `beat_variants.beat_id`, `content_credentials.beat_variant_id`, `consent_ledger.beat_variant_id`. No orphans. RESOLVED.
+- **PF-9 (was M3).** `coin_transactions.user_id` NOT NULL, so PF-5 idempotency holds on the ledger. RESOLVED.
+- **PF-11 (was M5).** `economy.yaml` fully typed: `/wallet/{user_id}` path param + Wallet schema, `/spend` 200 and 402 schemas, `/grant` requestBody. Codegen now yields a working economy client (W0 DoD). RESOLVED.
+- **m1.** `coins_spent` carries `decision_id` (nullable). RESOLVED.
+- **m2.** `entitlement_granted` carries `client_txn_id`. RESOLVED.
+- **m3.** events.md separates beat-level signal events from session events; PF-2 prose scoped to beat-level. RESOLVED.
+- **n1.** `prefetch_variant_ids` items are uuid-formatted. RESOLVED.
 
-## Hardening applied alongside the fixes
-- **Server-authoritative price.** `/spend` no longer accepts a client `cost`. The server derives price from `episodes.coin_cost` or `beat_variants.coin_cost`. `spend_coins` RPC signature updated.
+## Open, needs human sign-off
+- **PF-6 (W5).** Manifest and prefetch model: client-side branching, `/manifest` a pure function of one variant_id; `prefetch_variant_ids` is a client hint. Confirm with the W5 owner.
+- **PF-8 (was M2).** `beats.series_id` integrity. Applied: composite FK `(episode_id, series_id) REFERENCES episodes(id, series_id)`, plus `episodes UNIQUE (id, series_id)`, inline series ref removed. Keeps single-table series reads for RLS and the decision hot path, and makes divergence impossible. Alternative: drop the column and resolve via episode_id. Confirm the choice.
+- **PF-10 (was M4).** Manifest path key. Applied: dropped `session_id`; path is `/manifest/{variant_id}.m3u8`. Alternative: define a real session concept and reflect it in schema and events. Confirm drop vs define.
 
-## Carried-over (confirm, not blocking)
-- Human sign-off owners: ledger (W2), seamless switch (W5), decision policy (W3), trust legal posture (W9).
-- Sequencing: the walking skeleton is the week-6-to-8 milestone, not deferred behind the clone.
+## W0 brief addition (your flag 2)
+W0 gains an explicit task to generate event types from `contracts/events/events.md`. The markdown event schema was not wired into the OpenAPI codegen tasks; event types must still be generated so analytics-sdk, decision, and experiment share a typed event contract.
 
 ## Freeze gate
-Freeze only when: the five resolved diffs are applied, PF-6 is confirmed with the W5 owner, carried-over items are confirmed, and a human approves. Contract version is 0.2.0 across schema and all API specs.
+Freeze only when PF-6, PF-8, PF-10 are confirmed with their owners, the resolved diffs are applied, and a human approves. Bump schema and all API specs to 0.3.0.

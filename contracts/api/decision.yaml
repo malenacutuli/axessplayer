@@ -1,5 +1,5 @@
 openapi: 3.0.0
-info: { title: Axessplayer Decision API, version: 0.2.0 }
+info: { title: Axessplayer Decision API, version: 0.3.0 }
 # Latency budget: p99 < 50ms. On timeout or opt-out, return the director's cut.
 paths:
   /decide:
@@ -31,11 +31,11 @@ paths:
                 type: object
                 required: [decision_id, next_variant_id, is_control, policy_version]
                 properties:
-                  decision_id: { type: string, format: uuid }       # PF-2: = decision_log.id; client echoes on signals
+                  decision_id: { type: string, format: uuid }
                   next_variant_id: { type: string, format: uuid }
-                  prefetch_variant_ids:                              # PF-6: client prefetch hint, not a manifest input
+                  prefetch_variant_ids:
                     type: array
-                    items: { type: string }
+                    items: { type: string, format: uuid }     # n1: uuid format like every sibling id
                     description: "Top-k likely next variants. The player fetches each one's manifest to buffer for the seamless switch."
                   is_control: { type: boolean }
                   policy_version: { type: string }

@@ -1,14 +1,45 @@
 openapi: 3.0.0
-info: { title: Axessplayer Economy API, version: 0.2.0 }
+info: { title: Axessplayer Economy API, version: 0.3.0 }
 # Server-authoritative. The server derives price from the catalog. Idempotent on (user_id, client_txn_id).
+# M5: fully typed so codegen produces a working client.
+components:
+  schemas:
+    Entitlement:
+      type: object
+      required: [scope, scope_id]
+      properties:
+        scope: { type: string, enum: [episode, beat_variant] }
+        scope_id: { type: string, format: uuid }
+    Wallet:
+      type: object
+      required: [user_id, balance, bonus_balance, entitlements]
+      properties:
+        user_id: { type: string, format: uuid }
+        balance: { type: integer }
+        bonus_balance: { type: integer }
+        entitlements: { type: array, items: { $ref: '#/components/schemas/Entitlement' } }
+    PaywallOptions:
+      type: object
+      required: [error, options]
+      properties:
+        error: { type: string, example: insufficient_funds }
+        options:
+          type: array
+          items: { type: string, enum: [buy, watch_ad, subscribe] }
 paths:
   /wallet/{user_id}:
     get:
       summary: Get balance and entitlements.
-      responses: { '200': { description: wallet } }
+      parameters:
+        - { name: user_id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Wallet' }
   /spend:
     post:
-      summary: Unlock an episode or a premium variant. Idempotent. Price is server-derived, not client-supplied.
+      summary: Unlock an episode or a premium variant. Idempotent. Price is server-derived.
       requestBody:
         required: true
         content:
@@ -18,13 +49,46 @@ paths:
               required: [user_id, scope, scope_id, client_txn_id]
               properties:
                 user_id: { type: string, format: uuid }
-                scope: { type: string, enum: [episode, beat_variant] }   # PF-4
-                scope_id: { type: string, format: uuid }                 # episodes.id or beat_variants.id
-                client_txn_id: { type: string }                          # PF-5: unique per user
+                scope: { type: string, enum: [episode, beat_variant] }
+                scope_id: { type: string, format: uuid }
+                client_txn_id: { type: string }
       responses:
-        '200': { description: "new balance + entitlement granted (scope, scope_id)" }
-        '402': { description: "insufficient funds; returns paywall options (buy, watch ad, subscribe)" }
+        '200':
+          description: new balance and entitlement granted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [balance, entitlement]
+                properties:
+                  balance: { type: integer }
+                  entitlement: { $ref: '#/components/schemas/Entitlement' }
+        '402':
+          description: insufficient funds
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaywallOptions' }
   /grant:
     post:
       summary: Grant coins (IAP, rewarded ad, checkin). Idempotent on (user_id, client_txn_id).
-      responses: { '200': { description: new balance } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, amount, type, client_txn_id]
+              properties:
+                user_id: { type: string, format: uuid }
+                amount: { type: integer }
+                type: { type: string, enum: [iap, rewarded_ad, offer_wall, checkin, refund] }
+                client_txn_id: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [balance]
+                properties:
+                  balance: { type: integer }

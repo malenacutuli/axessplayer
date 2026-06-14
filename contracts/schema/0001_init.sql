@@ -1,5 +1,7 @@
--- Axessplayer schema. Contract version 0.2.0. Owned by W0. Do not edit outside W0.
--- PostgreSQL (Supabase). RLS enabled at the bottom of this file (deny-all by default).
+-- Axessplayer schema. Contract version 0.3.0. Owned by W0. Do not edit outside W0.
+-- PostgreSQL (Supabase). RLS enabled at the bottom (deny-all by default).
+-- v0.3 audit fixes: M1 (NOT NULL on variant/provenance/consent links), M2 (composite FK series integrity),
+-- M3 (NOT NULL coin_transactions.user_id).
 
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -18,7 +20,6 @@ CREATE TABLE series (
   cover_url TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- PF-4: episodes are the paywall unit (standard unlock). Beats are the adaptation unit within an episode.
 CREATE TABLE episodes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   series_id UUID NOT NULL REFERENCES series(id),
@@ -26,35 +27,37 @@ CREATE TABLE episodes (
   title TEXT,
   is_free BOOLEAN DEFAULT FALSE,
   coin_cost INTEGER NOT NULL DEFAULT 0,         -- server-authoritative price for a standard unlock
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (id, series_id)                        -- M2: target for the beats composite FK
 );
 CREATE INDEX idx_episodes_series ON episodes(series_id, episode_number);
 
 CREATE TABLE beats (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  series_id UUID NOT NULL REFERENCES series(id),   -- denormalized for fast series resolution
-  episode_id UUID NOT NULL REFERENCES episodes(id),
+  series_id UUID NOT NULL,                       -- kept for single-table series reads; integrity via composite FK
+  episode_id UUID NOT NULL,
   beat_index INTEGER NOT NULL,
   role TEXT NOT NULL,                            -- spine|hero|variant|connective|ending|cold_open
   canon_facts JSONB DEFAULT '{}',
   is_branch_point BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  FOREIGN KEY (episode_id, series_id) REFERENCES episodes(id, series_id)  -- M2: series_id must equal the episode's series
 );
 CREATE INDEX idx_beats_episode ON beats(episode_id, beat_index);
 
 CREATE TABLE beat_variants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  beat_id UUID REFERENCES beats(id),
+  beat_id UUID NOT NULL REFERENCES beats(id),   -- M1: no orphan variants
   language TEXT NOT NULL DEFAULT 'en',
   accessibility JSONB DEFAULT '{}',             -- {captions,audio_description,sign,contrast,pace}
   intensity SMALLINT DEFAULT 3,                 -- 1..5
   pov TEXT,
   tier TEXT NOT NULL,                           -- A_filmed|B_likeness|C_ai
-  is_premium BOOLEAN DEFAULT FALSE,             -- PF-4: premium variant requires a spend
+  is_premium BOOLEAN DEFAULT FALSE,
   coin_cost INTEGER NOT NULL DEFAULT 0,         -- server-authoritative price for a premium variant
   playback_url TEXT NOT NULL,
   duration_ms INTEGER,
-  provenance_id UUID,                           -- -> content_credentials
+  provenance_id UUID,                           -- -> content_credentials (redundant link; enforced from that side)
   qa_status TEXT DEFAULT 'pending',             -- pending|passed|rejected
   placement_slots JSONB DEFAULT '[]'
 );
@@ -68,11 +71,10 @@ CREATE TABLE beat_edges (
 );
 
 -- ---------- ADAPTIVE STATE ----------
--- PF-1: per (user, series), not per user.
 CREATE TABLE viewer_state (
   user_id UUID REFERENCES users(id),
   series_id UUID NOT NULL REFERENCES series(id),
-  preference_vector JSONB DEFAULT '{}',         -- explainable features + embedding ref
+  preference_vector JSONB DEFAULT '{}',
   cohort_id TEXT,
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (user_id, series_id)              -- KV hot-copy key is the same composite
@@ -100,16 +102,15 @@ CREATE TABLE coin_wallet (
 
 CREATE TABLE coin_transactions (                -- immutable audit log
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id),
+  user_id UUID NOT NULL REFERENCES users(id),   -- M3: NOT NULL so PF-5 idempotency holds
   amount INTEGER NOT NULL,                       -- + grant, - spend
   type TEXT NOT NULL,                            -- iap|rewarded_ad|offer_wall|checkin|spend|refund
   client_txn_id TEXT NOT NULL,                   -- idempotency key
-  reference_id TEXT,                            -- scope_id of the unlock, or receipt id
+  reference_id TEXT,                            -- scope_id of the unlock, or receipt id (polymorphic by design)
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (user_id, client_txn_id)               -- PF-5: idempotency scoped per user
 );
 
--- PF-4: generalized entitlement target.
 CREATE TABLE entitlements (
   user_id UUID REFERENCES users(id),
   scope TEXT NOT NULL,                           -- 'episode' | 'beat_variant'
@@ -118,18 +119,16 @@ CREATE TABLE entitlements (
   PRIMARY KEY (user_id, scope, scope_id)
 );
 
--- Spend RPC contract (W2 implements). Idempotent, row-locked, atomic, server-priced:
+-- Spend RPC contract (W2): idempotent, row-locked, atomic, server-priced.
 --   spend_coins(p_user UUID, p_scope TEXT, p_scope_id UUID, p_client_txn_id TEXT)
---   1. derive p_cost from catalog: episodes.coin_cost if scope='episode', beat_variants.coin_cost if 'beat_variant'.
---   2. no-op and return current balance if (p_user, p_client_txn_id) already applied.
---   3. SELECT ... FOR UPDATE on coin_wallet; raise insufficient_funds if balance < p_cost.
---   4. INSERT coin_transactions; UPDATE coin_wallet; INSERT entitlements(user, scope, scope_id); one transaction.
---   Never accept a client-supplied price.
+--   derive cost from episodes.coin_cost or beat_variants.coin_cost; no-op if (p_user, p_client_txn_id) applied;
+--   SELECT ... FOR UPDATE on coin_wallet; raise insufficient_funds if balance < cost;
+--   INSERT coin_transactions; UPDATE coin_wallet; INSERT entitlements; one transaction. Never trust a client price.
 
 -- ---------- TRUST ----------
 CREATE TABLE content_credentials (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  beat_variant_id UUID REFERENCES beat_variants(id),
+  beat_variant_id UUID NOT NULL REFERENCES beat_variants(id),   -- M1: no orphan provenance
   manifest JSONB NOT NULL,                       -- signed C2PA manifest
   tier TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -138,14 +137,14 @@ CREATE TABLE content_credentials (
 CREATE TABLE consent_ledger (                   -- signed, append-only (NOT a smart contract)
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   likeness_subject TEXT NOT NULL,
-  beat_variant_id UUID REFERENCES beat_variants(id),
-  consent_ref TEXT NOT NULL,                     -- signed consent document hash
+  beat_variant_id UUID NOT NULL REFERENCES beat_variants(id),   -- M1: no orphan consent rows
+  consent_ref TEXT NOT NULL,
   royalty_terms JSONB,
-  prev_hash TEXT, row_hash TEXT NOT NULL,        -- hash chain for tamper-evidence
+  prev_hash TEXT, row_hash TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ---------- PF-3: RLS floor. Deny-all by default; per-service policies land separately. ----------
+-- ---------- RLS floor (deny-all by default; per-service policies land separately) ----------
 ALTER TABLE users               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE series              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE episodes            ENABLE ROW LEVEL SECURITY;
