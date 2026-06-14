@@ -114,9 +114,28 @@ test("F3: 40-way same-txn race is a deterministic no-op, exactly one charge", as
 test("F3: replay of an applied txn at zero balance returns the total, not insufficient_funds", async () => {
   await resetWallet(100);
   await spend("beat_variant", PREMIUM, "keep"); // 100 -> 95
-  for (let i = 0; i < 19; i++) await spend("beat_variant", PREMIUM, "drain" + i); // to 0
+  // Drain by other means (own-once forbids re-buying the same scope), then replay the applied txn.
+  await pool.query("update public.coin_wallet set balance = 0, bonus_balance = 0 where user_id = $1", [U]);
   const replay = await spend("beat_variant", PREMIUM, "keep");
   assert.equal(replay, 0, "idempotent replay returns current total (0), not an insufficient_funds error");
+});
+
+test("F4: owning a scope makes a new client_txn_id a no-op (no second charge)", async () => {
+  await resetWallet(10);
+  assert.equal(await spend("beat_variant", PREMIUM, "buy-1"), 5, "first buy charges 10 -> 5");
+  // A genuinely new purchase intent for content the user already owns must not charge again.
+  assert.equal(await spend("beat_variant", PREMIUM, "buy-2-different-txn"), 5, "second buy is a no-op");
+  assert.equal(await total(), 5, "still 5, not charged twice");
+  assert.equal(
+    await scalar("select count(*) n from coin_transactions where user_id=$1 and type='spend'", [U]),
+    1,
+    "exactly one spend ledger row for the owned scope"
+  );
+  assert.equal(
+    await scalar("select count(*) n from entitlements where user_id=$1 and scope_id=$2", [U, PREMIUM]),
+    1,
+    "exactly one entitlement"
+  );
 });
 
 test("behavior preserved: deduct once, idempotent replay, insufficient_funds, bonus-first", async () => {

@@ -5,8 +5,9 @@
 --   F3 idempotency race  : check idempotency UNDER the wallet lock, with an INSERT catch as backstop,
 --                          so a concurrent duplicate is a deterministic no-op, never a 23505 error.
 --   F5 negative price    : CHECK (coin_cost >= 0) on the catalog plus an in-function guard.
--- NOT included: F4 (ownership idempotency) needs a product rule first (is re-purchase of owned content
---   allowed?), so it is intentionally left out rather than guessed. No em dashes.
+--   F4 ownership idempo.  : own-once. If the user already holds the entitlement, the spend no-ops.
+--                          Product rule chosen: durable content is bought once, never re-charged.
+-- Only F6 (zero-cost spends write ledger rows) is left as a conscious design call. No em dashes.
 
 -- F5: a catalog price can never be negative at the source.
 ALTER TABLE episodes      ADD CONSTRAINT episodes_coin_cost_nonneg      CHECK (coin_cost >= 0);
@@ -44,6 +45,17 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM public.coin_transactions
     WHERE user_id = p_user AND client_txn_id = p_client_txn_id
+  ) THEN
+    RETURN COALESCE(v_balance, 0) + COALESCE(v_bonus, 0);
+  END IF;
+
+  -- 2b. Ownership idempotency (F4, own-once). Durable content is bought once. If the user already holds
+  --     this entitlement, the spend is a no-op: a new client_txn_id must never re-charge owned content.
+  --     Checked under the wallet lock so concurrent distinct-txn buys of the same scope settle to one
+  --     charge. (This function only ever grants durable entitlements, never consumables.)
+  IF EXISTS (
+    SELECT 1 FROM public.entitlements
+    WHERE user_id = p_user AND scope = p_scope AND scope_id = p_scope_id
   ) THEN
     RETURN COALESCE(v_balance, 0) + COALESCE(v_bonus, 0);
   END IF;

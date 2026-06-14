@@ -70,15 +70,26 @@ test("no double-spend under N concurrent calls with the SAME client_txn_id", asy
   );
 });
 
-test("no overspend below zero under N concurrent distinct client_txn_ids", async () => {
+test("no overspend below zero under N concurrent distinct spends", async () => {
   const CAP = 100;
   const COST = 5;
   const N = 50; // more spend attempts than the wallet can fund
   await resetWallet(CAP); // exactly CAP/COST = 20 can succeed
 
+  // Own-once means we cannot drain by re-buying one scope, so spend across N DISTINCT priced scopes.
+  const ENDING_BEAT = "bbbbbbbb-0000-0000-0000-000000000004";
+  const scopeIds = [...Array(N)].map((_, i) => `dddddddd-0000-0000-0000-${String(i + 1).padStart(12, "0")}`);
+  await H.pool.query(
+    `insert into beat_variants (id, beat_id, language, intensity, tier, is_premium, coin_cost, playback_url)
+     select u, $2, 'en', 3, 'A_filmed', true, $3, 'https://cdn.example/over/' || u
+     from unnest($1::uuid[]) u
+     on conflict (id) do nothing`,
+    [scopeIds, ENDING_BEAT, COST]
+  );
+
   const results = await Promise.allSettled(
-    [...Array(N)].map((_, i) =>
-      H.pool.query("select spend_coins($1, $2, $3, $4)", [USER, "beat_variant", PREMIUM, "txn-" + i])
+    scopeIds.map((sid, i) =>
+      H.pool.query("select spend_coins($1, $2, $3, $4)", [USER, "beat_variant", sid, "txn-" + i])
     )
   );
   const fulfilled = results.filter((r) => r.status === "fulfilled").length;
