@@ -110,3 +110,31 @@ test("no overspend below zero under N concurrent distinct spends", async () => {
   assert.ok(bal >= 0, "balance never goes negative");
   console.log(`  [obs] overspend race: ${fulfilled} succeeded, ${insufficient} insufficient_funds`);
 });
+
+// The credit side: same FOR UPDATE + UNIQUE pattern as spend, now proven directly under load.
+function grant(amount: number, type: string, txn: string) {
+  return H.pool.query("select grant_coins($1, $2, $3, $4)", [USER, amount, type, txn]);
+}
+
+test("no double-grant under N concurrent calls with the SAME client_txn_id", async () => {
+  await resetWallet(10);
+  const N = 40;
+  await Promise.allSettled([...Array(N)].map(() => grant(20, "iap", "same-grant")));
+  const credited = await scalar("select (balance + bonus_balance)::int as n from coin_wallet where user_id = $1", [USER]);
+  const rows = await scalar("select count(*)::int as n from coin_transactions where user_id = $1 and client_txn_id = 'same-grant'", [USER]);
+  // SAFETY: credited exactly once despite the N-way race, exactly one ledger row.
+  assert.equal(credited, 30, `credited once: 10 + 20, despite ${N} concurrent duplicates`);
+  assert.equal(rows, 1, "exactly one ledger row");
+});
+
+test("N concurrent distinct-txn grants all apply with no lost update", async () => {
+  await resetWallet(10);
+  const N = 30;
+  const AMT = 5;
+  await Promise.all([...Array(N)].map((_, i) => grant(AMT, "iap", "g-" + i)));
+  const bal = await scalar("select balance::int as n from coin_wallet where user_id = $1", [USER]);
+  const rows = await scalar("select count(*)::int as n from coin_transactions where user_id = $1 and type = 'iap'", [USER]);
+  // SAFETY: every increment lands. FOR UPDATE serializes the read-modify-write so none is lost.
+  assert.equal(bal, 10 + N * AMT, `every grant applied: 10 + ${N} * ${AMT}, no lost update`);
+  assert.equal(rows, N, "one ledger row per distinct grant");
+});
