@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { freshDb, FIX } from "./harness.js";
-import { handleGetWallet, handleSpend, type EconomyDB, type Scope } from "../src/economy.js";
+import { handleGetWallet, handleSpend, handleGrant, type EconomyDB, type Scope } from "../src/economy.js";
 
 // PGlite-backed EconomyDB. The production adapter (pgEconomyDb.ts) is the same shape over node-postgres.
 function pgliteEconomyDb(db: Awaited<ReturnType<typeof freshDb>>): EconomyDB {
@@ -32,6 +32,15 @@ function pgliteEconomyDb(db: Awaited<ReturnType<typeof freshDb>>): EconomyDB {
         userId,
         scope,
         scopeId,
+        clientTxnId,
+      ]);
+      return Number(r.rows[0].total);
+    },
+    async grant(userId, amount, type, clientTxnId) {
+      const r = await db.query<{ total: number }>("select grant_coins($1,$2,$3,$4) as total", [
+        userId,
+        amount,
+        type,
         clientTxnId,
       ]);
       return Number(r.rows[0].total);
@@ -121,4 +130,46 @@ test("POST /spend idempotent replay and own-once both return 200, charged once",
   assert.equal(c.status, 200);
   assert.equal((await handleGetWallet(FIX.userHigh, db)).body && (await handleGetWallet(FIX.userHigh, db)).status, 200);
   assert.equal(((await handleGetWallet(FIX.userHigh, db)).body as { balance: number }).balance, 5, "charged exactly once");
+});
+
+test("POST /grant (iap) credits the main balance and returns the new total", async () => {
+  const db = pgliteEconomyDb(await freshDb());
+  const res = await handleGrant({ user_id: FIX.userHigh, amount: 20, type: "iap", client_txn_id: "g-iap" }, db);
+  assert.equal(res.status, 200);
+  assert.equal((res.body as { balance: number }).balance, 30, "10 + 20");
+  const w = (await handleGetWallet(FIX.userHigh, db)).body as { balance: number; bonus_balance: number };
+  assert.equal(w.balance, 30, "iap routes to balance");
+  assert.equal(w.bonus_balance, 0);
+});
+
+test("POST /grant (rewarded_ad) credits bonus, which spend_coins then spends first", async () => {
+  const db = pgliteEconomyDb(await freshDb());
+  await handleGrant({ user_id: FIX.userHigh, amount: 6, type: "rewarded_ad", client_txn_id: "g-ad" }, db);
+  const w = (await handleGetWallet(FIX.userHigh, db)).body as { balance: number; bonus_balance: number };
+  assert.equal(w.bonus_balance, 6, "rewarded_ad routes to bonus");
+  assert.equal(w.balance, 10);
+  // spend 5: bonus-first leaves bonus 1, balance 10
+  await handleSpend(FIX.userHigh, SPEND(FIX.premiumEnding, "after-ad"), db);
+  const w2 = (await handleGetWallet(FIX.userHigh, db)).body as { balance: number; bonus_balance: number };
+  assert.equal(w2.bonus_balance, 1, "bonus spent first");
+  assert.equal(w2.balance, 10, "main untouched");
+});
+
+test("POST /grant is idempotent on client_txn_id", async () => {
+  const db = pgliteEconomyDb(await freshDb());
+  const a = await handleGrant({ user_id: FIX.userHigh, amount: 20, type: "iap", client_txn_id: "g-dup" }, db);
+  const b = await handleGrant({ user_id: FIX.userHigh, amount: 20, type: "iap", client_txn_id: "g-dup" }, db);
+  assert.equal((a.body as { balance: number }).balance, 30);
+  assert.equal((b.body as { balance: number }).balance, 30, "replay is a no-op, not 50");
+  assert.equal(((await handleGetWallet(FIX.userHigh, db)).body as { balance: number }).balance, 30);
+});
+
+test("POST /grant validates type and amount before the DB", async () => {
+  const db = pgliteEconomyDb(await freshDb());
+  const badType = await handleGrant({ user_id: FIX.userHigh, amount: 5, type: "free_money" as never, client_txn_id: "g1" }, db);
+  assert.equal(badType.status, 400);
+  const badAmt = await handleGrant({ user_id: FIX.userHigh, amount: 0, type: "iap", client_txn_id: "g2" }, db);
+  assert.equal(badAmt.status, 400);
+  const noWallet = await handleGrant({ user_id: "aaaaaaaa-0000-0000-0000-0000000000ee", amount: 5, type: "iap", client_txn_id: "g3" }, db);
+  assert.equal(noWallet.status, 404);
 });

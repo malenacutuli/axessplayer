@@ -22,6 +22,16 @@ export interface SpendBody {
   scope_id: string;
   client_txn_id: string;
 }
+export type GrantType = "iap" | "rewarded_ad" | "offer_wall" | "checkin" | "refund";
+export interface GrantBody {
+  user_id: string;
+  amount: number;
+  type: GrantType;
+  client_txn_id: string;
+}
+export interface GrantOk {
+  balance: number;
+}
 export interface PaywallOptions {
   error: string;
   options: Array<"buy" | "watch_ad" | "subscribe">;
@@ -45,7 +55,10 @@ export interface HandlerResult<T> {
 export interface EconomyDB {
   getWallet(userId: string): Promise<Wallet | null>;
   spend(userId: string, scope: Scope, scopeId: string, clientTxnId: string): Promise<number>;
+  grant(userId: string, amount: number, type: GrantType, clientTxnId: string): Promise<number>;
 }
+
+const GRANT_TYPES: readonly GrantType[] = ["iap", "rewarded_ad", "offer_wall", "checkin", "refund"];
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -92,5 +105,38 @@ export async function handleSpend(
     if (/invalid_scope/.test(m)) return { status: 400, body: { error: "invalid_scope" } };
     if (/invalid_price/.test(m)) return { status: 409, body: { error: "invalid_price" } };
     throw e; // unknown failure: let it surface as a 500 at the adapter
+  }
+}
+
+// POST /grant : server-to-server only (economy.yaml 0.3.2 serviceAuth). This is the ONE economy endpoint
+// where user_id comes from the body, because the caller is a trusted server role that already verified
+// the receipt/callback and supplies the verified subject. The HTTP adapter must enforce the service role
+// before this runs; the grant_coins RPC is also EXECUTE-granted to service_role only (migration 0004).
+export async function handleGrant(
+  body: GrantBody,
+  db: EconomyDB
+): Promise<HandlerResult<GrantOk | ApiError>> {
+  if (body == null || typeof body.user_id !== "string" || !UUID_RE.test(body.user_id)) {
+    return { status: 400, body: { error: "invalid_user_id" } };
+  }
+  if (!GRANT_TYPES.includes(body.type)) {
+    return { status: 400, body: { error: "invalid_grant_type" } };
+  }
+  if (!Number.isInteger(body.amount) || body.amount <= 0) {
+    return { status: 400, body: { error: "invalid_amount" } };
+  }
+  if (typeof body.client_txn_id !== "string" || body.client_txn_id.length === 0) {
+    return { status: 400, body: { error: "missing_client_txn_id" } };
+  }
+
+  try {
+    const balance = await db.grant(body.user_id, body.amount, body.type, body.client_txn_id);
+    return { status: 200, body: { balance } };
+  } catch (e) {
+    const m = e instanceof Error ? e.message : String(e);
+    if (/no_wallet/.test(m)) return { status: 404, body: { error: "no_wallet" } };
+    if (/invalid_grant_type/.test(m)) return { status: 400, body: { error: "invalid_grant_type" } };
+    if (/invalid_amount/.test(m)) return { status: 400, body: { error: "invalid_amount" } };
+    throw e;
   }
 }

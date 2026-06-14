@@ -3,7 +3,7 @@
 // spend_coins). The `userId` it receives is always the session subject the handler was given. No em dashes.
 
 import type pg from "pg";
-import type { EconomyDB, Scope, Wallet } from "./economy.js";
+import type { EconomyDB, GrantType, Scope, Wallet } from "./economy.js";
 
 export class PgEconomyDb implements EconomyDB {
   constructor(private readonly db: Pick<pg.Pool, "query">) {}
@@ -31,6 +31,16 @@ export class PgEconomyDb implements EconomyDB {
       userId,
       scope,
       scopeId,
+      clientTxnId,
+    ]);
+    return Number(r.rows[0].total);
+  }
+
+  async grant(userId: string, amount: number, type: GrantType, clientTxnId: string): Promise<number> {
+    const r = await this.db.query("select grant_coins($1, $2, $3, $4) as total", [
+      userId,
+      amount,
+      type,
       clientTxnId,
     ]);
     return Number(r.rows[0].total);
