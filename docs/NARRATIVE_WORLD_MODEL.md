@@ -32,8 +32,12 @@ publishable, compounding.
 - **BSC MareNostrum 5 (ACES, H100)**: competitive, time-boxed allocations (EuroHPC/RES/BSC). Excellent for
   distillation, fine-tuning, reward-model training, ablations, periodic retraining. NOT a 24/7 inference
   plane, NOT unbounded pretraining.
-- **The dedicated Swiss GPU**: development + low-latency inference box (prototype, closed-beta serving, evals,
-  adapters). Production serving bursts to cloud GPUs.
+- **The Swiss GPU = Exoscale** (confirmed 2026-06-15): development + low-latency inference plane (prototype,
+  closed-beta serving, evals, adapters). Exoscale is a Swiss/EU IaaS, so this is a DATA-RESIDENCY win - the
+  consent-gated, biometric, GDPR-Article-9 render pipeline stays in CH/EU, aligned with the consent + GDPR
+  posture. And because Exoscale is itself a cloud, it can serve BOTH the closed beta AND the production burst
+  (scale up GPU instances), so we may not need a separate hyperscaler for serving. OPEN: the specific
+  Exoscale GPU model + VRAM + quota, which decides real-time-capable serving vs cached-only (see Section 5).
 - **In reach** [Likely]: take a strong open video base (Wan 2.2 lineage), distill to a few-step real-time
   model, add two conditioning adapters (identity, narrative-state), train the reward model on our logs,
   research-grade eval. Fine-tuning + distillation scale (hundreds to low-thousands of GPU-hours/cycle).
@@ -91,11 +95,17 @@ false-negative rate MUST be zero served-without-consent, canon-filter violation 
 
 ## 5. The decision needed to size the plan (Section 6 of the brief)
 
-One fact changes the training plan materially: **the scale + cadence of the BSC allocation and the spec of
-the Swiss GPU.** A few hundred H100-hours/quarter -> prioritize distillation + the reward model, lean on a
-bought API for identity. A standing large allocation -> also train the identity + narrative adapters
-aggressively, target the live frontier path sooner. Provide the rough allocation + Swiss GPU model and the
-phased training plan locks to it; everything else holds regardless.
+Serving plane = Exoscale (Swiss/EU, data-residency win, dev + beta + production burst). Two inputs still
+size the plan:
+- **The specific Exoscale GPU model + VRAM + quota.** This decides serving architecture: Ada/Hopper class
+  (L40S 48GB / A100 / H100) -> can prototype REAL-TIME distilled-sampler serving on Exoscale (frontier path
+  testable in CH/EU); A40 48GB -> real-time marginal, serve cached + light inference; V100/older 16-32GB ->
+  Exoscale serves the CACHED renders (generated on BSC) plus the player path, no live diffusion. R5's
+  serving plan locks to this.
+- **The BSC MareNostrum 5 allocation scale + cadence.** A few hundred H100-hours/quarter -> prioritize
+  distillation + the reward model, lean on a bought API for identity. A standing large allocation -> also
+  train the identity + narrative adapters aggressively, target the live frontier sooner.
+Everything else holds regardless.
 
 ## 6. Honest bottom line
 
