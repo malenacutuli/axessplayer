@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    // rootDir spans the repo so the app can bind to the frozen, read-only generated contract types
+    // (contracts/types/generated/{economy,content,decision,manifest}.ts) via type-only imports, the
+    // same discipline packages/player-sdk uses. Those imports are erased at emit. No consumer reads a
+    // build of this app: Expo bundles the sources directly. No em dashes.
+    "rootDir": "../..",
+    // React Native runtime globals (fetch, console, setTimeout) come from Node libs here. The screens
+    // import "react"/"react-native" which are not installed in this CI lane (native deps are added at
+    // EAS build time): types for those modules are shimmed locally in src/native/react-shims.d.ts so the
+    // logic/data/contract layers typecheck without pulling the native toolchain into CI.
+    "types": ["node"]
+  },
+  "include": [
+    "src",
+    "../../contracts/types/generated/economy.ts",
+    "../../contracts/types/generated/content.ts",
+    "../../contracts/types/generated/decision.ts",
+    "../../contracts/types/generated/manifest.ts"
+  ]
+}
