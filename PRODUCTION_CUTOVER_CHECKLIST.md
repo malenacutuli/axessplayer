@@ -63,11 +63,14 @@ deploy to prod) without an explicit per-action human go.
       src/serve.ts entrypoints; (c) Dockerfile CMD fixed to `node --import tsx src/serve.ts` (the pnpm
       --filter CMD did not spawn the child in-container). Serve code proven (direct node run prints the
       listening line + serves 200); image entrypoint config verified via docker inspect.
-- [ ] TODO (re-validate in a CLEAN docker env): full container-run -> curl -> 200 was NOT completed end to
-      end because the LOCAL Docker daemon corrupted its containerd store (input/output error) under repeated
-      864MB builds during testing. Fix: restart/purge Docker Desktop, OR rely on the deploy.yml CI build job
-      in a clean runner. Then re-run: build each service image, `docker run` on a FREE host port (8080 is
-      taken locally), curl the route. (Optional) prune image size with `pnpm deploy --filter` (864MB now).
+- [x] DONE container-run VERIFIED end to end (2026-06-15, after a Docker Desktop restart): manifest image
+      `docker run` -> HOST curl returns HTTP 200 + valid HLS playlist, log `listening on 0.0.0.0:8787`,
+      ready in ~1s. economy verified serving 401 (no token) inside the container. NOTE for re-runs: use a
+      FREE host port (8080 is taken locally) and `curl --retry-all-errors` (Docker Desktop's proxy returns a
+      reset, not connection-refused, during the brief startup window, so --retry-connrefused alone gives a
+      false 000). The earlier failures were a transient daemon corruption + that curl flag, not the image.
+- [ ] OPTIONAL (optimization, not required): emit compiled JS and run `node dist/serve.js` (drop tsx at
+      runtime) for faster cold start + smaller images; and `pnpm deploy --filter` to prune the 864MB size.
 - [ ] QUEUED (human) provide real secret VALUES per infra/ENV.md into Vercel/Supabase/container env.
 
 ---
