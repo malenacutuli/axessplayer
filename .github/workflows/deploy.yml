@@ -1,0 +1,156 @@
+# Deploy pipeline (W11). Separate from ci.yml (the test gate). This workflow builds the service and app
+# container images and runs a Vercel PREVIEW deploy. Every real-infra step is GATED on a secret being
+# present, so without secrets configured the workflow is a safe no-op: it builds images locally (load, no
+# push) and skips the registry push and the Vercel deploy. Production promotion is NOT done here; it is a
+# human action (DEPLOY_RUNBOOK.md, PRODUCTION_CUTOVER_CHECKLIST.md). No em dashes.
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Build every container image to prove the Dockerfiles are well-formed and the build context resolves.
+  # Push to the registry only when REGISTRY_TOKEN is configured; otherwise load locally (no push), so the
+  # job is a no-op against real infra. The matrix covers each service and each containerizable app.
+  build-images:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - { name: content, dockerfile: services/content/Dockerfile }
+          - { name: economy, dockerfile: services/economy/Dockerfile }
+          - { name: decision, dockerfile: services/decision/Dockerfile }
+          - { name: manifest, dockerfile: services/manifest/Dockerfile }
+          - { name: generation, dockerfile: services/generation/Dockerfile }
+          - { name: trust, dockerfile: services/trust/Dockerfile }
+          - { name: experiment, dockerfile: services/experiment/Dockerfile }
+          - { name: web, dockerfile: apps/web/Dockerfile }
+          - { name: studio, dockerfile: apps/studio/Dockerfile }
+          - { name: marketing, dockerfile: apps/marketing/Dockerfile }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Decide whether to push
+        id: gate
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          if [ -n "$REGISTRY_TOKEN" ]; then
+            echo "push=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "push=false" >> "$GITHUB_OUTPUT"
+            echo "REGISTRY_TOKEN not set: building without push (no-op against real infra)."
+          fi
+
+      - name: Log in to the registry
+        if: steps.gate.outputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY_HOST }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Build (and conditionally push) ${{ matrix.image.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.image.dockerfile }}
+          push: ${{ steps.gate.outputs.push == 'true' }}
+          load: ${{ steps.gate.outputs.push != 'true' }}
+          tags: axessplayer/${{ matrix.image.name }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Vercel PREVIEW deploy for the web surfaces. Gated on VERCEL_TOKEN: without it the job logs that it is
+  # skipping and exits clean, so the workflow is a no-op without secrets. Preview only; production promotion
+  # is a human action and is intentionally not wired here.
+  vercel-preview:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - { name: web, dir: apps/web }
+          - { name: studio, dir: apps/studio }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Check for Vercel credentials
+        id: gate
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "VERCEL_TOKEN not set: skipping Vercel preview deploy (no-op without secrets)."
+          fi
+
+      - name: Install Vercel CLI
+        if: steps.gate.outputs.enabled == 'true'
+        run: pnpm add -g vercel@latest
+
+      - name: Pull Vercel preview env
+        if: steps.gate.outputs.enabled == 'true'
+        working-directory: ${{ matrix.app.dir }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+
+      - name: Build the preview bundle
+        if: steps.gate.outputs.enabled == 'true'
+        working-directory: ${{ matrix.app.dir }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel build --token="$VERCEL_TOKEN"
+
+      - name: Deploy the prebuilt preview
+        if: steps.gate.outputs.enabled == 'true'
+        working-directory: ${{ matrix.app.dir }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel deploy --prebuilt --token="$VERCEL_TOKEN"
+
+  # Explicit guard: production promotion is a human action. This job documents the boundary and never runs
+  # a production deploy. It exists so the boundary is visible in the pipeline graph, not so it acts.
+  production-promotion-guard:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: [build-images]
+    steps:
+      - name: State the boundary
+        run: |
+          echo "Production promotion (Vercel prod deploy, prod Supabase migration, live Stripe) is a"
+          echo "human-approved action. See DEPLOY_RUNBOOK.md and PRODUCTION_CUTOVER_CHECKLIST.md."
+          echo "This pipeline does not promote to production."
