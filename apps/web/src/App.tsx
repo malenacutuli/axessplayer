@@ -4,8 +4,9 @@
 // series card, and routes the bottom nav. Identity rides the session token; no user_id is ever sent in
 // a body (F1). No em dashes.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Clients } from "./clients.js";
+import { createCaptureClient, noopCapture } from "./capture/capture.js";
 import type { SeriesGraph } from "./api/content.js";
 import { coldOpenBeat } from "./api/content.js";
 import type { Wallet as WalletData } from "./api/economy.js";
@@ -64,6 +65,14 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
 
   const coins = wallet?.balance ?? null;
 
+  // Phase 0 capture is consent-gated: only when the viewer granted analytics_personalization do we measure
+  // real signals for /decide and emit beat-level events. Otherwise a noop capture and personalize=false.
+  const personalize = consent?.record?.purposes.analytics_personalization ?? false;
+  const capture = useMemo(
+    () => (personalize ? createCaptureClient({ seriesId, enabled: () => true }) : noopCapture),
+    [personalize, seriesId],
+  );
+
   const onNavigate = useCallback((tab: Tab) => {
     setScreen(tab === "home" ? "feed" : tab === "you" ? "profile" : "wallet");
   }, []);
@@ -103,6 +112,8 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
             startBeatId={start.id}
             onBack={() => setScreen("feed")}
             onBalanceChange={() => void refreshWallet()}
+            capture={capture}
+            personalize={personalize}
           />
         </div>
       );

@@ -29,6 +29,7 @@ import { useUnlock } from "../wallet/useUnlock.js";
 import { sceneVideoUrl } from "../config.js";
 import { BackIcon, A11yIcon, HeartIcon, CommentIcon, RotateIcon } from "../ui/icons.js";
 import { useIsLandscape, requestLandscape, exitLandscape } from "./useOrientation.js";
+import { noopCapture, type CaptureClient } from "../capture/capture.js";
 
 export interface PlayerProps {
   graph: SeriesGraph;
@@ -40,11 +41,20 @@ export interface PlayerProps {
   onBack: () => void;
   // Called when an unlock changes the balance so the shell can refresh the wallet.
   onBalanceChange?: (balance: number) => void;
+  // Phase 0 beat-level capture (the flywheel input). Consent-gated by the host: when the viewer has not
+  // granted analytics_personalization, the host passes personalize=false and a noop capture, so no events
+  // are emitted and no real signals feed /decide. Defaults make the player work standalone (no capture).
+  capture?: CaptureClient;
+  personalize?: boolean;
 }
 
 // The viewer's felt branch. The engine normally decides; the picker lets the viewer override the cut
 // shown so they feel the re-cut. "auto" means show whatever the engine served.
 type Branch = "auto" | "calm" | "tense";
+
+// Nominal beat length used to turn real dwell time into a completion proxy until the media clock (hls.js)
+// is plumbed up from the poster <video>. Dwell is measured; this is the denominator.
+const NOMINAL_BEAT_MS = 8000;
 
 export function Player({
   graph,
@@ -54,9 +64,11 @@ export function Player({
   startBeatId,
   onBack,
   onBalanceChange,
+  capture = noopCapture,
+  personalize = false,
 }: PlayerProps) {
   const resolveBeatId = useMemo(() => variantToBeatResolver(graph), [graph]);
-  const { state, advance } = usePlayer({ transport, userId, startBeatId, resolveBeatId });
+  const { state, advance, recordSignals } = usePlayer({ transport, userId, startBeatId, resolveBeatId });
   const unlock = useUnlock(economy);
 
   // Orientation: vertical 9:16 by default; rotate the phone (or tap the rotate button) for full-bleed
@@ -136,6 +148,81 @@ export function Player({
   // The cut shown after an unlock is the premium ending; otherwise whatever is on the branch path.
   const onScreen: VariantNode | undefined = unlocked && premiumGate ? premiumGate : shown;
 
+  // ---------- Phase 0: beat-level capture + REAL /decide signals (was empty {}) ----------
+  const currentBeatId = onScreen?.beat_id;
+  const lastStep = state.steps[state.steps.length - 1];
+  const decisionId = lastStep?.decision.decision_id;
+  const isControl = lastStep?.decision.is_control;
+  const beatShownAt = useRef<number>(Date.now());
+  const sessionStart = useRef<number>(Date.now());
+  const replays = useRef<Map<string, number>>(new Map());
+  const prevBeat = useRef<string | undefined>(undefined);
+
+  // beat_started on each new on-screen beat; reset the dwell clock and count replays.
+  useEffect(() => {
+    if (!currentBeatId || prevBeat.current === currentBeatId) return;
+    prevBeat.current = currentBeatId;
+    beatShownAt.current = Date.now();
+    replays.current.set(currentBeatId, (replays.current.get(currentBeatId) ?? 0) + 1);
+    capture.emit({
+      type: "beat_started",
+      beat_id: currentBeatId,
+      decision_id: decisionId,
+      variant_id: onScreen?.id,
+      is_control: isControl,
+    });
+  }, [currentBeatId, decisionId, isControl, onScreen?.id, capture]);
+
+  // Branch pick: emit choice_made and fold the choice into the next /decide (when personalizing).
+  const onPickBranch = useCallback(
+    (b: "calm" | "tense") => {
+      setBranch(b);
+      if (currentBeatId) {
+        capture.emit({
+          type: "choice_made",
+          beat_id: currentBeatId,
+          decision_id: decisionId,
+          choice: b,
+          latency_ms: Date.now() - beatShownAt.current,
+        });
+      }
+      if (personalize) recordSignals({ choice: b });
+    },
+    [currentBeatId, decisionId, capture, personalize, recordSignals],
+  );
+
+  // Continue: measure the just-watched beat and feed REAL signals to /decide (completion, dwell, replays),
+  // emit beat_completed, then advance. This is the fix for the empty-signals gap.
+  const onContinue = useCallback(() => {
+    if (currentBeatId) {
+      const dwell = Date.now() - beatShownAt.current;
+      const completion = Math.max(0, Math.min(1, dwell / NOMINAL_BEAT_MS));
+      capture.emit({
+        type: "beat_completed",
+        beat_id: currentBeatId,
+        decision_id: decisionId,
+        variant_id: onScreen?.id,
+        completion,
+      });
+      if (personalize) {
+        recordSignals({ completion, dwell_ms: dwell, replays: replays.current.get(currentBeatId) ?? 1 });
+      }
+    }
+    setBranch("auto");
+    void advance();
+  }, [currentBeatId, decisionId, onScreen?.id, capture, personalize, recordSignals, advance]);
+
+  // Back to feed: close the session.
+  const onBackToFeed = useCallback(() => {
+    capture.emit({
+      type: "session_ended",
+      last_beat_id: currentBeatId ?? "",
+      total_ms: Date.now() - sessionStart.current,
+    });
+    void capture.flush();
+    onBack();
+  }, [capture, currentBeatId, onBack]);
+
   // Poster surface class: premium gp once unlocked, else calm/tense by the shown cut's intensity.
   const posterClass = unlocked && premiumGate
     ? "gp"
@@ -177,7 +264,7 @@ export function Player({
 
       {/* top bar */}
       <div className="ptop">
-        <button type="button" className="icbtn" onClick={onBack} aria-label="Back to feed" data-testid="player-back">
+        <button type="button" className="icbtn" onClick={onBackToFeed} aria-label="Back to feed" data-testid="player-back">
           <BackIcon />
         </button>
         <div className="adapt" data-testid="adaptive-badge">
@@ -232,7 +319,7 @@ export function Player({
           <button
             type="button"
             className={(branch === "auto" ? (onScreen?.intensity ?? 5) <= 2 : branch === "calm") ? "sel" : undefined}
-            onClick={() => setBranch("calm")}
+            onClick={() => onPickBranch("calm")}
             data-testid="branch-calm"
           >
             Calm cut
@@ -240,7 +327,7 @@ export function Player({
           <button
             type="button"
             className={(branch === "auto" ? (onScreen?.intensity ?? 5) > 2 : branch === "tense") ? "sel" : undefined}
-            onClick={() => setBranch("tense")}
+            onClick={() => onPickBranch("tense")}
             data-testid="branch-tense"
           >
             Tense cut
@@ -275,10 +362,7 @@ export function Player({
           type="button"
           className="paybtn"
           style={{ marginTop: 14 }}
-          onClick={() => {
-            setBranch("auto");
-            void advance();
-          }}
+          onClick={onContinue}
           disabled={state.advancing || state.ended || showPaywall}
           data-testid="player-advance"
         >

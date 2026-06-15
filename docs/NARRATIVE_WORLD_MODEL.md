@@ -29,15 +29,28 @@ publishable, compounding.
 
 ## 1. The honest compute reality
 
-- **BSC MareNostrum 5 (ACES, H100)**: competitive, time-boxed allocations (EuroHPC/RES/BSC). Excellent for
-  distillation, fine-tuning, reward-model training, ablations, periodic retraining. NOT a 24/7 inference
-  plane, NOT unbounded pretraining.
-- **The Swiss GPU = Exoscale** (confirmed 2026-06-15): development + low-latency inference plane (prototype,
-  closed-beta serving, evals, adapters). Exoscale is a Swiss/EU IaaS, so this is a DATA-RESIDENCY win - the
-  consent-gated, biometric, GDPR-Article-9 render pipeline stays in CH/EU, aligned with the consent + GDPR
-  posture. And because Exoscale is itself a cloud, it can serve BOTH the closed beta AND the production burst
-  (scale up GPU instances), so we may not need a separate hyperscaler for serving. OPEN: the specific
-  Exoscale GPU model + VRAM + quota, which decides real-time-capable serving vs cached-only (see Section 5).
+- **BSC MareNostrum 5 (ACES, H100)**: NOT a quantified allocation yet - it is BSC/PRACE MEMBERSHIP, not a
+  granted GPU-hour grant with a cadence (confirmed 2026-06-15). DO NOT gate Phase 0 or Phase 1 on it; plan as
+  if BSC is UNSECURED until a EuroHPC/RES/BSC call is awarded. Everything provable on the single 96 GB
+  Blackwell card (distill-to-prototype, identity + narrative-state adapters via LoRA/modest full fine-tune,
+  reward-model training on early logs, single-stream eval) proceeds without BSC. BSC is the FUTURE
+  heavy-distillation + reward-scale-out venue; size R1/R2/R3 aggression once a real allocation lands.
+- **The Swiss GPU = Exoscale, LOCKED 2026-06-15.** One NVIDIA RTX PRO 6000 (Blackwell), 96 GB VRAM, instance
+  "Small", single card, 200 GB node disk, in CH-DK-2 (cluster SwissBrainGPU, Karpenter autoscaling). The
+  app/decision plane runs separately on swissbrain-prod in CH-GVA-2 (Geneva): 3x Standard-Large CPU, no GPU.
+  Verdict: the Blackwell 96 GB sits ABOVE the L40S/A100/H100 40-80 GB tier (newer arch, more VRAM, FP4), so
+  the REAL-TIME distilled-sampler / live beat-adaptive Claim-D path IS prototypable in-EU, SINGLE-STREAM. One
+  card = one live stream; concurrency needs gpu-pool growth (Karpenter) or burst - a capacity decision later.
+  Data-residency win: the consent-gated biometric (Article 9) render pipeline stays in CH/EU.
+  THREE INFRA FINDINGS (account for before scaling):
+  1. swissbrain-prod (holds consent + economy data) has K8s AUDIT LOGGING OFF and auto-upgrade OFF. Article 9
+     / BIPA data needs an audit trail (the GPU cluster correctly has audit ON; the pattern is inverted).
+     R4 precondition: turn prod audit ON + set a patch cadence.
+  2. Decision plane (CH-GVA-2) and GPU (CH-DK-2) are in DIFFERENT zones; every live-generation beat crosses a
+     Swiss zone. For the Claim-D live loop, R5 places a decision-engine REPLICA in CH-DK-2 next to the GPU so
+     the narrative-state hop is local. Fine for beta as-is.
+  3. Single GPU = SPOF + a hard serving ceiling; plan autoscaling/burst before any public concurrency. Console
+     shows a -967.95 EUR balance - reconcile billing before scaling GPU hours.
 - **In reach** [Likely]: take a strong open video base (Wan 2.2 lineage), distill to a few-step real-time
   model, add two conditioning adapters (identity, narrative-state), train the reward model on our logs,
   research-grade eval. Fine-tuning + distillation scale (hundreds to low-thousands of GPU-hours/cycle).

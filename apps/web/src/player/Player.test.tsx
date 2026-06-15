@@ -69,6 +69,34 @@ describe("Player", () => {
     expect(screen.getByTestId("branch-tense")).toBeInTheDocument();
   });
 
+  it("emits beat-level capture events when personalizing (Phase 0)", async () => {
+    const user = userEvent.setup();
+    const { economy, transport } = setup();
+    const events: Array<{ type: string; choice?: string }> = [];
+    const capture = {
+      emit: (e: { type: string; choice?: string }) => events.push(e),
+      flush: async () => {},
+      buffered: () => [],
+    } as unknown as Parameters<typeof Player>[0]["capture"];
+    render(
+      <Player
+        graph={seedGraph()}
+        transport={transport}
+        economy={economy}
+        userId="u"
+        startBeatId={BEAT_COLD_OPEN}
+        onBack={() => {}}
+        capture={capture}
+        personalize
+      />,
+    );
+    // The opening beat emits beat_started.
+    expect(events.some((e) => e.type === "beat_started")).toBe(true);
+    // Picking a cut emits choice_made.
+    await user.click(screen.getByTestId("branch-tense"));
+    expect(events.some((e) => e.type === "choice_made" && e.choice === "tense")).toBe(true);
+  });
+
   it("starts vertical and rotates to landscape on the rotate button", async () => {
     const user = userEvent.setup();
     const { economy, transport } = setup();
