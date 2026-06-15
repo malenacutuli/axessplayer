@@ -5,7 +5,10 @@
     "moduleResolution": "NodeNext",
     "noEmit": false,
     "outDir": "dist",
-    "rootDir": "src"
+    // rootDir spans the repo so the handler can bind to the frozen, read-only generated contract types
+    // (contracts/types/generated/decision.ts) via a type-only import. The import is erased at emit, so
+    // dist contains only this package's sources under dist/services/decision/src. No consumer reads dist.
+    "rootDir": "../.."
   },
-  "include": ["src"]
+  "include": ["src", "../../contracts/types/generated/decision.ts"]
 }
