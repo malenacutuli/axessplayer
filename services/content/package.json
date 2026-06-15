@@ -6,7 +6,7 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo lint ok",
-    "serve": "node --import tsx src/server.ts",
+    "serve": "node --import tsx src/serve.ts",
     "test": "node --import tsx --test \"test/*.test.ts\""
   },
   "devDependencies": {

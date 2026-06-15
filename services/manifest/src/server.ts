@@ -81,26 +81,22 @@ export function startServer(
 // Env vars read here (must match infra/ENV.md):
 //   PORT  TCP port the listener binds. Defaults to 8787 (matches the Dockerfile EXPOSE/ENV).
 //   HOST  Interface to bind. Defaults to 0.0.0.0 for container reachability.
-const isMain = (() => {
+// Start the listener from the process environment. Called UNCONDITIONALLY by the guard-free entry file
+// src/serve.ts (the package `serve` script points node at that file). The previous is-main guard evaluated
+// FALSE under `node --import tsx src/server.ts` run via pnpm, so the listener never started in the
+// container. Extracting the start logic here and invoking it from a tiny no-guard entry makes startup
+// deterministic. Sets process.exitCode on failure rather than letting the rejection escape the caller.
+export async function runServer(): Promise<void> {
   try {
-    return import.meta.url === `file://${process.argv[1]}`;
-  } catch {
-    return false;
+    const port = Number(process.env.PORT ?? 8787);
+    const host = process.env.HOST ?? "0.0.0.0";
+    const db = new InMemoryManifestDB(FIXTURE_VARIANTS, FIXTURE_RENDITIONS);
+    const { port: bound } = await startServer(db, port, host);
+    // eslint-disable-next-line no-console
+    console.log(`manifest service listening on ${host}:${bound}`);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("failed to start manifest server", err);
+    process.exitCode = 1;
   }
-})();
-
-if (isMain) {
-  const port = Number(process.env.PORT ?? 8787);
-  const host = process.env.HOST ?? "0.0.0.0";
-  const db = new InMemoryManifestDB(FIXTURE_VARIANTS, FIXTURE_RENDITIONS);
-  startServer(db, port, host)
-    .then(({ port: bound }) => {
-      // eslint-disable-next-line no-console
-      console.log(`manifest service listening on ${host}:${bound}`);
-    })
-    .catch((err) => {
-      // eslint-disable-next-line no-console
-      console.error("failed to start manifest server", err);
-      process.exitCode = 1;
-    });
 }
