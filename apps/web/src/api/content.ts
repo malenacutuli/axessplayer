@@ -89,11 +89,65 @@ export function createContentClient(opts: ContentClientOptions): ContentClient {
   return {
     async getSeriesGraph(seriesId: string): Promise<SeriesGraph> {
       const path: SeriesGraphPath = { id: seriesId };
-      return apiFetch<SeriesGraph>(baseUrl, `/series/${path.id}/graph`, session, {
+      const raw = await apiFetch<RawSeriesGraph>(baseUrl, `/series/${path.id}/graph`, session, {
         fetch: opts.fetch,
       });
+      return flattenGraph(raw);
     },
   };
+}
+
+// The content service returns a NESTED graph (episodes[].beats[].variants[]) plus top-level edges, while
+// the components consume a FLAT graph (top-level beats, and variants carrying beat_id). Normalize at this
+// boundary. When content.yaml schematizes the 200 body and both sides bind one generated type, this
+// flatten goes away. No em dashes.
+interface RawSeriesGraph {
+  series: SeriesNode;
+  episodes: Array<{
+    id: string;
+    episode_number: number;
+    title: string;
+    is_free: boolean;
+    coin_cost: number;
+    beats: Array<{
+      id: string;
+      episode_id: string;
+      beat_index: number;
+      role: string;
+      is_branch_point: boolean;
+      variants: Array<Omit<VariantNode, "beat_id">>;
+    }>;
+  }>;
+  edges: EdgeNode[];
+}
+
+function flattenGraph(raw: RawSeriesGraph): SeriesGraph {
+  const episodes: EpisodeNode[] = [];
+  const beats: BeatNode[] = [];
+  const variants: VariantNode[] = [];
+  for (const ep of raw.episodes ?? []) {
+    episodes.push({
+      id: ep.id,
+      series_id: raw.series.id,
+      episode_number: ep.episode_number,
+      title: ep.title,
+      is_free: ep.is_free,
+      coin_cost: ep.coin_cost,
+    });
+    for (const b of ep.beats ?? []) {
+      beats.push({
+        id: b.id,
+        episode_id: b.episode_id,
+        beat_index: b.beat_index,
+        role: b.role,
+        is_branch_point: b.is_branch_point,
+      });
+      for (const v of b.variants ?? []) {
+        variants.push({ ...v, beat_id: b.id });
+      }
+    }
+  }
+  return { series: raw.series, episodes, beats, variants, edges: raw.edges ?? [] };
 }
 
 // Helpers the feed and player use to walk the graph.
