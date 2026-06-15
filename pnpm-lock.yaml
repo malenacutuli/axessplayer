@@ -246,7 +246,26 @@ importers:
         specifier: ^5.5.0
         version: 5.9.3
 
-  services/experiment: {}
+  services/experiment:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      '@types/pg':
+        specifier: ^8.11.0
+        version: 8.20.0
+      embedded-postgres:
+        specifier: 18.4.0-beta.17
+        version: 18.4.0-beta.17
+      pg:
+        specifier: ^8.12.0
+        version: 8.21.0
+      tsx:
+        specifier: ^4.19.0
+        version: 4.22.4
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
 
   services/generation:
     devDependencies:
