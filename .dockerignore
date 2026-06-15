@@ -20,8 +20,8 @@
 .DS_Store
 **/coverage
 
-# Tests are not needed in a runtime image. The service Dockerfiles install dev deps to typecheck/build,
-# but the test fixtures and suites do not ship.
+# Test SOURCE files are not needed in a runtime image. We exclude the test files themselves, but NOT the
+# package directories: pnpm install --frozen-lockfile needs every workspace member's package.json present
+# (pnpm-workspace.yaml includes tests/*), so excluding the whole tests/ dir breaks the workspace install.
 **/*.test.ts
-**/test
-**/tests
+**/*.test.tsx
