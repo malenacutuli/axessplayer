@@ -1,0 +1,88 @@
+/* Minimal styles for the consumer surface. The feed is a full-viewport vertical stack; the player is
+   a single focused surface. Kept local to apps/web this pass (packages/ui is untouched). No em dashes. */
+
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #000;
+  color: #fff;
+}
+
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.feed {
+  height: 80vh;
+  outline: none;
+}
+
+.feed-item {
+  height: 70vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.feed-item-tag {
+  opacity: 0.7;
+}
+
+.feed-controls,
+.player-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+button {
+  background: #fff;
+  color: #000;
+  border: 0;
+  border-radius: 0.5rem;
+  padding: 0.6rem 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.player-surface {
+  min-height: 50vh;
+  background: #111;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.a11y-controls label {
+  display: block;
+  margin: 0.4rem 0;
+}
+
+.a11y-note {
+  opacity: 0.6;
+}
+
+.paywall {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(90vw, 420px);
+  height: fit-content;
+  background: #1a1a1a;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}

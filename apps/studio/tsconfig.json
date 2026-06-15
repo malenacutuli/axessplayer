@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
+    "useDefineForClassFields": true,
+    "paths": {
+      "@axessplayer/contracts/content": ["../../contracts/types/generated/content.ts"]
+    }
+  },
+  "include": ["src", "test", "vite.config.ts", "vitest.setup.ts"]
+}

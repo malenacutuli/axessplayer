@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vitest/globals", "@testing-library/jest-dom"],
+    "rootDir": "../..",
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "src",
+    "vite.config.ts",
+    "vitest.setup.ts",
+    "../../contracts/types/generated/decision.ts",
+    "../../contracts/types/generated/manifest.ts",
+    "../../contracts/types/generated/economy.ts",
+    "../../contracts/types/generated/content.ts"
+  ]
+}
