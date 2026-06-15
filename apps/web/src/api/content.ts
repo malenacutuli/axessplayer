@@ -167,3 +167,13 @@ export function variantForBeat(graph: SeriesGraph, beatId: string): VariantNode 
 export function premiumVariants(graph: SeriesGraph): VariantNode[] {
   return graph.variants.filter((v) => v.is_premium);
 }
+
+// Build the chosen-variant -> beat resolver the SDK BranchingPlayer needs to advance. /decide takes a
+// beat id and returns the next cut's VARIANT id; to make the next /decide we must resolve that variant
+// back to its beat. Variants carry beat_id (the flatten boundary keeps this), so this is a lookup.
+// Unknown ids fall back to the id itself so a stray variant never wedges the walk. No em dashes.
+export function variantToBeatResolver(graph: SeriesGraph): (variantId: string) => string {
+  const byVariant = new Map<string, string>();
+  for (const v of graph.variants) byVariant.set(v.id, v.beat_id);
+  return (variantId: string) => byVariant.get(variantId) ?? variantId;
+}

@@ -8,6 +8,8 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App.js";
 import { buildClients } from "./clients.js";
 import { staticSession } from "./api/session.js";
+// Brand tokens FIRST (the official guideline variables + fonts), then the app styles that consume them.
+import "./styles/brand-tokens.css";
 import "./styles.css";
 
 // The walking-skeleton series id (see supabase/seed.sql). Configurable per deployment in a later pass.

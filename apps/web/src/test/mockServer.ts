@@ -9,12 +9,17 @@
 
 import {
   SERIES_ID,
+  BEAT_COLD_OPEN,
+  BEAT_BRANCH,
+  BEAT_TENSE,
+  BEAT_CALM,
+  BEAT_ENDING,
   VAR_BRANCHPOINT,
   VAR_TENSE,
   VAR_CALM,
   VAR_ENDING,
   VAR_ENDING_PREMIUM,
-  seedGraph,
+  nestedSeedGraph,
 } from "./fixtures.js";
 
 export interface RecordedRequest {
@@ -43,15 +48,17 @@ export function createMockServer(opts: MockServerOptions = {}): MockServer {
   // Idempotency: a repeated client_txn_id is a no-op that returns the prior result.
   const seenTxns = new Map<string, { balance: number; entitlement: { scope: string; scope_id: string } }>();
 
-  // The decision walk: from each beat/variant, what /decide returns next. Ends with a 422 at the ending.
-  // Models a treatment viewer that branches to the tense cut, then the shared ending.
+  // The decision walk, keyed by BEAT id exactly as the real decision service expects: /decide takes
+  // current_beat_id and returns the next cut's VARIANT id (it walks beat_edges and joins beat_variants
+  // on to_beat_id). The player advances by resolving the chosen variant back to its beat. Ends with a
+  // 422 at the ending beat. Models a treatment viewer that branches to the tense cut, then the shared
+  // ending.
   const decideNext: Record<string, { next: string; prefetch: string[] } | "end"> = {
-    "bbbbbbbb-0000-0000-0000-000000000001": { next: VAR_BRANCHPOINT, prefetch: [] }, // cold open -> branch point
-    [VAR_BRANCHPOINT]: { next: VAR_TENSE, prefetch: [VAR_CALM] }, // branch -> tense (calm prefetched)
-    [VAR_TENSE]: { next: VAR_ENDING, prefetch: [VAR_ENDING_PREMIUM] }, // tense -> ending (premium prefetched)
-    [VAR_CALM]: { next: VAR_ENDING, prefetch: [VAR_ENDING_PREMIUM] },
-    [VAR_ENDING]: "end",
-    [VAR_ENDING_PREMIUM]: "end",
+    [BEAT_COLD_OPEN]: { next: VAR_BRANCHPOINT, prefetch: [] }, // cold open -> branch point cut
+    [BEAT_BRANCH]: { next: VAR_TENSE, prefetch: [VAR_CALM] }, // branch -> tense (calm prefetched)
+    [BEAT_TENSE]: { next: VAR_ENDING, prefetch: [VAR_ENDING_PREMIUM] }, // tense -> ending (premium prefetched)
+    [BEAT_CALM]: { next: VAR_ENDING, prefetch: [VAR_ENDING_PREMIUM] },
+    [BEAT_ENDING]: "end",
   };
 
   const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -74,9 +81,9 @@ export function createMockServer(opts: MockServerOptions = {}): MockServer {
       body,
     });
 
-    // content: GET /series/{id}/graph
+    // content: GET /series/{id}/graph (the NESTED shape the real service returns; the client flattens).
     if (url.includes(`/series/${SERIES_ID}/graph`)) {
-      return json(200, seedGraph());
+      return json(200, nestedSeedGraph());
     }
 
     // economy: GET /wallet

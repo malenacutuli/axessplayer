@@ -1,29 +1,81 @@
-// The vertical swipe feed. Episodes from the content graph stack vertically; the viewer swipes (or
-// arrows / page keys) between them, the classic short-form feed gesture. Selecting an episode opens
-// the adaptive player. Keyboard navigation and aria roles make the feed usable without a pointer
-// (accessibility first). No em dashes.
+// The "For you" feed, matching the prototype's Consumer feed exactly: a light editorial header with a
+// gold coins pill, then a column of story cards. Each card is a gradient poster (the prototype's .gp /
+// .g4 / .g3, no external assets) with an "Adapts to you" rose-dot badge, a title overlay, and a
+// genre/episode/views caption.
+//
+// The FIRST card is the REAL seeded series ("The Last Signal") and opens the live adaptive player. The
+// other two cards are the prototype's styled placeholders (not yet seeded), shown to match the design;
+// they are not clickable into a player. Keyboard and listbox semantics keep the feed usable without a
+// pointer. No em dashes.
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { EpisodeNode, SeriesGraph } from "../api/content.js";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { SeriesGraph } from "../api/content.js";
 
 export interface FeedProps {
   graph: SeriesGraph;
-  onOpen: (episode: EpisodeNode) => void;
+  // Open the real series in the player.
+  onOpen: () => void;
+  // The live coin balance for the header pill (null while loading).
+  coins: number | null;
 }
 
-export function Feed({ graph, onOpen }: FeedProps) {
-  const episodes = [...graph.episodes].sort((a, b) => a.episode_number - b.episode_number);
+// One feed card. The first is real (the live series); the rest are prototype placeholders.
+interface FeedCard {
+  id: string;
+  title: string;
+  poster: string; // gradient class
+  caption: string;
+  views?: string;
+  real: boolean;
+}
+
+export function Feed({ graph, onOpen, coins }: FeedProps) {
+  const cards: FeedCard[] = useMemo(() => {
+    const firstEpisode = [...graph.episodes].sort((a, b) => a.episode_number - b.episode_number)[0];
+    const beatCount = graph.beats.length;
+    return [
+      {
+        id: graph.series.id,
+        title: graph.series.title,
+        poster: "gp",
+        caption:
+          capCase(graph.series.genre) +
+          (firstEpisode ? ` · Ep ${firstEpisode.episode_number}` : "") +
+          ` · ${beatCount} ch`,
+        views: "▶ 1.2M",
+        real: true,
+      },
+      {
+        id: "placeholder-burn",
+        title: "Five Years to Burn It Down",
+        poster: "g4",
+        caption: "Revenge · New",
+        real: false,
+      },
+      {
+        id: "placeholder-alpha",
+        title: "Rejected by the Alpha",
+        poster: "g3",
+        caption: "Fantasy romance",
+        real: false,
+      },
+    ];
+  }, [graph]);
+
   const [index, setIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const clamp = useCallback(
-    (i: number) => Math.max(0, Math.min(episodes.length - 1, i)),
-    [episodes.length],
+    (i: number) => Math.max(0, Math.min(cards.length - 1, i)),
+    [cards.length],
   );
+  const go = useCallback((delta: number) => setIndex((i) => clamp(i + delta)), [clamp]);
 
-  const go = useCallback(
-    (delta: number) => setIndex((i) => clamp(i + delta)),
-    [clamp],
+  const openIfReal = useCallback(
+    (card: FeedCard) => {
+      if (card.real) onOpen();
+    },
+    [onOpen],
   );
 
   useEffect(() => {
@@ -38,80 +90,72 @@ export function Feed({ graph, onOpen }: FeedProps) {
         go(-1);
       } else if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        onOpen(episodes[index]);
+        openIfReal(cards[index]);
       }
     };
     el.addEventListener("keydown", onKey);
     return () => el.removeEventListener("keydown", onKey);
-  }, [go, onOpen, episodes, index]);
-
-  // Touch swipe: a vertical drag past the threshold advances the feed.
-  const touchStartY = useRef<number | null>(null);
-  const onTouchStart = (e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0]?.clientY ?? null;
-  };
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const start = touchStartY.current;
-    if (start == null) return;
-    const end = e.changedTouches[0]?.clientY ?? start;
-    const dy = start - end;
-    if (Math.abs(dy) > 40) go(dy > 0 ? 1 : -1);
-    touchStartY.current = null;
-  };
-
-  if (episodes.length === 0) {
-    return <p role="status">No episodes available.</p>;
-  }
-
-  const active = episodes[index];
+  }, [go, openIfReal, cards, index]);
 
   return (
-    <div
-      ref={containerRef}
-      className="feed"
-      role="listbox"
-      aria-label={`${graph.series.title} episodes`}
-      aria-activedescendant={`feed-item-${active.id}`}
-      tabIndex={0}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
-      data-testid="feed"
-    >
-      {episodes.map((ep, i) => (
-        <article
-          key={ep.id}
-          id={`feed-item-${ep.id}`}
-          role="option"
-          aria-selected={i === index}
-          hidden={i !== index}
-          className="feed-item"
-          data-testid={`feed-item-${ep.id}`}
-        >
-          <h2>{ep.title}</h2>
-          <p>
-            Episode {ep.episode_number} of {graph.series.title}
-          </p>
-          <p className="feed-item-tag">
-            {ep.is_free ? "Free" : `${ep.coin_cost} coins`}
-          </p>
-          <button type="button" onClick={() => onOpen(ep)} data-testid={`feed-open-${ep.id}`}>
-            Watch
-          </button>
-        </article>
-      ))}
-      <nav className="feed-controls" aria-label="Feed navigation">
-        <button type="button" onClick={() => go(-1)} disabled={index === 0} aria-label="Previous episode">
-          Up
-        </button>
-        <button
-          type="button"
-          onClick={() => go(1)}
-          disabled={index === episodes.length - 1}
-          aria-label="Next episode"
-        >
-          Down
-        </button>
-      </nav>
-    </div>
+    <>
+      <div className="feedhead">
+        <span className="t">For you</span>
+        <span className="coins" data-testid="feed-coins" aria-label={`${coins ?? 0} coins`}>
+          <span className="g" aria-hidden="true" />
+          {coins ?? "…"}
+        </span>
+      </div>
+
+      <div
+        ref={containerRef}
+        className="feed"
+        role="listbox"
+        aria-label={`${graph.series.title} and more`}
+        aria-activedescendant={`feed-item-${cards[index].id}`}
+        tabIndex={0}
+        data-testid="feed"
+      >
+        {cards.map((card, i) => (
+          <div
+            key={card.id}
+            id={`feed-item-${card.id}`}
+            role="option"
+            aria-selected={i === index}
+            className="card"
+            onMouseEnter={() => setIndex(i)}
+          >
+            <button
+              type="button"
+              className="card"
+              onClick={() => {
+                setIndex(i);
+                openIfReal(card);
+              }}
+              data-testid={`feed-open-${card.id}`}
+              aria-label={`${card.title}. ${card.caption}${card.real ? "" : " (coming soon)"}`}
+            >
+              <div className={`ph ${card.poster}`}>
+                <div className="badge">
+                  <span className="dot" aria-hidden="true" />
+                  {card.real ? "Adapts to you" : "Adaptive"}
+                </div>
+                <div className="meta">
+                  <div className="ti">{card.title}</div>
+                </div>
+              </div>
+              <div className="cap">
+                <span className="g">{card.caption}</span>
+                {card.views && <span className="g">{card.views}</span>}
+              </div>
+            </button>
+          </div>
+        ))}
+      </div>
+    </>
   );
+}
+
+function capCase(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
