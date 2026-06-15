@@ -4,9 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "echo build ok",
-    "typecheck": "echo typecheck ok",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo lint ok",
-    "test": "echo test ok"
+    "test": "node --import tsx --test \"test/*.test.ts\"",
+    "gen": "openapi-typescript ../../contracts/api/manifest.yaml -o src/generated/manifest.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^20.0.0"
   }
 }
