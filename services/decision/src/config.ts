@@ -1,16 +1,15 @@
 // Decision engine configuration. Single source of truth for the tunables.
-// THREE of these are PLACEHOLDERS that await human ratification before production. They are isolated
-// here so ratifying each is a one-line change, not a code hunt. Do NOT optimize reward shaping against
-// the placeholder weights in this cut. No em dashes.
+// Reward shaping and the control holdout are RATIFIED (2026-06-15). ONE placeholder remains: the EU AI
+// Act explainability bar, which awaits legal/counsel ratification. Tunables are isolated here so each
+// ratification is a one-line change, not a code hunt. No em dashes.
 
 // =====================================================================================================
-// PLACEHOLDER 1: REWARD WEIGHTS  (PRODUCT / BUSINESS CALL, awaits human ratification)
-// PLACEHOLDER: awaits human ratification, do not ship to production unratified.
-// Per W3_DECISION_DESIGN.md section 3 and open decision 10.1. These are a defensible completion-first
-// start (w_c dominant, w_m deliberately small so the engine does not learn to paywall-bait). Each
-// signal is normalized to [0,1] before weighting (see normalizeSignals) so the largest-magnitude
-// signal does not silently win. Reward shaping is NOT finalized or optimized against these in scaffold
-// mode; the offline trainer (a stubbed interface here) consumes them once a human ratifies.
+// REWARD WEIGHTS  (PRODUCT / BUSINESS CALL) -- RATIFIED 2026-06-15, revisit with data later.
+// Ratified by the business owner as the completion-first starting point (w_c dominant, w_m deliberately
+// small so the engine does not learn to paywall-bait). Each signal is normalized to [0,1] before
+// weighting (see normalizeSignals) so the largest-magnitude signal does not silently win. Reward shaping
+// MAY now be finalized and optimized against these by the offline trainer; revisit the weights once real
+// logged outcome data exists. Per W3_DECISION_DESIGN.md section 3 and open decision 10.1.
 // =====================================================================================================
 export const REWARD_WEIGHTS = {
   w_c: 1.0, // completion
@@ -19,23 +18,20 @@ export const REWARD_WEIGHTS = {
   w_p: 2.0, // canon or quality penalty (subtracted)
 } as const;
 
-// Attribution window for the delayed "returned" signal. Product call, ratified with the weights above.
-// PLACEHOLDER: awaits human ratification, do not ship to production unratified.
+// Attribution window for the delayed "returned" signal. RATIFIED 2026-06-15 with the weights above.
 export const RETURN_WINDOW_DAYS = 7;
 
 // =====================================================================================================
-// PLACEHOLDER 2: CONTROL HOLDOUT  (OPERATIONAL DEFAULT, fine to keep)
-// PLACEHOLDER: awaits human ratification, do not ship to production unratified.
+// CONTROL HOLDOUT  (OPERATIONAL DEFAULT) -- RATIFIED 2026-06-15 (accepted as-is).
 // 10 percent global permanent control that always receives the director's cut. Per open decision 10.2.
-// This is the only one of the three that is a sane operational default to keep as-is; it is flagged for
-// completeness so all three live together. Realized share drifts on small finite id sets (design 6);
-// measure the actual share in production, do not trust the nominal.
+// Realized share drifts on small finite id sets (design 6); measure the actual share in production, do
+// not trust the nominal.
 // =====================================================================================================
 export const CONTROL_HOLDOUT_PCT = 10;
 
 // =====================================================================================================
-// PLACEHOLDER 3: EXPLAINABILITY BAR  (LEGAL / EU AI ACT POSTURE, awaits human ratification)
-// PLACEHOLDER: awaits human ratification, do not ship to production unratified.
+// EXPLAINABILITY BAR  (LEGAL / EU AI ACT POSTURE) -- THE ONE REMAINING PLACEHOLDER, awaits counsel.
+// PLACEHOLDER: awaits legal ratification, do not ship to production unratified.
 // Every served decision must be able to emit its top-N contributing NAMED features plus the canon
 // filter that bounded the arm set. The phase-3 sequence model is gated behind a saliency method that
 // meets this same bar. Per open decision 10.3. TOP_N is the bar's width.

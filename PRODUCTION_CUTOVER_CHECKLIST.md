@@ -7,7 +7,14 @@ approves deploys. No em dashes.
 
 Status legend: QUEUED = built around, waiting on the human. Each item names the smallest safe scope.
 
-## 1. Secrets and credentials (orchestrator provides env-var SCHEMAS, never values)
+NOTE (2026-06-15): all four accounts exist (Supabase prod, Vercel, Stripe, auth provider). This turns
+most of section 1 and 3 from "provision" into "provide config": a human pastes the secret VALUES into
+the Vercel and Supabase env settings, and the orchestrator builds everything that consumes them
+(env-var schemas, config wiring, deploy artifacts). The orchestrator still does NOT execute the
+outward-facing/irreversible/money steps itself (create live Stripe products, run the prod migration,
+deploy to prod) without an explicit per-action human go.
+
+## 1. Secrets and credentials (orchestrator provides env-var SCHEMAS; human pastes VALUES into Vercel/Supabase env)
 - [ ] QUEUED Production Postgres / Supabase connection string + service-role key.
 - [ ] QUEUED Auth provider: JWKS endpoint / issuer / audience for real session + service JWT verification
       (services currently inject a test verifier behind the SessionVerifier/ServiceVerifier interface).
@@ -29,9 +36,12 @@ Status legend: QUEUED = built around, waiting on the human. Each item names the 
 - [ ] QUEUED Production deploy approval(s) and any access-control / permission changes.
 
 ## 4. Product and legal ratifications (orchestrator leaves as marked config constants)
-- [ ] QUEUED W3 reward weights (w_c/w_r/w_m/w_p + return window) - BUSINESS call. Placeholder lives in
-      services/decision/src/config.ts. Ratify BEFORE any demo shows the number.
-- [ ] QUEUED EU AI Act explainability bar - LEGAL posture, with counsel. Placeholder in config.ts.
+- [x] RATIFIED 2026-06-15 W3 reward weights (w_c=1.0/w_r=0.5/w_m=0.3/w_p=2.0 + 7-day window) - business
+      owner accepted the completion-first set; revisit with data later. config.ts marker flipped; reward
+      shaping may now be finalized/optimized by the Wave D trainer.
+- [x] RATIFIED 2026-06-15 Control holdout 10% global (operational default, accepted as-is).
+- [ ] QUEUED EU AI Act explainability bar - LEGAL posture, with counsel. The ONE remaining placeholder in
+      config.ts (EXPLAINABILITY_TOP_N). Awaits counsel ratification.
 
 ## 5. Contract / schema / ledger changes (orchestrator-owned, human sign-off)
 - [ ] QUEUED content.yaml enrichment: the create endpoints define NO request-body schemas, so create
