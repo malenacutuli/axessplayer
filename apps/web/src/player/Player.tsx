@@ -30,6 +30,7 @@ import { sceneVideoUrl } from "../config.js";
 import { BackIcon, A11yIcon, HeartIcon, CommentIcon, RotateIcon } from "../ui/icons.js";
 import { useIsLandscape, requestLandscape, exitLandscape } from "./useOrientation.js";
 import { noopCapture, type CaptureClient } from "../capture/capture.js";
+import { WhyThisCut, type Adaptation } from "./WhyThisCut.js";
 
 export interface PlayerProps {
   graph: SeriesGraph;
@@ -121,6 +122,7 @@ export function Player({
   const unlocked = unlock.state.status === "unlocked";
   const [showPaywall, setShowPaywall] = useState(false);
   const [showA11y, setShowA11y] = useState(false);
+  const [showWhy, setShowWhy] = useState(false);
 
   useEffect(() => {
     if (premiumGate && !unlocked) setShowPaywall(true);
@@ -223,6 +225,18 @@ export function Player({
     onBack();
   }, [capture, currentBeatId, onBack]);
 
+  // The Article 50 disclosure facts: what drove this cut.
+  const adaptation: Adaptation = {
+    isControl: isControl ?? false,
+    language: active.language,
+    intensity: onScreen?.intensity,
+    captions: active.captions,
+    audioDescription: active.audioDescription,
+    sign: active.sign,
+    policyVersion: lastStep?.decision.policy_version,
+    decisionId,
+  };
+
   // Poster surface class: premium gp once unlocked, else calm/tense by the shown cut's intensity.
   const posterClass = unlocked && premiumGate
     ? "gp"
@@ -267,10 +281,16 @@ export function Player({
         <button type="button" className="icbtn" onClick={onBackToFeed} aria-label="Back to feed" data-testid="player-back">
           <BackIcon />
         </button>
-        <div className="adapt" data-testid="adaptive-badge">
+        <button
+          type="button"
+          className="adapt"
+          data-testid="adaptive-badge"
+          onClick={() => setShowWhy(true)}
+          aria-label="Why this cut"
+        >
           <span className="dot" aria-hidden="true" />
           {badgeLabel}
-        </div>
+        </button>
         <div className="ptop-actions">
           <button
             type="button"
@@ -396,6 +416,8 @@ export function Player({
           onDismiss={() => setShowPaywall(false)}
         />
       )}
+
+      <WhyThisCut adaptation={adaptation} open={showWhy} onClose={() => setShowWhy(false)} />
     </div>
   );
 }

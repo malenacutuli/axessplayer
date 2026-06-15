@@ -579,3 +579,6 @@ button.toggle { border: 0; padding: 0; flex: none; cursor: pointer; appearance: 
 /* In landscape the bottom text block reads across the wider frame. */
 .player.landscape .pbody { max-width: 60%; }
 .player.landscape .branchpick { left: auto; right: 14px; width: 320px; }
+
+/* the adaptive badge is now a button that opens the "why this cut" disclosure */
+button.adapt { cursor: pointer; appearance: none; font: inherit; }

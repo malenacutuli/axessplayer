@@ -69,6 +69,21 @@ describe("Player", () => {
     expect(screen.getByTestId("branch-tense")).toBeInTheDocument();
   });
 
+  it("discloses why this cut (EU AI Act Article 50), human and machine readable", async () => {
+    const user = userEvent.setup();
+    const { economy, transport } = setup();
+    renderPlayer(transport, economy);
+    // The adaptive badge opens the disclosure.
+    await user.click(screen.getByTestId("adaptive-badge"));
+    const sheet = screen.getByTestId("why-this-cut");
+    expect(sheet).toHaveTextContent(/re-cut itself for you/i);
+    expect(sheet).toHaveTextContent(/EU AI Act/i);
+    // Machine-readable disclosure carries the adaptation facts (generated_uniquely = false).
+    const machine = JSON.parse(sheet.getAttribute("data-adaptation") ?? "{}");
+    expect(machine).toMatchObject({ adapted: true, generated_uniquely: false });
+    expect(machine.accessibility).toBeDefined();
+  });
+
   it("emits beat-level capture events when personalizing (Phase 0)", async () => {
     const user = userEvent.setup();
     const { economy, transport } = setup();
