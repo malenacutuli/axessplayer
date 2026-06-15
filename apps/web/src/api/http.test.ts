@@ -37,4 +37,30 @@ describe("apiFetch", () => {
     await expect(apiFetch("http://x", "/spend", session, { method: "POST", body: { scope: "episode", scope_id: "e", client_txn_id: "t" }, fetch: f }))
       .rejects.toMatchObject({ status: 402 } satisfies Partial<ApiError>);
   });
+
+  // Regression for the browser-only "Failed to execute 'fetch' on 'Window': Illegal invocation".
+  // When no fetch is injected, apiFetch falls back to the global fetch. The browser's fetch is
+  // unforgeable: it throws unless its receiver is the global object. node/jsdom do NOT enforce this,
+  // so we install a fetch that emulates the browser rule, then assert the un-injected call still works
+  // (i.e. apiFetch binds the global fetch to its receiver rather than passing a detached reference).
+  it("calls the global fetch with the correct receiver when none is injected", async () => {
+    const original = globalThis.fetch;
+    let receiverWasGlobal = false;
+    const unforgeable = function (this: unknown): Promise<Response> {
+      if (this !== globalThis) {
+        throw new TypeError("Failed to execute 'fetch' on 'Window': Illegal invocation");
+      }
+      receiverWasGlobal = true;
+      return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } }));
+    };
+    globalThis.fetch = unforgeable as unknown as typeof globalThis.fetch;
+    try {
+      // No `fetch` in opts -> the fallback path the browser actually exercises.
+      const out = await apiFetch<{ ok: boolean }>("http://x", "/series/s/graph", session);
+      expect(out).toEqual({ ok: true });
+      expect(receiverWasGlobal).toBe(true);
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
 });

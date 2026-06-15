@@ -61,7 +61,10 @@ export class ContentClient {
 
   constructor(opts: ContentClientOptions) {
     this.baseUrl = opts.baseUrl;
-    this.fetchImpl = opts.fetchImpl ?? fetch;
+    // Bind the global fetch to its receiver. A bare `fetch` reference is detached, and the browser's
+    // fetch is unforgeable: an unbound call throws "Failed to execute 'fetch' on 'Window': Illegal
+    // invocation". Tests inject fetchImpl, so this branch only runs in the browser.
+    this.fetchImpl = opts.fetchImpl ?? globalThis.fetch.bind(globalThis);
   }
 
   // GET /series/{id}/graph : the raw NESTED graph as the service returns it.

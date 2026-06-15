@@ -35,7 +35,10 @@ export interface WebTransportOptions {
 }
 
 export function createWebTransport(opts: WebTransportOptions): Transport {
-  const doFetch = opts.fetch ?? globalThis.fetch;
+  // Bind to the receiver: a bare global fetch reference is detached and the browser's fetch is
+  // unforgeable, so an unbound call throws "Illegal invocation". See apps/web/src/api/http.ts.
+  const globalFetch = globalThis.fetch ? globalThis.fetch.bind(globalThis) : undefined;
+  const doFetch = opts.fetch ?? globalFetch;
   if (typeof doFetch !== "function") {
     throw new Error("no fetch available: pass opts.fetch on this runtime");
   }

@@ -43,7 +43,10 @@ export async function apiFetch<T>(
   session: SessionProvider,
   opts: RequestOptions = {},
 ): Promise<T> {
-  const doFetch = opts.fetch ?? globalThis.fetch;
+  // Bind the global fetch to its receiver. A bare `globalThis.fetch` reference is detached, and the
+  // browser's fetch is unforgeable: calling it with this !== window throws "Illegal invocation". Tests
+  // inject opts.fetch so they never hit this branch, which is why the bug only surfaced in the browser.
+  const doFetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
   const method = opts.method ?? "GET";
   const headers: Record<string, string> = { ...(await authHeader(session)) };
 
