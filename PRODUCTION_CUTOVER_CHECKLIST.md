@@ -95,6 +95,13 @@ deploy to prod) without an explicit per-action human go.
       BIPA): explicit separate opt-in captured at point of use, time-limited + hard-deletable, recorded on
       the consent_ledger hash chain BEFORE any personalized render serves; plus verified-permission face
       matching. Design in docs/DATA_GDPR_DESIGN.md + docs/DATA_ML_DYNAMIC_CONTENT_SPEC.md section 5b.
+- [ ] QUEUED NWM RESEARCH TRACK (see docs/NARRATIVE_WORLD_MODEL.md + AGENTS/RESEARCH_ORG.md): (a) HUMAN
+      DECISION needed - BSC MareNostrum 5 allocation scale + cadence and the Swiss GPU model, which sizes the
+      phased training plan; (b) consent hash-chain check is a HARD PRECONDITION before any conditioned render
+      runs (R4); (c) model-native watermark (Stable Signature / Gaussian Shading) on every generated frame
+      atop C2PA; (d) license-gate the open base weights (Wan lineage) for commercial render; (e) DO NOT
+      attempt foundation-model pretraining from scratch or claim to out-pretrain a frontier lab. BSC trains +
+      distills, Switzerland serves the beta, cloud bursts production.
 
 ## 7. Container readiness (orchestrator-verified by real `docker build`/`run`, 2026-06-15)
 - [x] DONE apps/web image builds (76MB, nginx + Vite dist) and is a clean static deploy. Caught + fixed a
