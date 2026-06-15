@@ -53,20 +53,34 @@ export function createServerForDB(db: ManifestDB): Server {
 
 // Start listening on the given port (0 picks an ephemeral port). Resolves with the server and the bound
 // port so callers (and tests) can issue real HTTP requests against it.
-export function startServer(db: ManifestDB, port = 0): Promise<{ server: Server; port: number }> {
+//
+// host defaults to 0.0.0.0 so the listener is reachable through a container port map. A process bound to
+// 127.0.0.1 only answers on the loopback inside the container and is unreachable from the host even with
+// `-p`, which is exactly the symptom this entrypoint exists to avoid. Tests pass host explicitly when
+// they want loopback only. Env HOST overrides on direct execution below. No em dashes.
+export function startServer(
+  db: ManifestDB,
+  port = 0,
+  host = "0.0.0.0"
+): Promise<{ server: Server; port: number }> {
   const server = createServerForDB(db);
   return new Promise((resolve, reject) => {
     server.once("error", reject);
-    server.listen(port, () => {
+    server.listen(port, host, () => {
       const address = server.address() as AddressInfo;
       resolve({ server, port: address.port });
     });
   });
 }
 
-// Direct execution: `node --import tsx src/server.ts` serves the fixture DB on PORT (default 8787). This is
-// a STUB datastore: the fixture playback_urls are placeholders, not real transcoded segments. Swap in the
-// Supabase-backed ManifestDB here when it exists.
+// Direct execution: `node --import tsx src/server.ts` serves the fixture DB on PORT (default 8787) bound to
+// HOST (default 0.0.0.0 so a container port map reaches it). This is a STUB datastore: the fixture
+// playback_urls are placeholders, not real transcoded segments. Swap in the Supabase-backed ManifestDB here
+// when it exists.
+//
+// Env vars read here (must match infra/ENV.md):
+//   PORT  TCP port the listener binds. Defaults to 8787 (matches the Dockerfile EXPOSE/ENV).
+//   HOST  Interface to bind. Defaults to 0.0.0.0 for container reachability.
 const isMain = (() => {
   try {
     return import.meta.url === `file://${process.argv[1]}`;
@@ -77,11 +91,12 @@ const isMain = (() => {
 
 if (isMain) {
   const port = Number(process.env.PORT ?? 8787);
+  const host = process.env.HOST ?? "0.0.0.0";
   const db = new InMemoryManifestDB(FIXTURE_VARIANTS, FIXTURE_RENDITIONS);
-  startServer(db, port)
+  startServer(db, port, host)
     .then(({ port: bound }) => {
       // eslint-disable-next-line no-console
-      console.log(`manifest service listening on http://localhost:${bound}`);
+      console.log(`manifest service listening on ${host}:${bound}`);
     })
     .catch((err) => {
       // eslint-disable-next-line no-console
