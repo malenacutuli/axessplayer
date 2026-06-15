@@ -35,5 +35,7 @@ ENV NODE_ENV=production
 COPY --from=build /app /app
 ENV PORT=8080
 EXPOSE 8080
-# Placeholder entrypoint. See the FLAG at the top: requires a `serve` script on @axessplayer/decision.
-CMD ["pnpm", "--filter", "@axessplayer/decision", "serve"]
+# Run the guard-free serve entry directly with node (pnpm --filter ... serve does not spawn the child in
+# the container; node --import tsx src/serve.ts from the package dir is the verified-working invocation).
+WORKDIR /app/services/decision
+CMD ["node", "--import", "tsx", "src/serve.ts"]

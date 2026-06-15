@@ -36,5 +36,8 @@ COPY --from=build /app /app
 # The manifest listener reads PORT (src/server.ts: Number(process.env.PORT ?? 8787)). Default to 8787.
 ENV PORT=8787
 EXPOSE 8787
-# tsx runs the TypeScript server directly; the `serve` script is the package's documented entrypoint.
-CMD ["pnpm", "--filter", "@axessplayer/manifest", "serve"]
+# Run the guard-free serve entry directly with node. `pnpm --filter ... serve` does NOT spawn the child
+# process in the container (pnpm sits idle, nothing listens); `node --import tsx src/serve.ts` from the
+# package dir is the verified-working invocation.
+WORKDIR /app/services/manifest
+CMD ["node", "--import", "tsx", "src/serve.ts"]
