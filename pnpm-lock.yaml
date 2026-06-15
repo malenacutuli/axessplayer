@@ -59,6 +59,10 @@ importers:
         version: 5.9.3
 
   services/decision:
+    dependencies:
+      hono:
+        specifier: ^4.12.25
+        version: 4.12.25
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
