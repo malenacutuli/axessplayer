@@ -1,0 +1,120 @@
+-- PROPOSED - requires schema/ledger sign-off. Do NOT move under supabase/migrations until ratified.
+--
+-- Path A: attach Axessible's accessibility model to Axessplayer's beat_variants (the publishable unit).
+-- Derived from the mvpsigndemo-20 schema (transcript_segments, audio_descriptions, sign_language_clips,
+-- characters, tracks, usage_records, jobs) mapped per docs/REUSE_FROM_AXESSIBLE.md. A Studio upload becomes
+-- a beat_variant.playback_url (S3 under Path A); the tracks below hang off that variant. Follows the
+-- Axessplayer conventions: deny-all RLS, composite FK discipline, immutable audit where noted. No em dashes.
+
+-- ---------- captions ("captions with intention": speaker color, intensity, word-level timing) ----------
+CREATE TABLE beat_variant_captions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  beat_variant_id UUID NOT NULL REFERENCES beat_variants(id) ON DELETE CASCADE,
+  language TEXT NOT NULL,
+  idx INTEGER NOT NULL,                          -- ordinal within the variant+language
+  start_ms INTEGER NOT NULL CHECK (start_ms >= 0),
+  end_ms INTEGER NOT NULL CHECK (end_ms >= start_ms),
+  text TEXT NOT NULL,
+  speaker TEXT,                                  -- maps to beat_variant_characters.name
+  speaker_color TEXT,                            -- #hex, denormalized for render
+  emphasis TEXT DEFAULT 'normal',               -- normal|loud|quiet (vocal intensity bucket)
+  segment_type TEXT DEFAULT 'dialogue',         -- dialogue|soundeffect|music
+  is_off_camera BOOLEAN DEFAULT false,
+  words JSONB DEFAULT '[]',                      -- [{w,start_ms,end_ms}] word-level timing
+  confidence DOUBLE PRECISION,
+  UNIQUE (beat_variant_id, language, idx)
+);
+
+-- ---------- audio description (creative narration; Extended AD maps to branch points) ----------
+CREATE TABLE beat_variant_audio_descriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  beat_variant_id UUID NOT NULL REFERENCES beat_variants(id) ON DELETE CASCADE,
+  language TEXT NOT NULL,
+  start_ms INTEGER NOT NULL CHECK (start_ms >= 0),
+  end_ms INTEGER NOT NULL CHECK (end_ms >= start_ms),
+  description TEXT NOT NULL,
+  description_type TEXT DEFAULT 'visual',        -- visual|action|emotion|setting
+  audio_url TEXT,                                -- TTS render (ElevenLabs), null until generated
+  is_extended BOOLEAN DEFAULT false,             -- Extended AD: pause/slowdown the cut for this AD
+  confidence DOUBLE PRECISION
+);
+
+-- ---------- sign language clips (overlaid .webm insets keyed to caption timing) ----------
+CREATE TABLE beat_variant_sign_clips (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  beat_variant_id UUID NOT NULL REFERENCES beat_variants(id) ON DELETE CASCADE,
+  language TEXT NOT NULL,                         -- sign language (asl|bsl|...) not spoken language
+  start_ms INTEGER NOT NULL CHECK (start_ms >= 0),
+  end_ms INTEGER NOT NULL CHECK (end_ms >= start_ms),
+  clip_url TEXT NOT NULL,
+  caption_idx INTEGER                            -- optional link to beat_variant_captions.idx
+);
+
+-- ---------- characters / speakers (color + voice identity per variant) ----------
+CREATE TABLE beat_variant_characters (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  beat_variant_id UUID NOT NULL REFERENCES beat_variants(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  color TEXT,                                    -- #hex caption color
+  voice_id TEXT,                                 -- TTS voice for AD/dubbing
+  is_off_camera BOOLEAN DEFAULT false,
+  UNIQUE (beat_variant_id, name)
+);
+
+-- ---------- async processing jobs (transcribe/encode/AD-generate), polymorphic target ----------
+CREATE TABLE background_jobs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  target_type TEXT NOT NULL,                     -- beat_variant|series|user
+  target_id UUID NOT NULL,
+  job_type TEXT NOT NULL,                        -- transcription|encode|ad_generation|analysis
+  status TEXT NOT NULL DEFAULT 'pending',        -- pending|running|completed|failed
+  priority SMALLINT NOT NULL DEFAULT 0,
+  payload JSONB DEFAULT '{}',
+  result JSONB,
+  error_message TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ
+);
+
+-- ---------- usage audit (transcription/processing minutes + cost) ----------
+CREATE TABLE user_usage_records (                -- immutable audit, pairs with subscription limits
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id),
+  beat_variant_id UUID REFERENCES beat_variants(id),
+  processing_type TEXT NOT NULL,                 -- transcription|ad_tts|analysis
+  minutes_processed NUMERIC NOT NULL DEFAULT 0,
+  cost_cents INTEGER NOT NULL DEFAULT 0,
+  billing_cycle_start DATE,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ---------- subscription fields on users (coexist with the coin economy) ----------
+-- MERGE (Axessible profiles+subscribers): subscriptions for premium tiers, coins for one-off unlocks.
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS display_name TEXT,
+  ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT,
+  ADD COLUMN IF NOT EXISTS subscription_tier TEXT,        -- null|starter|standard|advanced
+  ADD COLUMN IF NOT EXISTS subscription_end TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS minutes_used NUMERIC DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS minutes_included NUMERIC DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS storage_used_gb NUMERIC DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS storage_limit_gb NUMERIC DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS billing_cycle_start DATE;
+
+-- Indexes for the read paths (player loads tracks by variant+language).
+CREATE INDEX ON beat_variant_captions (beat_variant_id, language);
+CREATE INDEX ON beat_variant_audio_descriptions (beat_variant_id, language);
+CREATE INDEX ON beat_variant_sign_clips (beat_variant_id, language);
+CREATE INDEX ON background_jobs (status, priority DESC, created_at);
+CREATE INDEX ON user_usage_records (user_id, billing_cycle_start);
+
+-- RLS: deny-all floor consistent with 0001_init.sql; service-role writes the tracks (async jobs), the
+-- player reads via a public/embeddable policy or a SECURITY DEFINER RPC. Policies authored at ratification.
+ALTER TABLE beat_variant_captions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE beat_variant_audio_descriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE beat_variant_sign_clips ENABLE ROW LEVEL SECURITY;
+ALTER TABLE beat_variant_characters ENABLE ROW LEVEL SECURITY;
+ALTER TABLE background_jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_usage_records ENABLE ROW LEVEL SECURITY;

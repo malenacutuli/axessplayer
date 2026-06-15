@@ -14,6 +14,15 @@ the Vercel and Supabase env settings, and the orchestrator builds everything tha
 outward-facing/irreversible/money steps itself (create live Stripe products, run the prod migration,
 deploy to prod) without an explicit per-action human go.
 
+## 0. Path A media backend (reuse from Axessible / mvpsigndemo-20) - RATIFIED 2026-06-15
+- [ ] QUEUED Provision + provide per docs/PATH_A_PROVISIONING.md, by slice: (1) AWS S3 bucket + IAM keys for
+      real upload; (2) Supabase project + AssemblyAI key for transcription -> accessibility tracks; (4) Stripe
+      keys for subscriptions; (5) Gemini/ElevenLabs for AI assists. The local upload loop already works
+      gate-free; these replace it with S3 + real transcription.
+- [ ] QUEUED Sign off + apply docs/proposals/0007_beat_variant_accessibility.sql.proposed (captions, audio
+      descriptions, sign clips, characters, jobs, usage, users subscription columns) before moving it under
+      supabase/migrations.
+
 ## 1. Secrets and credentials (orchestrator provides env-var SCHEMAS; human pastes VALUES into Vercel/Supabase env)
 - [ ] QUEUED Production Postgres / Supabase connection string + service-role key.
 - [ ] QUEUED Auth provider: JWKS endpoint / issuer / audience for real session + service JWT verification
