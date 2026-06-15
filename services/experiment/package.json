@@ -4,9 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "echo build ok",
-    "typecheck": "echo typecheck ok",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo lint ok",
-    "test": "echo test ok"
+    "test": "node --import tsx --test \"src/**/*.test.ts\" \"test/**/*.test.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.11.0",
+    "embedded-postgres": "18.4.0-beta.17",
+    "pg": "^8.12.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
   }
 }
