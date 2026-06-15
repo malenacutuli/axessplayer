@@ -57,11 +57,23 @@ deploy to prod) without an explicit per-action human go.
       On any change, bump POLICY_VERSION in apps/web/src/consent/model.ts to force re-consent.
 - [ ] QUEUED Data retention windows + k-anonymity threshold. Recommendations are in
       docs/DATA_GDPR_DESIGN.md, all marked TUNABLE/PENDING-LEGAL. Ratify per data category.
-- [ ] QUEUED LICENSE REVIEW BEFORE DEPENDENCY (hard gate, see docs/RENDER_AUTHORING_PLAYER_REFERENCES.md):
-      Kaltura PlayKit JS is AGPL-3.0 -> DO NOT fork or link into the shipping player (reimplement patterns as
-      our own code). Remotion has a custom license -> obtain a company license decision BEFORE it becomes a
-      load-bearing dependency in the Studio render path. Any new media/runtime dependency gets a license
-      check first; copyleft (AGPL/GPL) source must not be absorbed into the proprietary SaaS.
+- [ ] QUEUED LICENSE REVIEW BEFORE DEPENDENCY (hard gate, see docs/RENDER_AUTHORING_PLAYER_REFERENCES.md +
+      docs/ENGINE_SOTA_AND_PATENTABILITY.md): Kaltura PlayKit JS is AGPL-3.0 -> DO NOT fork/link into the
+      shipping player (reimplement as our own code). Remotion -> company-license decision before load-bearing.
+      Any new media/runtime dependency gets a license check first; copyleft (AGPL/GPL) source must not be
+      absorbed into the proprietary SaaS. EXTENDED: license-gate the MODEL WEIGHTS, not just the repo license
+      (MoCha/Wan-Animate/CharacterFaceSwap and any face-swap weights frequently restrict commercial use;
+      confirm the WEIGHT license before a single paid render).
+- [ ] QUEUED CONTENT-PLANE / AD-PLANE INVARIANT (architecture gate, see docs/CONTENT_AND_AD_PLANES.md):
+      personalized/generated content rides the content plane and OUR decision engine; ONLY break ads ride the
+      SGAI ad plane. Never route a personalized/face-swap render through an ad proxy, and never let an
+      ad-CTR optimizer choose a narrative cut. In-scene placement is a render-time beat_variant op, not an
+      interstitial.
+- [ ] QUEUED IP / PATENT (legal gate, see docs/ENGINE_SOTA_AND_PATENTABILITY.md): engage patent counsel on
+      Claims A/B/C (consent-gated per-viewer generative re-cutting; compliance-constrained reward; joint
+      cut+placement+personalization policy), Claim D as a continuation. File BEFORE public launch - public
+      disclosure starts clocks and can bar protection. Not legal advice; needs counsel + a formal prior-art
+      search.
 
 ## 5. Contract / schema / ledger changes (orchestrator-owned, human sign-off)
 - [ ] QUEUED content.yaml enrichment: the create endpoints define NO request-body schemas, so create
