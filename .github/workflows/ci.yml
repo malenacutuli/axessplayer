@@ -14,7 +14,10 @@ jobs:
       - run: pnpm gen
       - run: pnpm typecheck
       - run: pnpm lint
-      - run: pnpm test
+      # Serialize turbo test tasks: 3+ PGlite (wasm Postgres) + tsx suites running at once
+      # saturate CPU and intermittently crash node:test ("Promise resolution is still pending").
+      # Node 20 is already pinned above; the concurrency cap is the deterministic fix.
+      - run: pnpm exec turbo run test --concurrency=1
 
   # The two ledger suites need a real multi-connection Postgres (FOR UPDATE contention), so they run
   # against a service container, not the in-process PGlite used by the fast `pnpm test`. Each suite gets
