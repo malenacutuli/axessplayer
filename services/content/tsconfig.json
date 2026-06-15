@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "@axessplayer/contracts/content": ["../../contracts/types/generated/content.ts"]
+    }
+  },
+  "include": ["src", "test"]
+}

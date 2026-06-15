@@ -1,0 +1,217 @@
+// Integration harness for the content service. Stands up an in-process Postgres (PGlite, real Postgres
+// compiled to wasm, with plpgsql) and applies the same files supabase db reset applies: every
+// supabase/migrations/*.sql in lexical order, then supabase/seed.sql. The seed builds the walking-skeleton
+// series, so the graph assertions compare against real fixtures, not handcrafted JSON. No live service
+// needed. No em dashes.
+
+import { PGlite } from "@electric-sql/pglite";
+import { readFile, readdir } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import type {
+  ContentDB,
+  SeriesRow,
+  EpisodeRow,
+  BeatRow,
+  VariantRow,
+  EdgeRow,
+  SeriesGraph,
+} from "../src/content.js";
+import { assembleGraph } from "../src/pgContentDb.js";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+// test -> content -> services -> repo root
+const repoRoot = path.resolve(here, "..", "..", "..");
+const migrationsDir = path.join(repoRoot, "supabase", "migrations");
+const seedFile = path.join(repoRoot, "supabase", "seed.sql");
+
+// Fixture ids from supabase/seed.sql, named so the assertions read like the contract.
+export const FIX = {
+  series: "11111111-1111-1111-1111-111111111111",
+  episode: "22222222-2222-2222-2222-222222222222",
+  beatColdOpen: "bbbbbbbb-0000-0000-0000-000000000001",
+  beatBranchPoint: "bbbbbbbb-0000-0000-0000-000000000002",
+  beatCalm: "bbbbbbbb-0000-0000-0000-00000000000a",
+  beatTense: "bbbbbbbb-0000-0000-0000-00000000000b",
+  beatEnding: "bbbbbbbb-0000-0000-0000-000000000004",
+  variantEnding: "cccccccc-0000-0000-0000-000000000004",
+  variantPremiumEnding: "cccccccc-0000-0000-0000-000000000005",
+} as const;
+
+// Spin up a fresh database with migrations + seed applied. Each call is fully isolated.
+export async function freshDb(): Promise<PGlite> {
+  const db = await PGlite.create();
+  const files = (await readdir(migrationsDir)).filter((f) => f.endsWith(".sql")).sort();
+  if (files.length === 0) throw new Error(`no migrations found in ${migrationsDir}`);
+  for (const f of files) {
+    await db.exec(await readFile(path.join(migrationsDir, f), "utf8"));
+  }
+  await db.exec(await readFile(seedFile, "utf8"));
+  return db;
+}
+
+// Spin up a fresh database with ONLY migrations, no seed (for building the graph through the create
+// endpoints from empty).
+export async function emptyDb(): Promise<PGlite> {
+  const db = await PGlite.create();
+  const files = (await readdir(migrationsDir)).filter((f) => f.endsWith(".sql")).sort();
+  if (files.length === 0) throw new Error(`no migrations found in ${migrationsDir}`);
+  for (const f of files) {
+    await db.exec(await readFile(path.join(migrationsDir, f), "utf8"));
+  }
+  return db;
+}
+
+// PGlite-backed ContentDB. The production adapter (pgContentDb.ts) is the same shape over node-postgres
+// and shares assembleGraph, so both produce identical graphs from identical rows.
+export function pgliteContentDb(db: PGlite): ContentDB {
+  return {
+    async insertSeries(row: Omit<SeriesRow, "id">): Promise<SeriesRow> {
+      const r = await db.query<SeriesRow>(
+        `insert into series (title, genre, base_language, available_languages, cover_url)
+         values ($1,$2,$3,$4,$5)
+         returning id, title, genre, base_language, available_languages, cover_url`,
+        [row.title, row.genre, row.base_language, row.available_languages, row.cover_url]
+      );
+      const out = r.rows[0];
+      return { ...out, genre: out.genre ?? null, cover_url: out.cover_url ?? null, available_languages: out.available_languages ?? [] };
+    },
+    async getEpisode(id: string) {
+      const r = await db.query<{ id: string; series_id: string }>(
+        "select id, series_id from episodes where id = $1",
+        [id]
+      );
+      return r.rows[0] ?? null;
+    },
+    async getBeat(id: string) {
+      const r = await db.query<{ id: string; series_id: string; episode_id: string }>(
+        "select id, series_id, episode_id from beats where id = $1",
+        [id]
+      );
+      return r.rows[0] ?? null;
+    },
+    async seriesExists(id: string) {
+      const r = await db.query("select 1 from series where id = $1", [id]);
+      return r.rows.length > 0;
+    },
+    async insertEpisode(row: Omit<EpisodeRow, "id">): Promise<EpisodeRow> {
+      const r = await db.query<EpisodeRow>(
+        `insert into episodes (series_id, episode_number, title, is_free, coin_cost)
+         values ($1,$2,$3,$4,$5)
+         returning id, series_id, episode_number, title, is_free, coin_cost`,
+        [row.series_id, row.episode_number, row.title, row.is_free, row.coin_cost]
+      );
+      const out = r.rows[0];
+      return { ...out, episode_number: Number(out.episode_number), coin_cost: Number(out.coin_cost), title: out.title ?? null, is_free: Boolean(out.is_free) };
+    },
+    async insertBeat(row: Omit<BeatRow, "id">): Promise<BeatRow> {
+      const r = await db.query<BeatRow>(
+        `insert into beats (series_id, episode_id, beat_index, role, canon_facts, is_branch_point)
+         values ($1,$2,$3,$4,$5,$6)
+         returning id, series_id, episode_id, beat_index, role, canon_facts, is_branch_point`,
+        [row.series_id, row.episode_id, row.beat_index, row.role, row.canon_facts, row.is_branch_point]
+      );
+      const out = r.rows[0];
+      return { ...out, beat_index: Number(out.beat_index), canon_facts: out.canon_facts ?? {}, is_branch_point: Boolean(out.is_branch_point) };
+    },
+    async insertVariant(row: Omit<VariantRow, "id">): Promise<VariantRow> {
+      const r = await db.query<VariantRow>(
+        `insert into beat_variants
+           (beat_id, language, accessibility, intensity, pov, tier, is_premium, coin_cost,
+            playback_url, duration_ms, provenance_id, qa_status, placement_slots)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+         returning id, beat_id, language, accessibility, intensity, pov, tier, is_premium, coin_cost,
+                   playback_url, duration_ms, provenance_id, qa_status, placement_slots`,
+        [
+          row.beat_id,
+          row.language,
+          row.accessibility,
+          row.intensity,
+          row.pov,
+          row.tier,
+          row.is_premium,
+          row.coin_cost,
+          row.playback_url,
+          row.duration_ms,
+          row.provenance_id,
+          row.qa_status,
+          JSON.stringify(row.placement_slots),
+        ]
+      );
+      const out = r.rows[0];
+      return {
+        ...out,
+        intensity: Number(out.intensity),
+        coin_cost: Number(out.coin_cost),
+        is_premium: Boolean(out.is_premium),
+        duration_ms: out.duration_ms == null ? null : Number(out.duration_ms),
+        accessibility: out.accessibility ?? {},
+        pov: out.pov ?? null,
+        provenance_id: out.provenance_id ?? null,
+        placement_slots: out.placement_slots ?? [],
+      };
+    },
+    async insertEdge(row: EdgeRow): Promise<EdgeRow> {
+      const r = await db.query<EdgeRow>(
+        `insert into beat_edges (from_beat_id, to_beat_id, condition)
+         values ($1,$2,$3)
+         returning from_beat_id, to_beat_id, condition`,
+        [row.from_beat_id, row.to_beat_id, row.condition]
+      );
+      const out = r.rows[0];
+      return { ...out, condition: out.condition ?? {} };
+    },
+    async getSeriesGraph(seriesId: string): Promise<SeriesGraph | null> {
+      const s = await db.query<Record<string, unknown>>(
+        "select id, title, genre, base_language, available_languages, cover_url from series where id = $1",
+        [seriesId]
+      );
+      if (s.rows.length === 0) return null;
+      const eps = await db.query<Record<string, unknown>>(
+        "select id, episode_number, title, is_free, coin_cost from episodes where series_id = $1 order by episode_number, id",
+        [seriesId]
+      );
+      const beats = await db.query<Record<string, unknown>>(
+        "select id, series_id, episode_id, beat_index, role, is_branch_point, canon_facts from beats where series_id = $1 order by beat_index, id",
+        [seriesId]
+      );
+      const variants = await db.query<Record<string, unknown>>(
+        `select v.id, v.beat_id, v.language, v.accessibility, v.intensity, v.pov, v.tier, v.is_premium,
+                v.coin_cost, v.playback_url, v.duration_ms, v.qa_status
+         from beat_variants v join beats b on b.id = v.beat_id
+         where b.series_id = $1 order by v.id`,
+        [seriesId]
+      );
+      const edges = await db.query<Record<string, unknown>>(
+        `select e.from_beat_id, e.to_beat_id, e.condition
+         from beat_edges e join beats b on b.id = e.from_beat_id
+         where b.series_id = $1 order by e.from_beat_id, e.to_beat_id`,
+        [seriesId]
+      );
+      const series: SeriesRow = {
+        id: s.rows[0].id as string,
+        title: s.rows[0].title as string,
+        genre: (s.rows[0].genre as string) ?? null,
+        base_language: s.rows[0].base_language as string,
+        available_languages: (s.rows[0].available_languages as string[]) ?? [],
+        cover_url: (s.rows[0].cover_url as string) ?? null,
+      };
+      return assembleGraph(series, eps.rows, beats.rows, variants.rows, edges.rows);
+    },
+  };
+}
+
+// Force a beat row whose series_id does not match its episode's series, bypassing the handler, to prove
+// Postgres rejects it via the composite FK. Returns the error message thrown by the DB.
+export async function tryInsertMismatchedBeat(db: PGlite, episodeId: string, wrongSeriesId: string): Promise<string> {
+  try {
+    await db.query(
+      `insert into beats (series_id, episode_id, beat_index, role)
+       values ($1, $2, 99, 'spine')`,
+      [wrongSeriesId, episodeId]
+    );
+    return "";
+  } catch (e) {
+    return e instanceof Error ? e.message : String(e);
+  }
+}
