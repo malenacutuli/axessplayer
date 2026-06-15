@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: #FAFAF8; color: #111114; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  ::selection { background: #FF2E6E; color: #fff; }
+  @keyframes apFade { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+</style>
+</helmet>
+
+<div style="background:#FAFAF8;font-family:Inter,sans-serif;">
+
+  <!-- ============ STICKY NAV ============ -->
+  <nav style="position:sticky;top:0;z-index:50;background:rgba(250,250,248,0.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid #ECECEC;">
+    <div style="max-width:1180px;margin:0 auto;padding:0 40px;height:62px;display:flex;align-items:center;justify-content:space-between;gap:24px;">
+      <a href="#cover" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
+        <svg style="width:24px;height:24px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg>
+        <span style="font-family:Outfit,sans-serif;font-weight:600;font-size:17px;letter-spacing:-0.04em;color:#111114">axess<span style="color:#FF2E6E">player</span></span>
+      </a>
+      <div style="display:flex;align-items:center;gap:26px;">
+        <a href="#logo" data-nav style="font-family:Inter,sans-serif;font-weight:500;font-size:13.5px;color:#6B6B72;text-decoration:none">Logo</a>
+        <a href="#color" data-nav style="font-family:Inter,sans-serif;font-weight:500;font-size:13.5px;color:#6B6B72;text-decoration:none">Color</a>
+        <a href="#type" data-nav style="font-family:Inter,sans-serif;font-weight:500;font-size:13.5px;color:#6B6B72;text-decoration:none">Type</a>
+        <a href="#dark" data-nav style="font-family:Inter,sans-serif;font-weight:500;font-size:13.5px;color:#6B6B72;text-decoration:none">Dark mode</a>
+        <a href="#digital" data-nav style="font-family:Inter,sans-serif;font-weight:500;font-size:13.5px;color:#6B6B72;text-decoration:none">Applications</a>
+        <a href="#wild" data-nav style="font-family:Inter,sans-serif;font-weight:500;font-size:13.5px;color:#6B6B72;text-decoration:none">In the wild</a>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.12em;color:#B4B4BA;padding-left:6px;border-left:1px solid #ECECEC">v1.0</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============ COVER ============ -->
+  <header id="cover" data-screen-label="Cover" style="background:#111114;color:#FAFAF8;position:relative;overflow:hidden;">
+    <svg style="position:absolute;right:-120px;bottom:-140px;width:560px;height:560px;opacity:0.06" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg>
+    <div style="max-width:1180px;margin:0 auto;padding:36px 40px 92px;position:relative;">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#8A8A93;padding-bottom:120px;">
+        <span>Axessible Technologies</span>
+        <span>Version 1.0 · June 2026</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:28px;margin-bottom:40px;">
+        <svg style="width:84px;height:84px;display:block;flex-shrink:0" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg>
+        <span style="font-family:Outfit,sans-serif;font-weight:600;font-size:clamp(52px,9vw,118px);letter-spacing:-0.05em;line-height:0.9;color:#FFFFFF">axess<span style="color:#FF2E6E">player</span></span>
+      </div>
+      <h1 style="font-family:Outfit,sans-serif;font-weight:500;font-size:clamp(26px,3.4vw,42px);letter-spacing:-0.03em;line-height:1.08;color:#FAFAF8;margin:0 0 22px;max-width:760px;">Brand guidelines.<br><span style="color:#8A8A93">The complete identity system — logo, color, type, and application.</span></h1>
+      <p style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:0.06em;color:#FF2E6E;margin:0;">One story. Every language. Every person.</p>
+    </div>
+  </header>
+
+  <!-- ============ CONTENTS ============ -->
+  <section data-screen-label="Contents" style="background:#FAFAF8;">
+    <div style="max-width:1180px;margin:0 auto;padding:80px 40px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;">Contents</span>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#ECECEC;border:1px solid #ECECEC;margin-top:28px;border-radius:14px;overflow:hidden;">
+        <a href="#essence" style="display:flex;gap:14px;padding:24px 22px;background:#FAFAF8;text-decoration:none;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#B4B4BA;">01</span><span style="font-family:Outfit,sans-serif;font-weight:500;font-size:18px;color:#111114;letter-spacing:-0.02em">Brand essence</span></a>
+        <a href="#logo" style="display:flex;gap:14px;padding:24px 22px;background:#FAFAF8;text-decoration:none;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#B4B4BA;">02</span><span style="font-family:Outfit,sans-serif;font-weight:500;font-size:18px;color:#111114;letter-spacing:-0.02em">The logo</span></a>
+        <a href="#clearspace" style="display:flex;gap:14px;padding:24px 22px;background:#FAFAF8;text-decoration:none;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#B4B4BA;">03</span><span style="font-family:Outfit,sans-serif;font-weight:500;font-size:18px;color:#111114;letter-spacing:-0.02em">Clear space &amp; sizing</span></a>
+        <a href="#variations" style="display:flex;gap:14px;padding:24px 22px;background:#FAFAF8;text-decoration:none;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#B4B4BA;">04</span><span style="font-family:Outfit,sans-serif;font-weight:500;font-size:18px;color:#111114;letter-spacing:-0.02em">Color variations</span></a>
+        <a href="#misuse" style="display:flex;gap:14px;padding:24px 22px;background:#FAFAF8;text-decoration:none;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#B4B4BA;">05</span><span style="font-family:Outfit,sans-serif;font-weight:500;font-size:18px;color:#111114;letter-spacing:-0.02em">Misuse</span></a>
+        <a href="#color" style="display:flex;gap:14px;padding:24px 22px;background:#FAFAF8;text-decoration:none;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#B4B4BA;">06</span><span style="font-family:Outfit,sans-serif;font-weight:500;font-size:18px;color:#111114;letter-spacing:-0.02em">Color palette</span></a>
+        <a href="#type" style="display:flex;gap:14px;padding:24px 22px;background:#FAFAF8;text-decoration:none;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#B4B4BA;">07</span><span style="font-family:Outfit,sans-serif;font-weight:500;font-size:18px;color:#111114;letter-spacing:-0.02em">Typography</span></a>
+        <a href="#dark" style="display:flex;gap:14px;padding:24px 22px;background:#FAFAF8;text-decoration:none;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#B4B4BA;">08</span><span style="font-family:Outfit,sans-serif;font-weight:500;font-size:18px;color:#111114;letter-spacing:-0.02em">Dark mode</span></a>
+        <a href="#digital" style="display:flex;gap:14px;padding:24px 22px;background:#FAFAF8;text-decoration:none;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#B4B4BA;">09</span><span style="font-family:Outfit,sans-serif;font-weight:500;font-size:18px;color:#111114;letter-spacing:-0.02em">Digital applications</span></a>
+        <a href="#stationery" style="display:flex;gap:14px;padding:24px 22px;background:#FAFAF8;text-decoration:none;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#B4B4BA;">10</span><span style="font-family:Outfit,sans-serif;font-weight:500;font-size:18px;color:#111114;letter-spacing:-0.02em">Stationery</span></a>
+        <a href="#apparel" style="display:flex;gap:14px;padding:24px 22px;background:#FAFAF8;text-decoration:none;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#B4B4BA;">11</span><span style="font-family:Outfit,sans-serif;font-weight:500;font-size:18px;color:#111114;letter-spacing:-0.02em">Apparel</span></a>
+        <a href="#accessories" style="display:flex;gap:14px;padding:24px 22px;background:#FAFAF8;text-decoration:none;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#B4B4BA;">12</span><span style="font-family:Outfit,sans-serif;font-weight:500;font-size:18px;color:#111114;letter-spacing:-0.02em">Accessories &amp; office</span></a>
+        <a href="#wild" style="display:flex;gap:14px;padding:24px 22px;background:#FAFAF8;text-decoration:none;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#B4B4BA;">13</span><span style="font-family:Outfit,sans-serif;font-weight:500;font-size:18px;color:#111114;letter-spacing:-0.02em">Brand in the wild</span></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 01 ESSENCE ============ -->
+  <section id="essence" data-screen-label="Brand essence" style="border-top:1px solid #ECECEC;">
+    <div style="max-width:1180px;margin:0 auto;padding:104px 40px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;">01 · Brand essence</span>
+      <h2 style="font-family:Outfit,sans-serif;font-weight:600;font-size:clamp(40px,5vw,68px);letter-spacing:-0.035em;line-height:1.0;color:#111114;margin:18px 0 0;">Adaptive cinema.</h2>
+      <p style="font-family:Inter,sans-serif;font-size:21px;line-height:1.5;color:#3A3A40;margin:28px 0 0;max-width:760px;">Axessplayer is the platform for adaptive cinema: entertainment that knows who is watching and re-cuts itself, in every language, for everyone. One story, told the right way for each viewer.</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#ECECEC;border:1px solid #ECECEC;margin-top:56px;border-radius:14px;overflow:hidden;">
+        <div style="background:#FAFAF8;padding:34px 30px;">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#FF2E6E;">Mission</span>
+          <p style="font-family:Outfit,sans-serif;font-weight:500;font-size:21px;line-height:1.32;letter-spacing:-0.02em;color:#111114;margin:16px 0 0;">Make every story adaptive, accessible, and personal by default.</p>
+        </div>
+        <div style="background:#FAFAF8;padding:34px 30px;">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#FF2E6E;">Voice</span>
+          <p style="font-family:Outfit,sans-serif;font-weight:500;font-size:21px;line-height:1.32;letter-spacing:-0.02em;color:#111114;margin:16px 0 0;">Confident, editorial, plain-spoken. We state the idea, then prove it.</p>
+        </div>
+        <div style="background:#FAFAF8;padding:34px 30px;">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#FF2E6E;">Tagline</span>
+          <p style="font-family:Outfit,sans-serif;font-weight:500;font-size:21px;line-height:1.32;letter-spacing:-0.02em;color:#111114;margin:16px 0 0;">One story. Every language. Every person.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 02 THE LOGO ============ -->
+  <section id="logo" data-screen-label="The logo" style="border-top:1px solid #ECECEC;">
+    <div style="max-width:1180px;margin:0 auto;padding:104px 40px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;">02 · The logo</span>
+      <h2 style="font-family:Outfit,sans-serif;font-weight:600;font-size:clamp(38px,4.6vw,60px);letter-spacing:-0.035em;line-height:1.0;color:#111114;margin:18px 0 0;">The primary lockup.</h2>
+      <p style="font-family:Inter,sans-serif;font-size:17px;line-height:1.6;color:#6B6B72;margin:22px 0 0;max-width:680px;">Mark plus wordmark, vertically centered, with fixed spacing. Use this as the default everywhere the full lockup fits.</p>
+
+      <div style="margin-top:48px;background:#FFFFFF;border:1px solid #ECECEC;border-radius:20px;padding:80px 40px;display:flex;align-items:center;justify-content:center;">
+        <div style="display:flex;align-items:center;gap:34px;">
+          <svg style="width:108px;height:108px;display:block;flex-shrink:0" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg>
+          <span style="font-family:Outfit,sans-serif;font-weight:600;font-size:88px;letter-spacing:-0.05em;line-height:1;color:#111114">axess<span style="color:#FF2E6E">player</span></span>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:22px;">
+        <div style="background:#FFFFFF;border:1px solid #ECECEC;border-radius:16px;padding:30px;display:flex;flex-direction:column;gap:18px;">
+          <div style="height:96px;display:flex;align-items:center;justify-content:center;background:#F4F2EC;border-radius:10px;">
+            <svg style="width:60px;height:60px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg>
+          </div>
+          <div><div style="font-family:Outfit,sans-serif;font-weight:600;font-size:17px;letter-spacing:-0.02em;color:#111114">The mark</div><p style="font-family:Inter,sans-serif;font-size:14px;line-height:1.55;color:#6B6B72;margin:6px 0 0">A play button, re-cut into vertical slices. One story, re-cut for every viewer.</p></div>
+        </div>
+        <div style="background:#FFFFFF;border:1px solid #ECECEC;border-radius:16px;padding:30px;display:flex;flex-direction:column;gap:18px;">
+          <div style="height:96px;display:flex;align-items:center;justify-content:center;background:#F4F2EC;border-radius:10px;">
+            <span style="font-family:Outfit,sans-serif;font-weight:600;font-size:34px;letter-spacing:-0.04em;color:#111114">axess<span style="color:#FF2E6E">player</span></span>
+          </div>
+          <div><div style="font-family:Outfit,sans-serif;font-weight:600;font-size:17px;letter-spacing:-0.02em;color:#111114">The wordmark</div><p style="font-family:Inter,sans-serif;font-size:14px;line-height:1.55;color:#6B6B72;margin:6px 0 0">Set in Outfit. ‘axess’ in ink, ‘player’ in rose — always lowercase.</p></div>
+        </div>
+        <div style="background:#FFFFFF;border:1px solid #ECECEC;border-radius:16px;padding:30px;display:flex;flex-direction:column;gap:18px;">
+          <div style="height:96px;display:flex;align-items:center;justify-content:center;gap:12px;background:#F4F2EC;border-radius:10px;">
+            <svg style="width:38px;height:38px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg>
+            <span style="font-family:Outfit,sans-serif;font-weight:600;font-size:26px;letter-spacing:-0.04em;color:#111114">axess<span style="color:#FF2E6E">player</span></span>
+          </div>
+          <div><div style="font-family:Outfit,sans-serif;font-weight:600;font-size:17px;letter-spacing:-0.02em;color:#111114">The lockup</div><p style="font-family:Inter,sans-serif;font-size:14px;line-height:1.55;color:#6B6B72;margin:6px 0 0">Mark + wordmark, vertically centered with fixed spacing. The default.</p></div>
+        </div>
+      </div>
+
+      <!-- the mark variants -->
+      <h3 style="font-family:Outfit,sans-serif;font-weight:600;font-size:24px;letter-spacing:-0.025em;color:#111114;margin:64px 0 6px;">The standalone mark.</h3>
+      <p style="font-family:Inter,sans-serif;font-size:15px;line-height:1.6;color:#6B6B72;margin:0 0 26px;max-width:620px;">Use the mark alone where the full lockup will not fit: app icons, avatars, favicons, stamps.</p>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;">
+        <div style="border:1px solid #ECECEC;border-radius:16px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:150px;display:flex;align-items:center;justify-content:center;background:#FAFAF8;"><svg style="width:78px;height:78px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg></div>
+          <div style="padding:14px 18px;border-top:1px solid #ECECEC;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#6B6B72;">Primary</div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:16px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:150px;display:flex;align-items:center;justify-content:center;background:#FAFAF8;"><svg style="width:78px;height:78px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#111114"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FAFAF8"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#111114"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#111114"></rect></svg></div>
+          <div style="padding:14px 18px;border-top:1px solid #ECECEC;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#6B6B72;">Mono black</div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:16px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:150px;display:flex;align-items:center;justify-content:center;background:#111114;"><svg style="width:78px;height:78px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FAFAF8"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#111114"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FAFAF8"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FAFAF8"></rect></svg></div>
+          <div style="padding:14px 18px;border-top:1px solid #ECECEC;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#6B6B72;">Mono white</div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:16px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:150px;display:flex;align-items:center;justify-content:center;background:#FAFAF8;"><img src="assets/app_appicon.png" alt="App tile" style="width:88px;height:88px;object-fit:contain;display:block"></div>
+          <div style="padding:14px 18px;border-top:1px solid #ECECEC;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#6B6B72;">App tile</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 03 CLEAR SPACE ============ -->
+  <section id="clearspace" data-screen-label="Clear space &amp; sizing" style="border-top:1px solid #ECECEC;">
+    <div style="max-width:1180px;margin:0 auto;padding:104px 40px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;">03 · Clear space &amp; sizing</span>
+      <h2 style="font-family:Outfit,sans-serif;font-weight:600;font-size:clamp(38px,4.6vw,60px);letter-spacing:-0.035em;line-height:1.0;color:#111114;margin:18px 0 0;">Give it room to breathe.</h2>
+      <p style="font-family:Inter,sans-serif;font-size:17px;line-height:1.6;color:#6B6B72;margin:22px 0 0;max-width:680px;">Clear space equals the height of the mark (X) on every side. Keep this margin free of text and graphics.</p>
+      <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:22px;margin-top:48px;align-items:stretch;">
+        <div style="background:#FFFFFF;border:1px solid #ECECEC;border-radius:20px;padding:54px;position:relative;display:flex;align-items:center;justify-content:center;">
+          <div style="position:relative;padding:60px;">
+            <div style="position:absolute;inset:0;border:1.5px dashed #FF2E6E;border-radius:6px;opacity:0.5;"></div>
+            <span style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#FFFFFF;padding:0 8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#FF2E6E;">X</span>
+            <span style="position:absolute;left:-11px;top:50%;transform:translateY(-50%);background:#FFFFFF;padding:4px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:#FF2E6E;writing-mode:vertical-rl;">X</span>
+            <div style="display:flex;align-items:center;gap:18px;">
+              <svg style="width:54px;height:54px;display:block;flex-shrink:0" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg>
+              <span style="font-family:Outfit,sans-serif;font-weight:600;font-size:44px;letter-spacing:-0.045em;color:#111114">axess<span style="color:#FF2E6E">player</span></span>
+            </div>
+          </div>
+        </div>
+        <div style="background:#111114;border-radius:20px;padding:42px;display:flex;flex-direction:column;justify-content:center;gap:4px;">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#FF2E6E;margin-bottom:18px;">Minimum sizes</span>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;padding:16px 0;border-bottom:1px solid rgba(255,255,255,0.1);"><span style="font-family:Inter,sans-serif;font-size:15px;color:#C9C9CF;">Digital · lockup</span><span style="font-family:'JetBrains Mono',monospace;font-size:15px;color:#FAFAF8;">120 px</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;padding:16px 0;border-bottom:1px solid rgba(255,255,255,0.1);"><span style="font-family:Inter,sans-serif;font-size:15px;color:#C9C9CF;">Digital · mark</span><span style="font-family:'JetBrains Mono',monospace;font-size:15px;color:#FAFAF8;">32 px</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;padding:16px 0;border-bottom:1px solid rgba(255,255,255,0.1);"><span style="font-family:Inter,sans-serif;font-size:15px;color:#C9C9CF;">Print · lockup</span><span style="font-family:'JetBrains Mono',monospace;font-size:15px;color:#FAFAF8;">30 mm</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;padding:16px 0;"><span style="font-family:Inter,sans-serif;font-size:15px;color:#C9C9CF;">Print · mark</span><span style="font-family:'JetBrains Mono',monospace;font-size:15px;color:#FAFAF8;">8 mm</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 04 COLOR VARIATIONS ============ -->
+  <section id="variations" data-screen-label="Color variations" style="border-top:1px solid #ECECEC;">
+    <div style="max-width:1180px;margin:0 auto;padding:104px 40px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;">04 · Color variations</span>
+      <h2 style="font-family:Outfit,sans-serif;font-weight:600;font-size:clamp(38px,4.6vw,60px);letter-spacing:-0.035em;line-height:1.0;color:#111114;margin:18px 0 0;">Four approved lockups.</h2>
+      <p style="font-family:Inter,sans-serif;font-size:17px;line-height:1.6;color:#6B6B72;margin:22px 0 0;max-width:700px;">Reversed uses white ‘axess’ with rose ‘player’ and the rose mark. Mono versions are a single colour with the play knocked out.</p>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:22px;margin-top:48px;">
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;">
+          <div style="height:200px;background:#FAFAF8;display:flex;align-items:center;justify-content:center;gap:18px;"><svg style="width:52px;height:52px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:42px;letter-spacing:-0.045em;color:#111114">axess<span style="color:#FF2E6E">player</span></span></div>
+          <div style="padding:18px 24px;border-top:1px solid #ECECEC;display:flex;justify-content:space-between;align-items:center;"><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114">Primary</span><span style="font-family:Inter,sans-serif;font-size:13px;color:#6B6B72">On light</span></div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;">
+          <div style="height:200px;background:#111114;display:flex;align-items:center;justify-content:center;gap:18px;"><svg style="width:52px;height:52px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:42px;letter-spacing:-0.045em;color:#FAFAF8">axess<span style="color:#FF2E6E">player</span></span></div>
+          <div style="padding:18px 24px;border-top:1px solid #ECECEC;display:flex;justify-content:space-between;align-items:center;"><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114">Reversed</span><span style="font-family:Inter,sans-serif;font-size:13px;color:#6B6B72">On dark / brand</span></div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;">
+          <div style="height:200px;background:#FAFAF8;display:flex;align-items:center;justify-content:center;gap:18px;"><svg style="width:52px;height:52px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#111114"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FAFAF8"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#111114"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#111114"></rect></svg><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:42px;letter-spacing:-0.045em;color:#111114">axessplayer</span></div>
+          <div style="padding:18px 24px;border-top:1px solid #ECECEC;display:flex;justify-content:space-between;align-items:center;"><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114">Mono black</span><span style="font-family:Inter,sans-serif;font-size:13px;color:#6B6B72">One-colour print</span></div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;">
+          <div style="height:200px;background:#2A2A2E;display:flex;align-items:center;justify-content:center;gap:18px;"><svg style="width:52px;height:52px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FAFAF8"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#2A2A2E"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FAFAF8"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FAFAF8"></rect></svg><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:42px;letter-spacing:-0.045em;color:#FAFAF8">axessplayer</span></div>
+          <div style="padding:18px 24px;border-top:1px solid #ECECEC;display:flex;justify-content:space-between;align-items:center;"><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114">Mono white</span><span style="font-family:Inter,sans-serif;font-size:13px;color:#6B6B72">On dark / photo</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 05 MISUSE ============ -->
+  <section id="misuse" data-screen-label="Misuse" style="border-top:1px solid #ECECEC;">
+    <div style="max-width:1180px;margin:0 auto;padding:104px 40px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;">05 · Misuse</span>
+      <h2 style="font-family:Outfit,sans-serif;font-weight:600;font-size:clamp(38px,4.6vw,60px);letter-spacing:-0.035em;line-height:1.0;color:#111114;margin:18px 0 0;">Never do these.</h2>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:48px;">
+        <div style="border:1px solid #ECECEC;border-radius:16px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:130px;background:#FAFAF8;display:flex;align-items:center;justify-content:center;"><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:30px;letter-spacing:-0.04em;color:#2E8BFF">axess<span style="color:#E8B54B">player</span></span></div>
+          <div style="padding:16px 20px;border-top:1px solid #ECECEC;display:flex;gap:10px;align-items:center;"><span style="color:#E5484D;font-size:15px;">✕</span><span style="font-family:Inter,sans-serif;font-size:14px;color:#3A3A40;">Don’t recolour the wordmark</span></div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:16px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:130px;background:#FAFAF8;display:flex;align-items:center;justify-content:center;"><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:30px;letter-spacing:-0.04em;color:#111114;display:inline-block;transform:scaleX(1.6)">axess<span style="color:#FF2E6E">player</span></span></div>
+          <div style="padding:16px 20px;border-top:1px solid #ECECEC;display:flex;gap:10px;align-items:center;"><span style="color:#E5484D;font-size:15px;">✕</span><span style="font-family:Inter,sans-serif;font-size:14px;color:#3A3A40;">Don’t stretch or distort</span></div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:16px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:130px;background:#FAFAF8;display:flex;align-items:center;justify-content:center;"><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:30px;letter-spacing:-0.04em;color:#111114;display:inline-block;transform:rotate(-13deg)">axess<span style="color:#FF2E6E">player</span></span></div>
+          <div style="padding:16px 20px;border-top:1px solid #ECECEC;display:flex;gap:10px;align-items:center;"><span style="color:#E5484D;font-size:15px;">✕</span><span style="font-family:Inter,sans-serif;font-size:14px;color:#3A3A40;">Don’t rotate the logo</span></div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:16px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:130px;background:#FAFAF8;display:flex;align-items:center;justify-content:center;"><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:30px;letter-spacing:-0.04em;color:#111114;text-shadow:4px 5px 6px rgba(0,0,0,0.4)">axess<span style="color:#FF2E6E">player</span></span></div>
+          <div style="padding:16px 20px;border-top:1px solid #ECECEC;display:flex;gap:10px;align-items:center;"><span style="color:#E5484D;font-size:15px;">✕</span><span style="font-family:Inter,sans-serif;font-size:14px;color:#3A3A40;">Don’t add shadows or effects</span></div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:16px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:130px;background:#FAFAF8;display:flex;align-items:center;justify-content:center;"><span style="font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:30px;color:#111114">axess<span style="color:#FF2E6E">player</span></span></div>
+          <div style="padding:16px 20px;border-top:1px solid #ECECEC;display:flex;gap:10px;align-items:center;"><span style="color:#E5484D;font-size:15px;">✕</span><span style="font-family:Inter,sans-serif;font-size:14px;color:#3A3A40;">Don’t change the typeface</span></div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:16px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:130px;background:#FF2E6E;display:flex;align-items:center;justify-content:center;"><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:30px;letter-spacing:-0.04em;color:#E0246B">axess<span style="color:#FF5C8D">player</span></span></div>
+          <div style="padding:16px 20px;border-top:1px solid #ECECEC;display:flex;gap:10px;align-items:center;"><span style="color:#E5484D;font-size:15px;">✕</span><span style="font-family:Inter,sans-serif;font-size:14px;color:#3A3A40;">Don’t place on low contrast</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 06 COLOR PALETTE ============ -->
+  <section id="color" data-screen-label="Color palette" style="border-top:1px solid #ECECEC;">
+    <div style="max-width:1180px;margin:0 auto;padding:104px 40px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;">06 · Color palette</span>
+      <h2 style="font-family:Outfit,sans-serif;font-weight:600;font-size:clamp(38px,4.6vw,60px);letter-spacing:-0.035em;line-height:1.0;color:#111114;margin:18px 0 0;">Ink, rose, gold.</h2>
+      <p style="font-family:Inter,sans-serif;font-size:17px;line-height:1.6;color:#6B6B72;margin:22px 0 0;max-width:680px;">Ink carries the system. Electric Rose is the single focal accent — one per layout. Gold is reserved for premium and credits moments, used sparingly. <span style="color:#B4B4BA;">Tap any swatch to copy its hex.</span></p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:48px;">
+        <div data-copy="#111114" style="border-radius:18px;overflow:hidden;border:1px solid #ECECEC;">
+          <div style="height:210px;background:#111114;"></div>
+          <div style="padding:22px 24px;background:#FFFFFF;">
+            <div style="font-family:Outfit,sans-serif;font-weight:600;font-size:20px;letter-spacing:-0.02em;color:#111114;">Ink</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><span style="font-family:'JetBrains Mono',monospace;font-size:14px;color:#6B6B72;">#111114</span><span data-tip style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#B4B4BA;">RGB 17·17·20</span></div>
+            <p style="font-family:Inter,sans-serif;font-size:13px;color:#6B6B72;margin:12px 0 0;">Primary text &amp; dark surfaces</p>
+          </div>
+        </div>
+        <div data-copy="#FF2E6E" style="border-radius:18px;overflow:hidden;border:1px solid #ECECEC;">
+          <div style="height:210px;background:#FF2E6E;"></div>
+          <div style="padding:22px 24px;background:#FFFFFF;">
+            <div style="font-family:Outfit,sans-serif;font-weight:600;font-size:20px;letter-spacing:-0.02em;color:#111114;">Electric Rose</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><span style="font-family:'JetBrains Mono',monospace;font-size:14px;color:#6B6B72;">#FF2E6E</span><span data-tip style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#B4B4BA;">RGB 255·46·110</span></div>
+            <p style="font-family:Inter,sans-serif;font-size:13px;color:#6B6B72;margin:12px 0 0;">The focal accent. One per layout</p>
+          </div>
+        </div>
+        <div data-copy="#E8B54B" style="border-radius:18px;overflow:hidden;border:1px solid #ECECEC;">
+          <div style="height:210px;background:#E8B54B;"></div>
+          <div style="padding:22px 24px;background:#FFFFFF;">
+            <div style="font-family:Outfit,sans-serif;font-weight:600;font-size:20px;letter-spacing:-0.02em;color:#111114;">Gold</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><span style="font-family:'JetBrains Mono',monospace;font-size:14px;color:#6B6B72;">#E8B54B</span><span data-tip style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#B4B4BA;">RGB 232·181·75</span></div>
+            <p style="font-family:Inter,sans-serif;font-size:13px;color:#6B6B72;margin:12px 0 0;">Premium / credits highlight</p>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:22px;border:1px solid #ECECEC;border-radius:18px;overflow:hidden;background:#FFFFFF;">
+        <div style="padding:20px 24px;border-bottom:1px solid #ECECEC;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#6B6B72;">Neutrals</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);">
+          <div data-copy="#FAFAF8" style="padding:24px;border-right:1px solid #ECECEC;"><div style="height:64px;background:#FAFAF8;border:1px solid #ECECEC;border-radius:10px;"></div><div style="font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;margin-top:14px;">Warm white</div><div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#6B6B72;margin-top:3px;" data-tip>#FAFAF8</div></div>
+          <div data-copy="#F4F2EC" style="padding:24px;border-right:1px solid #ECECEC;"><div style="height:64px;background:#F4F2EC;border:1px solid #ECECEC;border-radius:10px;"></div><div style="font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;margin-top:14px;">Surface</div><div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#6B6B72;margin-top:3px;" data-tip>#F4F2EC</div></div>
+          <div data-copy="#ECECEC" style="padding:24px;border-right:1px solid #ECECEC;"><div style="height:64px;background:#ECECEC;border-radius:10px;"></div><div style="font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;margin-top:14px;">Line</div><div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#6B6B72;margin-top:3px;" data-tip>#ECECEC</div></div>
+          <div data-copy="#6B6B72" style="padding:24px;"><div style="height:64px;background:#6B6B72;border-radius:10px;"></div><div style="font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;margin-top:14px;">Muted</div><div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#6B6B72;margin-top:3px;" data-tip>#6B6B72</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 07 TYPOGRAPHY ============ -->
+  <section id="type" data-screen-label="Typography" style="border-top:1px solid #ECECEC;">
+    <div style="max-width:1180px;margin:0 auto;padding:104px 40px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;">07 · Typography</span>
+      <h2 style="font-family:Outfit,sans-serif;font-weight:600;font-size:clamp(38px,4.6vw,60px);letter-spacing:-0.035em;line-height:1.0;color:#111114;margin:18px 0 0;">Outfit &amp; Inter.</h2>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:48px;">
+        <div style="border:1px solid #ECECEC;border-radius:18px;background:#FFFFFF;padding:32px;">
+          <div style="font-family:Outfit,sans-serif;font-weight:600;font-size:72px;line-height:1;letter-spacing:-0.03em;color:#111114;">Aa</div>
+          <div style="font-family:Outfit,sans-serif;font-weight:500;font-size:22px;letter-spacing:-0.02em;color:#111114;margin-top:20px;">Outfit</div>
+          <p style="font-family:Inter,sans-serif;font-size:14px;line-height:1.55;color:#6B6B72;margin:8px 0 0;">Display &amp; headlines. SemiBold / Bold, always lowercase.</p>
+          <div style="font-family:Outfit,sans-serif;font-weight:500;font-size:15px;letter-spacing:0.04em;color:#B4B4BA;margin-top:18px;">A B C a b c 0 1 2 3</div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:18px;background:#FFFFFF;padding:32px;">
+          <div style="font-family:Inter,sans-serif;font-weight:500;font-size:72px;line-height:1;letter-spacing:-0.02em;color:#111114;">Aa</div>
+          <div style="font-family:Outfit,sans-serif;font-weight:500;font-size:22px;letter-spacing:-0.02em;color:#111114;margin-top:20px;">Inter</div>
+          <p style="font-family:Inter,sans-serif;font-size:14px;line-height:1.55;color:#6B6B72;margin:8px 0 0;">Text, UI &amp; data. Regular / Medium for everything body-level.</p>
+          <div style="font-family:Inter,sans-serif;font-size:15px;color:#B4B4BA;margin-top:18px;">A B C a b c 0 1 2 3</div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:18px;background:#111114;padding:32px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-weight:500;font-size:64px;line-height:1;color:#FAFAF8;">Aa</div>
+          <div style="font-family:Outfit,sans-serif;font-weight:500;font-size:22px;letter-spacing:-0.02em;color:#FAFAF8;margin-top:28px;">JetBrains Mono</div>
+          <p style="font-family:Inter,sans-serif;font-size:14px;line-height:1.55;color:#9A9AA0;margin:8px 0 0;">Mono labels, codes &amp; data tags. Uppercase, tracked out.</p>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:0.1em;color:#FF2E6E;margin-top:18px;">A B C a b c 0 1 2 3</div>
+        </div>
+      </div>
+      <div style="margin-top:22px;border:1px solid #ECECEC;border-radius:18px;background:#FFFFFF;overflow:hidden;">
+        <div style="padding:20px 28px;border-bottom:1px solid #ECECEC;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#6B6B72;">Type scale</div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:24px 28px;border-bottom:1px solid #ECECEC;"><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:44px;letter-spacing:-0.035em;color:#111114;">axessplayer</span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#B4B4BA;">Display · 44</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:24px 28px;border-bottom:1px solid #ECECEC;"><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:30px;letter-spacing:-0.03em;color:#111114;">axessplayer</span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#B4B4BA;">Headline · 30</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:24px 28px;border-bottom:1px solid #ECECEC;"><span style="font-family:Outfit,sans-serif;font-weight:500;font-size:20px;letter-spacing:-0.02em;color:#111114;">axessplayer</span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#B4B4BA;">Subhead · 20</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:24px 28px;border-bottom:1px solid #ECECEC;"><span style="font-family:Inter,sans-serif;font-size:15px;color:#111114;">axessplayer</span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#B4B4BA;">Body · 15</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:24px 28px;"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#111114;">axessplayer</span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#B4B4BA;">Caption / mono · 11</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 08 DARK MODE ============ -->
+  <section id="dark" data-screen-label="Dark mode" style="background:#111114;color:#FAFAF8;">
+    <div style="max-width:1180px;margin:0 auto;padding:104px 40px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;">08 · Dark mode</span>
+      <h2 style="font-family:Outfit,sans-serif;font-weight:600;font-size:clamp(38px,4.6vw,60px);letter-spacing:-0.035em;line-height:1.0;color:#FAFAF8;margin:18px 0 0;">On black, lit up.</h2>
+      <p style="font-family:Inter,sans-serif;font-size:17px;line-height:1.6;color:#9A9AA0;margin:22px 0 0;max-width:680px;">On dark surfaces, ‘axess’ becomes white and ‘player’ stays rose. The mark keeps its rose tile and white play.</p>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:22px;margin-top:48px;">
+        <div style="border:1px solid #2A2A2E;border-radius:18px;overflow:hidden;">
+          <div style="height:210px;display:flex;align-items:center;justify-content:center;gap:20px;background:#0B0B0D;"><svg style="width:56px;height:56px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:46px;letter-spacing:-0.045em;color:#FAFAF8">axess<span style="color:#FF2E6E">player</span></span></div>
+          <div style="padding:18px 24px;border-top:1px solid #2A2A2E;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#9A9AA0;">Reversed lockup</div>
+        </div>
+        <div style="border:1px solid #2A2A2E;border-radius:18px;overflow:hidden;">
+          <div style="height:210px;display:flex;align-items:center;justify-content:center;background:#0B0B0D;"><svg style="width:96px;height:96px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg></div>
+          <div style="padding:18px 24px;border-top:1px solid #2A2A2E;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#9A9AA0;">App tile</div>
+        </div>
+        <div style="border:1px solid #2A2A2E;border-radius:18px;overflow:hidden;">
+          <div style="height:210px;display:flex;align-items:center;justify-content:center;background:#0B0B0D;"><img src="assets/app_avatar.png" alt="Social avatar" style="width:130px;height:130px;object-fit:contain;display:block"></div>
+          <div style="padding:18px 24px;border-top:1px solid #2A2A2E;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#9A9AA0;">Social avatar</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 09 DIGITAL APPLICATIONS ============ -->
+  <section id="digital" data-screen-label="Digital applications" style="border-top:1px solid #ECECEC;">
+    <div style="max-width:1180px;margin:0 auto;padding:104px 40px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;">09 · Digital applications</span>
+      <h2 style="font-family:Outfit,sans-serif;font-weight:600;font-size:clamp(38px,4.6vw,60px);letter-spacing:-0.035em;line-height:1.0;color:#111114;margin:18px 0 0;">On screen.</h2>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:48px;">
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:280px;background:#F4F2EC;display:flex;align-items:center;justify-content:center;"><img src="assets/app_appicon.png" alt="App icon" style="width:150px;height:150px;object-fit:contain;display:block;filter:drop-shadow(0 18px 36px rgba(255,46,110,0.28))"></div>
+          <div style="padding:18px 24px;border-top:1px solid #ECECEC;font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;">App icon</div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:280px;background:#111114;display:flex;align-items:center;justify-content:center;"><img src="assets/app_avatar.png" alt="Social avatar" style="width:180px;height:180px;object-fit:contain;display:block"></div>
+          <div style="padding:18px 24px;border-top:1px solid #ECECEC;font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;">Social avatar</div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:280px;background:#FAFAF8;display:flex;align-items:center;justify-content:center;"><img src="assets/app_watermark.png" alt="Document watermark" style="width:88%;object-fit:contain;display:block"></div>
+          <div style="padding:18px 24px;border-top:1px solid #ECECEC;font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;">Document watermark</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 10 STATIONERY ============ -->
+  <section id="stationery" data-screen-label="Stationery" style="border-top:1px solid #ECECEC;">
+    <div style="max-width:1180px;margin:0 auto;padding:104px 40px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;">10 · Stationery</span>
+      <h2 style="font-family:Outfit,sans-serif;font-weight:600;font-size:clamp(38px,4.6vw,60px);letter-spacing:-0.035em;line-height:1.0;color:#111114;margin:18px 0 0;">Cards &amp; signage.</h2>
+      <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:22px;margin-top:48px;">
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:340px;background:#F4F2EC;display:flex;align-items:center;justify-content:center;"><img src="assets/app_businesscard.png" alt="Business card front and back" style="width:92%;object-fit:contain;display:block;filter:drop-shadow(0 20px 40px rgba(17,17,20,0.12))"></div>
+          <div style="padding:18px 24px;border-top:1px solid #ECECEC;display:flex;justify-content:space-between;align-items:center;"><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;">Business card</span><span style="font-family:Inter,sans-serif;font-size:13px;color:#6B6B72;">Front &amp; back</span></div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:340px;background:#FAFAF8;display:flex;align-items:center;justify-content:center;"><img src="assets/app_plaque.png" alt="Office plaque" style="width:90%;object-fit:contain;display:block;filter:drop-shadow(0 20px 40px rgba(17,17,20,0.16))"></div>
+          <div style="padding:18px 24px;border-top:1px solid #ECECEC;display:flex;justify-content:space-between;align-items:center;"><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;">Office plaque</span><span style="font-family:Inter,sans-serif;font-size:13px;color:#6B6B72;">Engraved · gold on ink</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 11 APPAREL ============ -->
+  <section id="apparel" data-screen-label="Apparel" style="border-top:1px solid #ECECEC;">
+    <div style="max-width:1180px;margin:0 auto;padding:104px 40px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;">11 · Apparel</span>
+      <h2 style="font-family:Outfit,sans-serif;font-weight:600;font-size:clamp(38px,4.6vw,60px);letter-spacing:-0.035em;line-height:1.0;color:#111114;margin:18px 0 0;">Wear it.</h2>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:48px;">
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:260px;background:#FAFAF8;display:flex;align-items:center;justify-content:center;"><img src="assets/merch_tshirt_black.png" alt="Black tee" style="width:96%;object-fit:contain;display:block"></div>
+          <div style="padding:16px 22px;border-top:1px solid #ECECEC;font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;">Tee · black</div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:260px;background:#F4F2EC;display:flex;align-items:center;justify-content:center;"><img src="assets/merch_tshirt_white.png" alt="White tee" style="width:96%;object-fit:contain;display:block"></div>
+          <div style="padding:16px 22px;border-top:1px solid #ECECEC;font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;">Tee · white</div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:260px;background:#FAFAF8;display:flex;align-items:center;justify-content:center;"><img src="assets/merch_hoodie.png" alt="Hoodie" style="width:96%;object-fit:contain;display:block"></div>
+          <div style="padding:16px 22px;border-top:1px solid #ECECEC;font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;">Hoodie</div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:260px;background:#FAFAF8;display:flex;align-items:center;justify-content:center;"><img src="assets/merch_cap.png" alt="Cap" style="width:92%;object-fit:contain;display:block"></div>
+          <div style="padding:16px 22px;border-top:1px solid #ECECEC;font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;">Cap</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 12 ACCESSORIES & OFFICE ============ -->
+  <section id="accessories" data-screen-label="Accessories &amp; office" style="border-top:1px solid #ECECEC;">
+    <div style="max-width:1180px;margin:0 auto;padding:104px 40px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;">12 · Accessories &amp; office</span>
+      <h2 style="font-family:Outfit,sans-serif;font-weight:600;font-size:clamp(38px,4.6vw,60px);letter-spacing:-0.035em;line-height:1.0;color:#111114;margin:18px 0 0;">Carry it.</h2>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:48px;">
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:240px;background:#F4F2EC;display:flex;align-items:center;justify-content:center;"><img src="assets/merch_tote.png" alt="Tote bag" style="width:80%;object-fit:contain;display:block"></div>
+          <div style="padding:16px 22px;border-top:1px solid #ECECEC;font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;">Tote</div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:240px;background:#FAFAF8;display:flex;align-items:center;justify-content:center;"><img src="assets/merch_bottle.png" alt="Water bottle" style="width:62%;object-fit:contain;display:block"></div>
+          <div style="padding:16px 22px;border-top:1px solid #ECECEC;font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;">Bottle</div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:240px;background:#FAFAF8;display:flex;align-items:center;justify-content:center;"><img src="assets/merch_mug.png" alt="Mug" style="width:84%;object-fit:contain;display:block"></div>
+          <div style="padding:16px 22px;border-top:1px solid #ECECEC;font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;">Mug</div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:240px;background:#FAFAF8;display:flex;align-items:center;justify-content:center;"><img src="assets/merch_notebook.png" alt="Notebook" style="width:72%;object-fit:contain;display:block"></div>
+          <div style="padding:16px 22px;border-top:1px solid #ECECEC;font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;">Notebook</div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:240px;background:#F4F2EC;display:flex;align-items:center;justify-content:center;"><img src="assets/merch_pen.png" alt="Pen" style="width:84%;object-fit:contain;display:block"></div>
+          <div style="padding:16px 22px;border-top:1px solid #ECECEC;font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;">Pen</div>
+        </div>
+        <div style="border:1px solid #ECECEC;border-radius:18px;overflow:hidden;background:#FFFFFF;">
+          <div style="height:240px;background:#FAFAF8;display:flex;align-items:center;justify-content:center;"><img src="assets/merch_sticker.png" alt="Stickers" style="width:88%;object-fit:contain;display:block"></div>
+          <div style="padding:16px 22px;border-top:1px solid #ECECEC;font-family:Outfit,sans-serif;font-weight:600;font-size:15px;color:#111114;">Stickers</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 13 IN THE WILD ============ -->
+  <section id="wild" data-screen-label="Brand in the wild" style="border-top:1px solid #ECECEC;background:#111114;color:#FAFAF8;">
+    <div style="max-width:1180px;margin:0 auto;padding:104px 40px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;">13 · Brand in the wild</span>
+      <h2 style="font-family:Outfit,sans-serif;font-weight:600;font-size:clamp(38px,4.6vw,60px);letter-spacing:-0.035em;line-height:1.0;color:#FAFAF8;margin:18px 0 0;">In real settings.</h2>
+      <p style="font-family:Inter,sans-serif;font-size:17px;line-height:1.6;color:#9A9AA0;margin:22px 0 0;max-width:700px;">The full system applied in context — exhibition, workplace, desk and lifestyle. Every product carries the lockup or mark with correct color and clear space.</p>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:22px;margin-top:48px;">
+        <div style="border:1px solid #2A2A2E;border-radius:22px;overflow:hidden;background:#0B0B0D;">
+          <div style="width:100%;aspect-ratio:1122/1402;"><img src="assets/scene_booth.png" alt="Axessplayer exhibition stand with team" style="width:100%;height:100%;object-fit:cover;display:block;"></div>
+          <div style="padding:20px 26px;border-top:1px solid #2A2A2E;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;"><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:18px;letter-spacing:-0.02em;color:#FAFAF8;">Exhibition stand</span><span style="font-family:Inter,sans-serif;font-size:13px;color:#9A9AA0;">Backwall · counter · totes · demo screen</span></div>
+        </div>
+        <div style="border:1px solid #2A2A2E;border-radius:22px;overflow:hidden;background:#0B0B0D;">
+          <div style="width:100%;aspect-ratio:1122/1402;"><img src="assets/scene_lounge.png" alt="Axessplayer office lounge with team" style="width:100%;height:100%;object-fit:cover;display:block;"></div>
+          <div style="padding:20px 26px;border-top:1px solid #2A2A2E;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;"><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:18px;letter-spacing:-0.02em;color:#FAFAF8;">Office &amp; workplace</span><span style="font-family:Inter,sans-serif;font-size:13px;color:#9A9AA0;">Backlit sign · apparel · mugs · drinkware</span></div>
+        </div>
+        <div style="border:1px solid #2A2A2E;border-radius:22px;overflow:hidden;background:#0B0B0D;">
+          <div style="width:100%;aspect-ratio:1122/1402;"><img src="assets/scene_desk.png" alt="Axessplayer desk and stationery in use" style="width:100%;height:100%;object-fit:cover;display:block;"></div>
+          <div style="padding:20px 26px;border-top:1px solid #2A2A2E;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;"><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:18px;letter-spacing:-0.02em;color:#FAFAF8;">Desk &amp; stationery</span><span style="font-family:Inter,sans-serif;font-size:13px;color:#9A9AA0;">Mug · bottle · cards · notebook · pen</span></div>
+        </div>
+        <div style="border:1px solid #2A2A2E;border-radius:22px;overflow:hidden;background:#0B0B0D;">
+          <div style="width:100%;aspect-ratio:1122/1402;"><img src="assets/scene_beach.png" alt="Axessplayer beach lifestyle with cans and totes" style="width:100%;height:100%;object-fit:cover;display:block;"></div>
+          <div style="padding:20px 26px;border-top:1px solid #2A2A2E;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;"><span style="font-family:Outfit,sans-serif;font-weight:600;font-size:18px;letter-spacing:-0.02em;color:#FAFAF8;">Lifestyle &amp; drinkware</span><span style="font-family:Inter,sans-serif;font-size:13px;color:#9A9AA0;">Cans · totes · towel · apparel · flip-flops</span></div>
+        </div>
+      </div>
+      <a href="Axessplayer Merch Mockups.dc.html" style="display:inline-flex;align-items:center;gap:10px;margin-top:34px;font-family:Outfit,sans-serif;font-weight:600;font-size:15px;letter-spacing:-0.01em;color:#FAFAF8;text-decoration:none;border:1px solid #2A2A2E;border-radius:999px;padding:13px 22px;">View the full mockup lookbook <span style="color:#FF2E6E;">&rarr;</span></a>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer data-screen-label="Footer" style="background:#111114;color:#FAFAF8;">
+    <div style="max-width:1180px;margin:0 auto;padding:96px 40px;text-align:center;">
+      <div style="display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:34px;">
+        <svg style="width:46px;height:46px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg>
+        <span style="font-family:Outfit,sans-serif;font-weight:600;font-size:40px;letter-spacing:-0.045em;color:#FAFAF8">axess<span style="color:#FF2E6E">player</span></span>
+      </div>
+      <p style="font-family:Outfit,sans-serif;font-weight:500;font-size:clamp(22px,3vw,34px);letter-spacing:-0.025em;line-height:1.2;color:#FAFAF8;margin:0;">One story. Every language. Every person.</p>
+      <div style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:34px;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.08em;color:#8A8A93;">
+        <span>Axessible Technologies</span><span style="color:#3A3A40;">·</span><span>malena@axessible.ai</span><span style="color:#3A3A40;">·</span><span>axessplayer.com</span>
+      </div>
+      <div style="margin-top:40px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#54545C;">Brand Guidelines · v1.0 · June 2026</div>
+    </div>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  componentDidMount() {
+    // copy-hex on swatch click
+    const root = this.el || document;
+    const swatches = document.querySelectorAll('[data-copy]');
+    swatches.forEach((s) => {
+      s.style.cursor = 'pointer';
+      s.addEventListener('click', () => {
+        const hex = s.getAttribute('data-copy');
+        try { navigator.clipboard.writeText(hex); } catch (e) {}
+        const tip = s.querySelector('[data-tip]');
+        if (tip) {
+          const prev = tip.textContent;
+          tip.textContent = 'copied ✓';
+          setTimeout(() => { tip.textContent = prev; }, 1100);
+        }
+      });
+    });
+    // scrollspy nav highlight
+    const navLinks = document.querySelectorAll('[data-nav]');
+    const map = {};
+    navLinks.forEach((a) => { map[a.getAttribute('href').slice(1)] = a; });
+    const ids = ['logo', 'color', 'type', 'dark', 'digital'];
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        const link = map[en.target.id];
+        if (!link) return;
+        if (en.isIntersecting) {
+          navLinks.forEach((l) => { l.style.color = '#6B6B72'; });
+          link.style.color = '#111114';
+        }
+      });
+    }, { rootMargin: '-50% 0px -48% 0px' });
+    ids.forEach((id) => { const el = document.getElementById(id); if (el) obs.observe(el); });
+  }
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

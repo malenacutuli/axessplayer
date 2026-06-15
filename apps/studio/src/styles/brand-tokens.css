@@ -1,0 +1,68 @@
+/* Axessplayer brand tokens — from the official brand guidelines.
+   Drop in apps/web (and apps/studio). Import once at the app root.
+   Rose is the SINGLE focal accent (one per layout). Gold is reserved for coins/premium only. No em dashes. */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap');
+
+:root{
+  /* surfaces */
+  --bg:#FAFAF8;          /* app ground (warm off-white) */
+  --surface:#FFFFFF;     /* cards, sheets */
+  --fill:#F4F2EC;        /* cream fill / chips */
+  --line:#ECECEC;        /* hairlines, borders */
+
+  /* ink + text */
+  --ink:#111114;         /* system text, carries everything */
+  --mut:#6B6B72;         /* secondary text */
+  --mut-2:#9A9AA0;       /* tertiary / disabled */
+
+  /* accents */
+  --rose:#FF2E6E;        /* Electric Rose — the one focal accent per layout */
+  --rose-dark:#E0246B;
+  --rose-light:#FF5C8D;
+  --rose-tint:#FFE2EC;
+  --gold:#E8B54B;        /* premium + coins ONLY, used sparingly */
+  --gold-tint:#FBF1DA;
+
+  /* status (rare) */
+  --error:#E5484D;
+  --info:#2E8BFF;
+
+  /* type */
+  --font-display:'Outfit', system-ui, sans-serif;   /* headings, wordmark */
+  --font-body:'Inter', system-ui, sans-serif;        /* body, UI */
+  --font-mono:'JetBrains Mono', monospace;           /* labels, codes, data tags: UPPERCASE, tracked */
+
+  --radius:12px;
+  --radius-lg:16px;
+}
+
+/* Dark mode — for the immersive player and any on-dark surface (guidelines section 08).
+   Wordmark on dark: 'axess' becomes #FFFFFF, 'player' stays --rose; mark keeps rose tile + white play. */
+[data-theme="dark"], .axp-dark{
+  --bg:#0B0B0D;
+  --surface:#17171B;
+  --fill:#1E1E24;
+  --line:#2A2A2E;
+  --ink:#FAFAF8;
+  --mut:#9A9AA6;
+  --mut-2:#6B6B72;
+  /* accents unchanged: rose stays rose, gold stays gold */
+}
+
+/* base */
+html,body{background:var(--bg);color:var(--ink);font-family:var(--font-body);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+h1,h2,h3,h4,.axp-display{font-family:var(--font-display);letter-spacing:-0.02em;line-height:1.08}
+.axp-eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--mut)}
+.axp-eyebrow--rose{color:var(--rose)}
+::selection{background:var(--rose);color:#fff}
+
+/* primitives the app should reuse */
+.axp-btn{font-family:var(--font-display);font-weight:600;border-radius:var(--radius);padding:10px 16px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.axp-btn--primary{background:var(--rose);border-color:var(--rose);color:#fff}   /* the one focal action */
+.axp-btn--ink{background:var(--ink);border-color:var(--ink);color:#fff}
+.axp-coin{color:var(--gold)}  /* coins/premium only */
+
+/* wordmark helper: <span class="axp-wordmark">axess<span class="pl">player</span></span> */
+.axp-wordmark{font-family:var(--font-display);font-weight:600;letter-spacing:-0.02em}
+.axp-wordmark .pl{color:var(--rose)}

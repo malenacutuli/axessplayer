@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Axessplayer · Product Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ===== Axessplayer brand tokens (from guidelines) ===== */
+:root{
+  --bg:#FAFAF8; --ink:#111114; --rose:#FF2E6E; --rose-d:#E0246B; --rose-t:#FFE2EC;
+  --gold:#E8B54B; --gold-t:#FBF1DA; --line:#ECECEC; --mut:#6B6B72; --mut2:#9A9AA0;
+  --fill:#F4F2EC; --inkd:#0B0B0D; --inkd2:#17171B;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;min-height:100vh}
+h1,h2,h3,.dh{font-family:'Outfit',sans-serif;letter-spacing:-.02em;line-height:1.08}
+.ey{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut)}
+.ey.rose{color:var(--rose)}
+.wrap{max-width:1240px;margin:0 auto;padding:22px 22px 70px}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:14px}
+.brand{display:flex;align-items:center;gap:10px;font-family:'Outfit';font-weight:600;font-size:22px;letter-spacing:-.02em}
+.brand .mk{width:32px;height:32px;border-radius:9px;background:var(--rose);display:grid;place-items:center}
+.brand .mk svg{width:18px;height:18px}
+.brand .pl{color:var(--rose)}
+.modebar{display:flex;gap:5px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:5px}
+.modebar button{font-family:'Outfit';font-weight:600;font-size:14px;color:var(--mut);background:transparent;border:0;padding:9px 16px;border-radius:8px;cursor:pointer}
+.modebar button.on{background:var(--ink);color:#fff}
+.tag{font-family:'JetBrains Mono';font-size:11px;letter-spacing:.06em;color:var(--mut);border:1px solid var(--line);border-radius:20px;padding:7px 12px;background:#fff}
+.view{display:none}.view.on{display:block}
+.lead{color:var(--mut);font-size:14px;margin-top:6px;max-width:520px}
+/* ===================== CONSUMER ===================== */
+.stage{display:grid;grid-template-columns:300px 1fr;gap:40px;align-items:start}
+@media(max-width:880px){.stage{grid-template-columns:1fr;justify-items:center}}
+.phone{width:300px;height:640px;border-radius:40px;border:9px solid #111114;background:#fff;position:relative;overflow:hidden;box-shadow:0 28px 70px rgba(17,17,20,.18)}
+.phone .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:22px;background:#111114;border-radius:0 0 14px 14px;z-index:60}
+.scr{position:absolute;inset:0;display:none;flex-direction:column;background:var(--bg)}
+.scr.on{display:flex}
+.statusbar{height:30px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 18px 3px;font-size:11px;color:var(--ink);font-weight:600;font-family:'JetBrains Mono'}
+/* feed (light, editorial) */
+.feedhead{display:flex;align-items:center;justify-content:space-between;padding:8px 16px 12px}
+.feedhead .t{font-family:'Outfit';font-weight:700;font-size:19px}
+.coins{display:flex;align-items:center;gap:6px;background:var(--gold-t);border:1px solid #EEDFB6;border-radius:20px;padding:5px 11px;font-size:13px;font-weight:600;color:#8a6d22}
+.coins .g{width:13px;height:13px;border-radius:50%;background:var(--gold)}
+.feed{flex:1;overflow:hidden;padding:0 14px 10px;display:flex;flex-direction:column;gap:14px}
+.card{cursor:pointer;flex:none}
+.card .ph{position:relative;height:150px;border-radius:16px;overflow:hidden}
+.card .ph .meta{position:absolute;left:0;right:0;bottom:0;padding:12px;background:linear-gradient(transparent,rgba(11,11,13,.82))}
+.card .ph .meta .ti{font-family:'Outfit';font-weight:700;font-size:16px;color:#fff}
+.badge{position:absolute;top:9px;left:9px;background:rgba(250,250,248,.92);border-radius:20px;padding:4px 9px;font-family:'JetBrains Mono';font-size:9px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;display:flex;align-items:center;gap:5px;color:var(--ink)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--rose)}
+.card .cap{display:flex;align-items:center;justify-content:space-between;padding:8px 2px 0}
+.card .cap .g{font-family:'JetBrains Mono';font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+/* player = brand DARK MODE */
+.player{position:absolute;inset:0;background:var(--inkd)}
+.poster{position:absolute;inset:0}
+.pgrad{position:absolute;inset:0;background:linear-gradient(180deg,rgba(11,11,13,.4) 0%,transparent 26%,transparent 52%,rgba(11,11,13,.92) 100%)}
+.ptop{position:absolute;top:30px;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:0 14px;z-index:20}
+.adapt{display:flex;align-items:center;gap:6px;background:rgba(255,46,110,.14);border:1px solid rgba(255,46,110,.55);border-radius:20px;padding:5px 10px;font-family:'JetBrains Mono';font-size:9px;letter-spacing:.08em;font-weight:600;color:#ffd2e1}
+.icbtn{width:34px;height:34px;border-radius:50%;background:rgba(11,11,13,.45);border:1px solid rgba(255,255,255,.16);display:grid;place-items:center;cursor:pointer}
+.icbtn svg{width:16px;height:16px}
+.pbody{position:absolute;left:0;right:0;bottom:0;padding:16px 14px 18px;z-index:20;color:#fff}
+.cut{display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono';font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#ffd2e1;margin-bottom:9px}
+.ptitle{font-family:'Outfit';font-weight:700;font-size:21px}
+.psub{font-size:12.5px;color:#e6e6ea;margin-top:6px;max-width:235px;line-height:1.45}
+.prail{position:absolute;right:10px;bottom:128px;display:flex;flex-direction:column;gap:15px;z-index:20}
+.rail{display:flex;flex-direction:column;align-items:center;gap:3px;font-family:'JetBrains Mono';font-size:9px;color:#fff}
+.rail .c{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.13);display:grid;place-items:center}
+.rail svg{width:18px;height:18px}
+.scrub{position:absolute;left:14px;right:14px;bottom:100px;height:3px;border-radius:3px;background:rgba(255,255,255,.25);z-index:20}
+.scrub i{display:block;height:100%;border-radius:3px;background:var(--rose)}
+.branchpick{position:absolute;left:14px;right:14px;bottom:110px;z-index:25;display:flex;gap:8px}
+.branchpick button{flex:1;border:1px solid rgba(255,255,255,.28);background:rgba(11,11,13,.6);backdrop-filter:blur(8px);color:#fff;border-radius:10px;padding:9px;font-weight:600;font-size:12px;cursor:pointer;font-family:'Inter'}
+.branchpick button.sel{background:var(--rose);border-color:var(--rose)}
+/* sheets (light) */
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:70;background:#fff;border-top:1px solid var(--line);border-radius:20px 20px 0 0;padding:18px 16px;transform:translateY(110%);transition:.28s;box-shadow:0 -10px 40px rgba(0,0,0,.18)}
+.sheet.up{transform:none}
+.sheet h3{font-size:16px;margin-bottom:14px}
+.opt{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.opt:last-child{border:0}
+.toggle{width:40px;height:23px;border-radius:20px;background:var(--rose);position:relative;cursor:pointer}
+.toggle.off{background:#D8D8DE}
+.toggle i{position:absolute;top:2px;right:2px;width:19px;height:19px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle.off i{right:19px}
+.langrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.chip{font-size:12px;border:1px solid var(--line);border-radius:20px;padding:7px 13px;cursor:pointer;background:#fff}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.paycard{text-align:center;padding:4px}
+.paycard .lock{width:50px;height:50px;border-radius:14px;background:var(--gold-t);border:1px solid #EEDFB6;display:grid;place-items:center;margin:0 auto 12px}
+.paycard h3{font-size:18px;margin-bottom:6px}
+.paycard .mut{color:var(--mut);font-size:13px}
+.paybtn{width:100%;background:var(--rose);color:#fff;border:0;border-radius:12px;padding:13px;font-weight:700;font-family:'Outfit';font-size:15px;cursor:pointer;margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px}
+.paybtn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink);margin-top:8px;font-weight:600}
+/* bottom nav (light) */
+.nav{height:60px;background:#fff;border-top:1px solid var(--line);display:flex;z-index:30}
+.nav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--mut2);font-family:'JetBrains Mono';font-size:8px;letter-spacing:.04em;text-transform:uppercase;cursor:pointer}
+.nav a.on{color:var(--ink)}
+.nav a.on svg{stroke:var(--rose)}
+.nav svg{width:20px;height:20px}
+.pad{padding:16px;overflow:auto;flex:1}
+.bal{background:var(--ink);color:#fff;border-radius:16px;padding:20px;text-align:center;margin-bottom:16px}
+.bal .eyw{font-family:'JetBrains Mono';font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#9a9aa6}
+.bal .n{font-family:'Outfit';font-weight:800;font-size:36px;margin-top:6px}
+.bal .n b{color:var(--gold)}
+.row{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.row .ic{width:36px;height:36px;border-radius:9px;background:var(--fill);display:grid;place-items:center;flex:none;font-size:15px}
+.muted{color:var(--mut);font-size:12px}
+.scaption{font-family:'JetBrains Mono';font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:18px 0 8px}
+.note{margin-top:16px;font-size:13px;color:var(--mut);max-width:340px;line-height:1.6}
+.notetag{font-family:'JetBrains Mono';font-size:9px;letter-spacing:.08em;font-weight:600;color:var(--rose);border:1px solid var(--rose-t);background:#fff;border-radius:6px;padding:3px 7px;margin-right:7px}
+.btn{font-family:'Outfit';font-weight:600;font-size:13px;border-radius:10px;padding:10px 16px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+.btn.pri{background:var(--rose);border-color:var(--rose);color:#fff}
+.btn.ink{background:var(--ink);border-color:var(--ink);color:#fff}
+/* ===================== STUDIO (light) ===================== */
+.studio{display:grid;grid-template-columns:218px 1fr;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff}
+.srail{background:var(--bg);border-right:1px solid var(--line);padding:18px 12px;min-height:610px}
+.srail .lg{display:flex;align-items:center;gap:8px;font-family:'Outfit';font-weight:600;font-size:16px;margin-bottom:20px;padding:0 4px}
+.srail .lg .mk{width:24px;height:24px;border-radius:7px;background:var(--rose)}
+.srail .lg .pl{color:var(--rose)}
+.snav{display:flex;flex-direction:column;gap:2px}
+.snav button{display:flex;align-items:center;gap:10px;color:var(--mut);background:transparent;border:0;text-align:left;padding:10px 11px;border-radius:9px;font-size:13.5px;font-weight:500;cursor:pointer;font-family:'Inter'}
+.snav button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.05);border:1px solid var(--line)}
+.snav button.on svg{stroke:var(--rose)}
+.snav svg{width:16px;height:16px}
+.smain{padding:22px 26px;min-height:610px}
+.sbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:12px;flex-wrap:wrap}
+.sbar h2{font-size:21px}
+.spanel{display:none}.spanel.on{display:block}
+.libgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px}
+.lib{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;cursor:pointer;transition:.15s}
+.lib:hover{box-shadow:0 8px 24px rgba(17,17,20,.08)}
+.lib .ph{height:96px}
+.lib .b{padding:11px}
+.lib .b .t{font-family:'Outfit';font-weight:600;font-size:13.5px}
+.lib .b .s{font-size:11px;color:var(--mut);margin-top:4px;display:flex;gap:7px;align-items:center}
+.pub{font-family:'JetBrains Mono';font-size:8px;letter-spacing:.06em;font-weight:700;padding:3px 6px;border-radius:5px}
+.pub.live{background:var(--rose-t);color:var(--rose-d)}
+.pub.draft{background:var(--fill);color:var(--mut)}
+.canvas{border:1px solid var(--line);border-radius:14px;background:radial-gradient(circle at 1px 1px, #ececec 1px, transparent 0) 0 0/24px 24px,#fff;position:relative;overflow-x:auto}
+.gnode{position:absolute;width:142px;border-radius:12px;border:1px solid var(--line);background:#fff;padding:10px 11px;cursor:pointer;box-shadow:0 2px 6px rgba(17,17,20,.05)}
+.gnode.sel{border-color:var(--rose);box-shadow:0 0 0 3px var(--rose-t)}
+.gnode .k{font-family:'JetBrains Mono';font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.gnode .nm{font-family:'Outfit';font-weight:600;font-size:13.5px;margin-top:4px}
+.gnode .v{font-size:10.5px;color:var(--mut);margin-top:5px}
+.gnode.prem{border-color:#EEDFB6;background:var(--gold-t)}
+.gnode .pc{display:inline-flex;align-items:center;gap:4px;font-family:'JetBrains Mono';font-size:10px;color:#8a6d22;font-weight:700;margin-top:5px}
+.insp{margin-top:18px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:760px){.insp{grid-template-columns:1fr}}
+.fld{margin-bottom:13px}
+.fld label{display:block;font-family:'JetBrains Mono';font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-bottom:6px}
+.fld input,.fld select{width:100%;background:#fff;border:1px solid var(--line);border-radius:9px;padding:10px 12px;color:var(--ink);font-family:'Inter';font-size:13.5px}
+.drop{border:1.5px dashed #D5D5DC;border-radius:14px;padding:24px;text-align:center;color:var(--mut);font-size:13px;background:var(--bg)}
+.drop .up{width:42px;height:42px;border-radius:12px;background:#fff;border:1px solid var(--line);display:grid;place-items:center;margin:0 auto 11px}
+.vlist{margin-top:14px}
+.vrow{display:flex;align-items:center;gap:11px;padding:10px;border:1px solid var(--line);border-radius:11px;margin-bottom:9px;font-size:12.5px}
+.vrow .th{width:34px;height:48px;border-radius:6px;flex:none}
+.vrow .meta{flex:1}
+.vrow .ok{color:var(--rose-d);font-family:'JetBrains Mono';font-size:10px;font-weight:600}
+.pricebox{border:1px solid var(--line);border-radius:14px;padding:18px;max-width:430px}
+.toggle2{display:inline-flex;align-items:center;gap:9px;font-size:13.5px;cursor:pointer;margin-top:4px}
+.pubbar{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:20px;background:var(--bg);gap:14px;flex-wrap:wrap}
+.check{display:flex;flex-direction:column;gap:9px;font-size:13px;color:var(--mut)}
+.check b{color:var(--rose-d)}
+.help{font-size:12.5px;color:var(--mut);margin-top:10px;line-height:1.6}
+/* gradient posters (no external assets) */
+.gp{background:linear-gradient(155deg,#2a1119 0%,#3a1422 40%,#0c0c12 100%)}
+.gcalm{background:linear-gradient(155deg,#5a3b1e,#2a1c10)}
+.gtense{background:linear-gradient(155deg,#16263a,#0c1420)}
+.g2{background:linear-gradient(155deg,#3a2a12,#171008)}
+.g3{background:linear-gradient(155deg,#123034,#0c1a1c)}
+.g4{background:linear-gradient(155deg,#2a1242,#140a22)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><span class="mk"><svg viewBox="0 0 24 24"><path d="M9 7l8 5-8 5z" fill="#fff"/></svg></span>axess<span class="pl">player</span></div>
+    <div class="modebar">
+      <button id="mC" class="on" onclick="mode('c')">Consumer app</button>
+      <button id="mS" onclick="mode('s')">Studio</button>
+    </div>
+    <span class="tag">DESIGN PROTOTYPE · ON BRAND</span>
+  </div>
+
+  <!-- ============ CONSUMER ============ -->
+  <div id="viewC" class="view on">
+    <div class="stage">
+      <div>
+        <div class="phone">
+          <div class="notch"></div>
+          <!-- FEED (light) -->
+          <div id="sFeed" class="scr on">
+            <div class="statusbar"><span>9:41</span><span>5G ▮▮▮</span></div>
+            <div class="feedhead"><span class="t">For you</span><span class="coins"><span class="g"></span>10</span></div>
+            <div class="feed">
+              <div class="card" onclick="openPlayer()"><div class="ph gp"><div class="badge"><span class="dot"></span>Adapts to you</div><div class="meta"><div class="ti">The Last Signal</div></div></div><div class="cap"><span class="g">Thriller · Ep 1 · 9 ch</span><span class="g">▶ 1.2M</span></div></div>
+              <div class="card"><div class="ph g4"><div class="badge"><span class="dot"></span>Adaptive</div><div class="meta"><div class="ti">Five Years to Burn It Down</div></div></div><div class="cap"><span class="g">Revenge · New</span></div></div>
+              <div class="card"><div class="ph g3"><div class="badge"><span class="dot"></span>Adaptive</div><div class="meta"><div class="ti">Rejected by the Alpha</div></div></div><div class="cap"><span class="g">Fantasy romance</span></div></div>
+            </div>
+            <div class="nav">
+              <a class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Home</a>
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>Search</a>
+              <a onclick="go('sWallet')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2"/></svg>Wallet</a>
+              <a onclick="go('sProfile')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>You</a>
+            </div>
+          </div>
+          <!-- PLAYER (dark mode) -->
+          <div id="sPlayer" class="scr">
+            <div class="player">
+              <div id="poster" class="poster gtense"></div>
+              <div class="pgrad"></div>
+              <div class="ptop">
+                <div class="icbtn" onclick="go('sFeed')"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></div>
+                <div class="adapt"><span class="dot"></span><span id="adaptlbl">YOUR CUT · TENSE</span></div>
+                <div class="icbtn" onclick="sheet('access')"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div>
+              </div>
+              <div class="prail">
+                <div class="rail"><div class="c"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 21s-7-4.6-9.3-9C1 8.5 3 5 6.5 5 9 5 12 8 12 8s3-3 5.5-3C21 5 23 8.5 21.3 12 19 16.4 12 21 12 21z"/></svg></div>12k</div>
+                <div class="rail"><div class="c"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>840</div>
+                <div class="rail" onclick="sheet('access')"><div class="c"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div>A11Y</div>
+              </div>
+              <div class="scrub"><i style="width:62%"></i></div>
+              <div class="pbody">
+                <div class="cut"><span class="dot"></span><span id="cutlbl">Picked for you in real time</span></div>
+                <div class="ptitle">The Last Signal</div>
+                <div class="psub" id="beatline">Ch.1 · Boardroom standoff: "I am making a transfer of power. The board already signed."</div>
+              </div>
+            </div>
+            <div id="shAccess" class="sheet">
+              <div class="ey" style="margin-bottom:10px">Accessible by default</div>
+              <h3>Accessibility &amp; language</h3>
+              <div class="opt"><span>Captions</span><div class="toggle off" onclick="this.classList.toggle('off')"><i></i></div></div>
+              <div class="opt"><span>Audio description</span><div class="toggle off" onclick="this.classList.toggle('off')"><i></i></div></div>
+              <div class="opt"><span>Sign language inset</span><div class="toggle off" onclick="this.classList.toggle('off')"><i></i></div></div>
+              <div class="opt" style="display:block;border:0;padding-top:14px"><span>Language</span><div class="langrow"><span class="chip on">English</span><span class="chip">Español</span><span class="chip">العربية</span><span class="chip">Français</span></div></div>
+              <button class="paybtn ghost" onclick="closeSheet()">Done</button>
+            </div>
+            <div id="shPay" class="sheet">
+              <div class="paycard">
+                <div class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
+                <h3>Unlock the alternate ending</h3>
+                <div class="mut">See how Adrián's reveal really plays out. Premium cut.</div>
+                <button class="paybtn" onclick="paySpend()"><span style="width:14px;height:14px;border-radius:50%;background:var(--gold);display:inline-block"></span>Unlock for 5 coins</button>
+                <button class="paybtn ghost" onclick="closeSheet()">Watch a rewarded ad instead</button>
+                <button class="paybtn ghost" onclick="closeSheet()">Maybe later</button>
+              </div>
+            </div>
+          </div>
+          <!-- WALLET -->
+          <div id="sWallet" class="scr">
+            <div class="statusbar"><span>9:41</span><span>5G ▮▮▮</span></div>
+            <div class="feedhead"><span class="t">Wallet</span></div>
+            <div class="pad">
+              <div class="bal"><div class="eyw">Balance</div><div class="n"><b id="baln">10</b> coins</div></div>
+              <div class="scaption">Buy coins</div>
+              <div class="row"><div class="ic"><span style="width:15px;height:15px;border-radius:50%;background:var(--gold);display:block"></span></div><div style="flex:1"><div>50 coins</div><div class="muted">Most popular</div></div><span class="btn pri" style="padding:7px 13px">$4.99</span></div>
+              <div class="row"><div class="ic"><span style="width:15px;height:15px;border-radius:50%;background:var(--gold);display:block"></span></div><div style="flex:1"><div>120 coins</div><div class="muted">+20 bonus</div></div><span class="btn" style="padding:7px 13px">$9.99</span></div>
+              <div class="scaption">Earn free coins</div>
+              <div class="row"><div class="ic">▶</div><div style="flex:1">Watch a rewarded ad <span class="muted">+2</span></div></div>
+              <div class="row"><div class="ic">✓</div><div style="flex:1">Daily check-in <span class="muted">+1</span></div></div>
+              <div class="scaption">Unlocked</div>
+              <div id="unlockrow" class="muted">Nothing unlocked yet.</div>
+            </div>
+            <div class="nav">
+              <a onclick="go('sFeed')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Home</a>
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>Search</a>
+              <a class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2"/></svg>Wallet</a>
+              <a onclick="go('sProfile')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>You</a>
+            </div>
+          </div>
+          <!-- PROFILE -->
+          <div id="sProfile" class="scr">
+            <div class="statusbar"><span>9:41</span><span>5G ▮▮▮</span></div>
+            <div class="feedhead"><span class="t">You</span></div>
+            <div class="pad">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px"><div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--rose),var(--gold))"></div><div><div style="font-family:'Outfit';font-weight:700;font-size:16px">Malena</div><div class="muted">Member · 10 coins</div></div></div>
+              <div class="row"><div class="ic">▤</div><div style="flex:1">Continue watching</div></div>
+              <div class="row"><div class="ic">♡</div><div style="flex:1">My list</div></div>
+              <div class="row"><div class="ic">⚙</div><div style="flex:1">Accessibility defaults</div></div>
+              <div class="row"><div class="ic">⤓</div><div style="flex:1">Downloads</div></div>
+            </div>
+            <div class="nav">
+              <a onclick="go('sFeed')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Home</a>
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>Search</a>
+              <a onclick="go('sWallet')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2"/></svg>Wallet</a>
+              <a class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>You</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="ey rose">The viewer experience</div>
+        <h1 style="font-size:30px;margin-top:10px">One story, re-cut for everyone.</h1>
+        <p class="lead">Click the phone. A light, editorial app (not another dark clone), with an immersive dark-mode player that re-cuts per viewer, accessibility and language built in, and the gold coin paywall.</p>
+        <div class="scaption">Try it</div>
+        <div class="muted" style="font-size:13.5px;line-height:2">
+          1. Tap <b style="color:var(--ink)">The Last Signal</b> to open the player.<br>
+          2. Hit <b style="color:var(--ink)">Toggle branch</b> to feel the per-viewer re-cut (normally the engine decides).<br>
+          3. Open <b style="color:var(--ink)">Show paywall</b> to unlock the premium ending and spend coins.<br>
+          4. Open the <b style="color:var(--ink)">A11Y</b> control for captions, audio description, sign, language.
+        </div>
+        <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn pri" onclick="branchToggle()">Toggle branch</button><button class="btn ink" onclick="openPlayer()">Open player</button><button class="btn" onclick="sheet('pay')">Show paywall</button></div>
+        <div class="note"><span class="notetag">ON BRAND</span>#FAFAF8 ground, ink system, one Electric Rose focal accent per layout, gold reserved for coins and premium, Outfit + Inter + JetBrains Mono. The player uses the guideline dark mode.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ STUDIO ============ -->
+  <div id="viewS" class="view">
+    <div class="studio">
+      <div class="srail">
+        <div class="lg"><span class="mk"></span>axess<span class="pl">studio</span></div>
+        <div class="snav">
+          <button class="on" onclick="spanel('library',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Library</button>
+          <button onclick="spanel('branch',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 12h6M13 12l4-5M13 12l4 5"/></svg>Branch editor</button>
+          <button onclick="spanel('media',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9"/><path d="M3 16l5-5 4 4"/></svg>Media &amp; variants</button>
+          <button onclick="spanel('pricing',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 9h4a2 2 0 0 1 0 4h-2v3"/></svg>Pricing</button>
+          <button onclick="spanel('publish',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>Publish</button>
+        </div>
+        <div class="help" style="margin-top:26px;padding:0 4px">Signed in as<br><b style="color:var(--ink)">Axessible Studio</b></div>
+      </div>
+      <div class="smain">
+        <div id="pLibrary" class="spanel on">
+          <div class="sbar"><div><div class="ey rose">Content back end</div><h2 style="margin-top:8px">Library</h2></div><button class="btn pri" onclick="spanel('branch',document.querySelectorAll('.snav button')[1])">+ New episode</button></div>
+          <div class="libgrid">
+            <div class="lib" onclick="spanel('branch',document.querySelectorAll('.snav button')[1])"><div class="ph gp"></div><div class="b"><div class="t">The Last Signal</div><div class="s"><span class="pub live">LIVE</span> Ep 1 · 5 beats</div></div></div>
+            <div class="lib"><div class="ph g4"></div><div class="b"><div class="t">Five Years to Burn It Down</div><div class="s"><span class="pub draft">DRAFT</span> Ep 1</div></div></div>
+            <div class="lib"><div class="ph g3"></div><div class="b"><div class="t">Rejected by the Alpha</div><div class="s"><span class="pub draft">DRAFT</span> Ep 1</div></div></div>
+            <div class="lib"><div class="ph g2"></div><div class="b"><div class="t">The 90-Day Wife</div><div class="s"><span class="pub draft">OUTLINE</span></div></div></div>
+          </div>
+          <div class="note"><span class="notetag">FILLS THE GAP</span>The content upload tool that did not exist. It writes to the same content graph the player reads from.</div>
+        </div>
+        <div id="pBranch" class="spanel">
+          <div class="sbar"><div><div class="ey rose">The Last Signal · Ep 1</div><h2 style="margin-top:8px">Branch editor</h2></div><button class="btn pri" onclick="spanel('media',document.querySelectorAll('.snav button')[2])">Upload variants →</button></div>
+          <div class="canvas" style="height:330px">
+            <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 760 320" preserveAspectRatio="none">
+              <path d="M152 64 H230" stroke="#D5D5DC" stroke-width="2" fill="none"/>
+              <path d="M374 64 C 424 64 424 34 474 34" stroke="var(--rose)" stroke-width="2" fill="none"/>
+              <path d="M374 64 C 424 64 424 150 474 150" stroke="var(--rose)" stroke-width="2" fill="none"/>
+              <path d="M616 34 C 666 34 666 92 706 92" stroke="#D5D5DC" stroke-width="2" fill="none"/>
+              <path d="M616 150 C 666 150 666 92 706 92" stroke="#D5D5DC" stroke-width="2" fill="none"/>
+              <path d="M616 150 C 656 150 656 252 706 252" stroke="var(--gold)" stroke-width="2" fill="none" stroke-dasharray="5 4"/>
+            </svg>
+            <div class="gnode" style="left:10px;top:44px" onclick="selNode(this)"><div class="k">Cold open</div><div class="nm">The firing</div><div class="v">1 variant · en</div></div>
+            <div class="gnode sel" style="left:234px;top:44px" onclick="selNode(this)"><div class="k">Branch point</div><div class="nm">Elevator</div><div class="v">fork · intensity</div></div>
+            <div class="gnode" style="left:474px;top:14px" onclick="selNode(this)"><div class="k">Calm cut</div><div class="nm">Rooftop</div><div class="v">intensity 2</div></div>
+            <div class="gnode" style="left:474px;top:130px" onclick="selNode(this)"><div class="k">Tense cut</div><div class="nm">Boardroom</div><div class="v">intensity 5</div></div>
+            <div class="gnode" style="left:618px;top:72px" onclick="selNode(this)"><div class="k">Ending</div><div class="nm">The reveal</div><div class="v">shared</div></div>
+            <div class="gnode prem" style="left:618px;top:230px" onclick="selNode(this)"><div class="k">Premium</div><div class="nm">Alt ending</div><div class="pc">◆ 5 coins</div></div>
+          </div>
+          <div class="help">Rose path = the per-viewer fork the decision engine chooses. Gold dashed = premium, coin-gated. Both branches reconverge on the shared ending, so the next chapter is branch-independent.</div>
+        </div>
+        <div id="pMedia" class="spanel">
+          <div class="sbar"><div><div class="ey rose">Beat · Branch point "Elevator"</div><h2 style="margin-top:8px">Media &amp; variants</h2></div><button class="btn" onclick="spanel('pricing',document.querySelectorAll('.snav button')[3])">Pricing →</button></div>
+          <div class="insp">
+            <div>
+              <div class="drop"><div class="up"><svg viewBox="0 0 24 24" fill="none" stroke="var(--rose)" stroke-width="2"><path d="M12 19V7M5 12l7-7 7 7"/></svg></div>Drag a 9:16 master here, or connect the AI generation pipeline.<br><span class="muted">MP4 / MOV · auto-encodes to HLS</span></div>
+              <div class="vlist">
+                <div class="vrow"><div class="th gtense"></div><div class="meta"><div>Tense cut · EN</div><div class="muted">720p · 0:08 · encoded</div></div><span class="ok">✓ READY</span></div>
+                <div class="vrow"><div class="th gcalm"></div><div class="meta"><div>Calm cut · EN</div><div class="muted">720p · 0:08 · encoded</div></div><span class="ok">✓ READY</span></div>
+                <div class="vrow"><div class="th gtense"></div><div class="meta"><div>Tense cut · ES (telenovela)</div><div class="muted">uploading… 64%</div></div><span class="muted">⏳</span></div>
+              </div>
+            </div>
+            <div>
+              <div class="fld"><label>Cut</label><select><option>Tense (intensity 5)</option><option>Calm (intensity 2)</option></select></div>
+              <div class="fld"><label>Language</label><select><option>English</option><option>Español</option><option>العربية (UAE)</option></select></div>
+              <div class="fld"><label>Accessibility tracks</label><div class="langrow"><span class="chip on">Captions</span><span class="chip on">Audio desc.</span><span class="chip">Sign</span></div></div>
+              <div class="fld"><label>Tier</label><select><option>A · filmed</option><option>B · likeness</option><option>C · AI generated</option></select></div>
+              <div class="fld"><label>Provenance (C2PA)</label><input value="signed · auto" readonly></div>
+            </div>
+          </div>
+          <div class="note"><span class="notetag">PIPELINE</span>Upload → encode to HLS → register as a beat_variant → CDN. These fields are exactly what the manifest and decision services consume.</div>
+        </div>
+        <div id="pPricing" class="spanel">
+          <div class="sbar"><div><div class="ey rose">Monetization</div><h2 style="margin-top:8px">Pricing</h2></div><button class="btn" onclick="spanel('publish',document.querySelectorAll('.snav button')[4])">Publish →</button></div>
+          <div class="pricebox">
+            <div class="fld"><label>Episode access</label><select><option>Free (ad-supported)</option><option>Unlock from chapter 4</option></select></div>
+            <div class="fld"><label>Premium alternate ending</label><div style="display:flex;gap:10px;align-items:center"><input value="5" style="width:84px"><span class="muted">coins · own-once</span></div></div>
+            <label class="toggle2"><span class="toggle"><i></i></span> Offer rewarded-ad unlock</label>
+          </div>
+          <div class="help">Server-authoritative. The number here is the coin_cost the hardened spend_coins ledger enforces, idempotently.</div>
+        </div>
+        <div id="pPublish" class="spanel">
+          <div class="sbar"><div><div class="ey rose">Go live</div><h2 style="margin-top:8px">Publish · The Last Signal Ep 1</h2></div></div>
+          <div class="check">
+            <div><b>✓</b> Story graph valid · cold open → fork → reconverge → ending</div>
+            <div><b>✓</b> All beats have at least one encoded variant</div>
+            <div><b>✓</b> Premium ending priced (5 coins) and provenance signed</div>
+            <div><b>✓</b> Accessibility: captions + audio description present</div>
+            <div style="color:#8a6d22">◷ Spanish &amp; Arabic variants still encoding (2 of 6)</div>
+          </div>
+          <div class="pubbar"><div><div style="font-family:'Outfit';font-weight:700">Ready to publish English</div><div class="muted">Other languages roll out as they finish encoding</div></div><button class="btn pri" onclick="alert('Published. The episode now appears in the consumer feed and the decision engine begins serving cuts.')">Publish to feed</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="note" style="margin-top:18px;max-width:780px"><span class="notetag">THE GAP THIS FILLS</span>Before today there was a backend engine and a developer harness, but no designed experience and no way to get content in. This is both: the streaming app a viewer uses, and the Studio a creator uses to upload episodes, author branches, price, and publish.</div>
+  </div>
+</div>
+
+<script>
+function mode(m){
+  document.getElementById('viewC').classList.toggle('on',m==='c');
+  document.getElementById('viewS').classList.toggle('on',m==='s');
+  document.getElementById('mC').classList.toggle('on',m==='c');
+  document.getElementById('mS').classList.toggle('on',m==='s');
+}
+function go(id){document.querySelectorAll('#viewC .scr').forEach(s=>s.classList.remove('on'));document.getElementById(id).classList.add('on');closeSheet();}
+function openPlayer(){go('sPlayer');}
+let branch='tense';
+function branchToggle(){openPlayer();branch=branch==='tense'?'calm':'tense';applyBranch();showPicker();}
+function applyBranch(){
+  const p=document.getElementById('poster');
+  if(branch==='tense'){p.className='poster gtense';document.getElementById('adaptlbl').textContent='YOUR CUT · TENSE';document.getElementById('beatline').textContent='Ch.1 · Boardroom standoff: "I am making a transfer of power. The board already signed."';}
+  else{p.className='poster gcalm';document.getElementById('adaptlbl').textContent='YOUR CUT · CALM';document.getElementById('beatline').textContent='Ch.1 · Rooftop, golden hour: "I never had a job here, Lena. I had a name."';}
+}
+function showPicker(){
+  if(!document.getElementById('picker')){
+    const d=document.createElement('div');d.id='picker';d.className='branchpick';
+    d.innerHTML='<button id="bC" onclick="setBranch(\'calm\')">Calm cut</button><button id="bT" onclick="setBranch(\'tense\')">Tense cut</button>';
+    document.querySelector('#sPlayer .player').appendChild(d);
+  }
+  markPicker();
+  clearTimeout(window._pw); window._pw=setTimeout(()=>{ if(document.getElementById('sPlayer').classList.contains('on')) sheet('pay'); },4200);
+}
+function markPicker(){const c=document.getElementById('bC'),t=document.getElementById('bT');if(!c)return;c.classList.toggle('sel',branch==='calm');t.classList.toggle('sel',branch==='tense');}
+function setBranch(b){branch=b;applyBranch();markPicker();}
+function sheet(which){
+  closeSheet();
+  if(which==='access')document.getElementById('shAccess').classList.add('up');
+  if(which==='pay'){if(!document.getElementById('sPlayer').classList.contains('on'))openPlayer();document.getElementById('shPay').classList.add('up');}
+}
+function closeSheet(){document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('up'));}
+let bal=10, unlocked=false;
+function paySpend(){
+  if(unlocked){closeSheet();return;}
+  bal-=5; unlocked=true;
+  document.getElementById('baln').textContent=bal;
+  document.getElementById('unlockrow').innerHTML='<div class="row"><div class="ic">◆</div><div style="flex:1">The Last Signal · Alt ending <span class="muted">5 coins</span></div><span class="ok" style="color:var(--rose-d);font-family:\'JetBrains Mono\';font-size:10px;font-weight:600">OWNED</span></div>';
+  document.querySelector('#sFeed .coins').innerHTML='<span class="g"></span>'+bal;
+  closeSheet();
+  document.getElementById('poster').className='poster gp';
+  document.getElementById('adaptlbl').textContent='PREMIUM · UNLOCKED';
+  document.getElementById('beatline').textContent='Premium ending: "Motion to remove the acting director. All in favor."';
+  document.getElementById('cutlbl').textContent='Alternate ending unlocked';
+}
+function spanel(id,btn){
+  document.querySelectorAll('.spanel').forEach(p=>p.classList.remove('on'));
+  document.getElementById('p'+id.charAt(0).toUpperCase()+id.slice(1)).classList.add('on');
+  document.querySelectorAll('.snav button').forEach(b=>b.classList.remove('on'));
+  if(btn)btn.classList.add('on');
+}
+function selNode(n){document.querySelectorAll('.gnode').forEach(g=>g.classList.remove('sel'));n.classList.add('sel');}
+applyBranch();
+</script>
+</body>
+</html>
