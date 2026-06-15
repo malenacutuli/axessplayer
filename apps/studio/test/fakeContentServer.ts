@@ -33,6 +33,9 @@ export interface FakeServer {
   fetch: typeof fetch;
   // Inspect what the last POST received, for assertions (for example the F1 user_id check).
   lastBodies: Array<{ path: string; body: unknown }>;
+  // Insert the walking-skeleton "The Last Signal" fixture (mirrors supabase/seed.sql) so the studio can
+  // load the real seed id in tests. Returns the seeded ids the UI references.
+  seedLastSignal: () => { seriesId: string; episodeId: string; beatIds: string[] };
 }
 
 export function createFakeContentServer(): FakeServer {
@@ -229,5 +232,93 @@ export function createFakeContentServer(): FakeServer {
     }
   }) as typeof fetch;
 
-  return { fetch: fetchImpl, lastBodies };
+  // Mirror supabase/seed.sql: The Last Signal, Ep 1, cold open -> branch -> {calm, tense} -> ending, plus a
+  // premium alternate ending (5 coins). The graph response will NEST these and OMIT beat_id on variants,
+  // which is exactly what the studio flatten must re-stamp.
+  function seedLastSignal(): { seriesId: string; episodeId: string; beatIds: string[] } {
+    const seriesId = "11111111-1111-1111-1111-111111111111";
+    const episodeId = "22222222-2222-2222-2222-222222222222";
+    const bCold = "bbbbbbbb-0000-0000-0000-000000000001";
+    const bBranch = "bbbbbbbb-0000-0000-0000-000000000002";
+    const bCalm = "bbbbbbbb-0000-0000-0000-00000000000a";
+    const bTense = "bbbbbbbb-0000-0000-0000-00000000000b";
+    const bEnd = "bbbbbbbb-0000-0000-0000-000000000004";
+
+    series.set(seriesId, {
+      id: seriesId,
+      title: "The Last Signal",
+      genre: "thriller",
+      base_language: "en",
+      available_languages: ["en"],
+      cover_url: null,
+    });
+    episodes.set(episodeId, {
+      id: episodeId,
+      series_id: seriesId,
+      episode_number: 1,
+      title: "Pilot",
+      is_free: true,
+      coin_cost: 0,
+    });
+    const mkBeat = (id: string, idx: number, role: BeatRole, branch: boolean): void => {
+      beats.set(id, {
+        id,
+        series_id: seriesId,
+        episode_id: episodeId,
+        beat_index: idx,
+        role,
+        canon_facts: {},
+        is_branch_point: branch,
+      });
+    };
+    mkBeat(bCold, 0, "cold_open", false);
+    mkBeat(bBranch, 1, "spine", true);
+    mkBeat(bCalm, 2, "variant", false);
+    mkBeat(bTense, 2, "variant", false);
+    mkBeat(bEnd, 3, "ending", false);
+
+    const mkVar = (
+      id: string,
+      beatId: string,
+      intensity: number,
+      premium: boolean,
+      coin: number,
+    ): void => {
+      variants.set(id, {
+        id,
+        beat_id: beatId,
+        language: "en",
+        accessibility: { captions: true },
+        intensity,
+        pov: null,
+        tier: "A_filmed",
+        is_premium: premium,
+        coin_cost: coin,
+        playback_url: `https://cdn.example/skel/${id}.m3u8`,
+        duration_ms: 8000,
+        provenance_id: null,
+        qa_status: "passed",
+        placement_slots: [],
+      });
+    };
+    mkVar("cccccccc-0000-0000-0000-000000000001", bCold, 3, false, 0);
+    mkVar("cccccccc-0000-0000-0000-000000000002", bBranch, 3, false, 0);
+    mkVar("cccccccc-0000-0000-0000-00000000000a", bCalm, 2, false, 0);
+    mkVar("cccccccc-0000-0000-0000-00000000000b", bTense, 5, false, 0);
+    mkVar("cccccccc-0000-0000-0000-000000000004", bEnd, 3, false, 0);
+    mkVar("cccccccc-0000-0000-0000-000000000005", bEnd, 4, true, 5);
+
+    const mkEdge = (from: string, to: string, condition: Record<string, unknown>): void => {
+      edges.push({ from_beat_id: from, to_beat_id: to, condition });
+    };
+    mkEdge(bCold, bBranch, {});
+    mkEdge(bBranch, bCalm, { branch: "calm" });
+    mkEdge(bBranch, bTense, { branch: "tense" });
+    mkEdge(bCalm, bEnd, {});
+    mkEdge(bTense, bEnd, {});
+
+    return { seriesId, episodeId, beatIds: [bCold, bBranch, bCalm, bTense, bEnd] };
+  }
+
+  return { fetch: fetchImpl, lastBodies, seedLastSignal };
 }

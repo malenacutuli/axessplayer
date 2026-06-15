@@ -1,7 +1,8 @@
-// Integration tests: render the whole StudioPage over the fake content server and walk the director DoD
-// flow (create series, episode, beat, variant, draw edge) plus the graph read path. Verifies F1 at the
-// UI boundary too. No em dashes.
-import { describe, it, expect } from "vitest";
+// Integration tests: render the whole StudioPage over the fake content server seeded with the real "The
+// Last Signal" fixture, and walk the studio panels (Library, Branch editor, Media & variants, Pricing,
+// Publish). Verifies the live wiring (the branch editor renders nodes/edges from the real graph; uploading
+// a variant POSTs to /variants and the canvas refreshes) and F1 at the UI boundary. No em dashes.
+import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ContentClient } from "../src/api/client.js";
@@ -18,109 +19,132 @@ function renderStudio(server: FakeServer) {
   );
 }
 
-describe("StudioPage director workflow", () => {
-  it("creates a series, episode, beat, variant, and draws an edge, with the graph reflecting each step", async () => {
-    const server = createFakeContentServer();
+describe("StudioPage", () => {
+  let server: FakeServer;
+  beforeEach(() => {
+    server = createFakeContentServer();
+    server.seedLastSignal();
+  });
+
+  it("shows the Library with the live series and publish badges", async () => {
+    renderStudio(server);
+    expect(screen.getByTestId("panel-library")).toBeInTheDocument();
+    expect(screen.getByText("The Last Signal")).toBeInTheDocument();
+    // LIVE / DRAFT / OUTLINE badges from the prototype.
+    expect(screen.getByText("LIVE")).toBeInTheDocument();
+    expect(screen.getAllByText("DRAFT").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("OUTLINE")).toBeInTheDocument();
+    // Let the background graph load settle so the StudioPage state update is flushed under act().
+    await waitFor(() => expect(screen.getByTestId("panel-library")).toBeInTheDocument());
+  });
+
+  it("opens the branch editor from the library and renders nodes and edges from the real graph", async () => {
     const user = userEvent.setup();
     renderStudio(server);
 
-    // 1. Create a series. The page adopts the new id and loads its graph.
-    await user.type(within(screen.getByTestId("form-series")).getByLabelText("Title"), "Adaptive Pilot");
-    await user.click(within(screen.getByTestId("form-series")).getByRole("button", { name: "Create series" }));
-    await screen.findByTestId("form-series-ok");
-    await waitFor(() => expect(screen.getByTestId("graph-viewer")).toBeInTheDocument());
-    expect(screen.getByRole("heading", { name: "Adaptive Pilot" })).toBeInTheDocument();
-    expect(screen.getByTestId("no-episodes")).toBeInTheDocument();
+    await user.click(screen.getByTestId("library-card-live"));
+    await waitFor(() => expect(screen.getByTestId("panel-branch")).toBeInTheDocument());
 
-    // 2. Create an episode under it.
-    const epForm = screen.getByTestId("form-episode");
-    await user.clear(within(epForm).getByLabelText("Episode number"));
-    await user.type(within(epForm).getByLabelText("Episode number"), "1");
-    await user.type(within(epForm).getByLabelText("Title"), "Cold Open");
-    await user.click(within(epForm).getByRole("button", { name: "Create episode" }));
-    await screen.findByTestId("form-episode-ok");
-    await waitFor(() => expect(screen.getByTestId("episode-list")).toBeInTheDocument());
+    // Five seeded beats become five nodes; the premium ending makes the ending beat a gold premium node.
+    const seed = ["bbbbbbbb-0000-0000-0000-000000000001", "bbbbbbbb-0000-0000-0000-000000000002", "bbbbbbbb-0000-0000-0000-000000000004"];
+    for (const id of seed) {
+      expect(screen.getByTestId(`gnode-${id}`)).toBeInTheDocument();
+    }
+    // Edge kinds: a rose fork out of the branch point, a gold dashed premium edge into the premium ending.
+    expect(screen.getAllByTestId("edge-fork").length).toBeGreaterThanOrEqual(1);
+    // Premium node shows coins in gold.
+    expect(screen.getByText(/5 coins/)).toBeInTheDocument();
+  });
 
-    // 3. Create a beat in that episode (the episode picker is populated from the loaded graph).
-    const beatForm = screen.getByTestId("form-beat");
-    await waitFor(() =>
-      expect(within(beatForm).getByRole("option", { name: /Episode 1: Cold Open/ })).toBeInTheDocument(),
-    );
-    await user.selectOptions(
-      within(beatForm).getByLabelText("Episode"),
-      within(beatForm).getByRole("option", { name: /Episode 1: Cold Open/ }),
-    );
-    await user.click(within(beatForm).getByRole("button", { name: "Create beat" }));
-    await screen.findByTestId("form-beat-ok");
-    await waitFor(() => expect(screen.getByText(/Beat #0 \[spine\]/)).toBeInTheDocument());
+  it("selects a node (rose ring) and carries the selection to Media", async () => {
+    const user = userEvent.setup();
+    renderStudio(server);
+    await user.click(screen.getByTestId("library-card-live"));
+    await waitFor(() => expect(screen.getByTestId("panel-branch")).toBeInTheDocument());
 
-    // 4. Attach a variant to that beat.
-    const variantForm = screen.getByTestId("form-variant");
-    await waitFor(() =>
-      expect(within(variantForm).getByRole("option", { name: /beat #0/ })).toBeInTheDocument(),
-    );
-    await user.selectOptions(
-      within(variantForm).getByLabelText("Beat"),
-      within(variantForm).getByRole("option", { name: /beat #0/ }),
-    );
-    await user.type(within(variantForm).getByLabelText("Playback URL"), "https://cdn/ep1-b0-en.m3u8");
-    await user.click(within(variantForm).getByRole("button", { name: "Attach variant" }));
+    const branchNode = await screen.findByTestId("gnode-bbbbbbbb-0000-0000-0000-000000000002");
+    await user.click(branchNode);
+    expect(branchNode).toHaveAttribute("data-selected", "true");
+
+    await user.click(screen.getByTestId("goto-media"));
+    expect(await screen.findByTestId("panel-media")).toBeInTheDocument();
+    // The media panel shows the selected branch beat in its eyebrow.
+    expect(screen.getByText(/branch point/i)).toBeInTheDocument();
+  });
+
+  it("uploads a variant (POST /variants) and the graph reflects it, with no user_id sent", async () => {
+    const user = userEvent.setup();
+    renderStudio(server);
+    await user.click(screen.getByTestId("library-card-live"));
+    await waitFor(() => expect(screen.getByTestId("panel-branch")).toBeInTheDocument());
+
+    // Select the cold open beat, go to media, count its variants.
+    await user.click(screen.getByTestId("gnode-bbbbbbbb-0000-0000-0000-000000000001"));
+    await user.click(screen.getByTestId("goto-media"));
+    const mediaPanel = await screen.findByTestId("panel-media");
+    const before = within(mediaPanel).getByTestId("variant-list").querySelectorAll('[data-testid^="variant-row-"]').length;
+
+    const form = within(mediaPanel).getByTestId("form-variant");
+    await user.type(within(form).getByLabelText(/Playback URL/), "https://cdn/new-variant.m3u8");
+    await user.click(within(form).getByRole("button", { name: "Upload variant" }));
     await screen.findByTestId("form-variant-ok");
-    await waitFor(() => expect(screen.getByText(/en \/ A_filmed \/ intensity 3/)).toBeInTheDocument());
 
-    // 5. Create a second beat, then draw an edge between the two.
-    await user.selectOptions(
-      within(beatForm).getByLabelText("Episode"),
-      within(beatForm).getByRole("option", { name: /Episode 1: Cold Open/ }),
-    );
-    await user.clear(within(beatForm).getByLabelText("Beat index"));
-    await user.type(within(beatForm).getByLabelText("Beat index"), "1");
-    await user.click(within(beatForm).getByRole("button", { name: "Create beat" }));
-    await screen.findByTestId("form-beat-ok");
-    await waitFor(() => expect(screen.getByText(/Beat #1 \[spine\]/)).toBeInTheDocument());
-
-    const edgeForm = screen.getByTestId("form-edge");
     await waitFor(() => {
-      const opts = within(edgeForm).getAllByRole("option", { name: /beat #/ });
-      expect(opts.length).toBeGreaterThanOrEqual(2);
+      const after = screen
+        .getByTestId("variant-list")
+        .querySelectorAll('[data-testid^="variant-row-"]').length;
+      expect(after).toBe(before + 1);
     });
-    const fromBeat = within(edgeForm).getByLabelText("From beat") as HTMLSelectElement;
-    const toBeat = within(edgeForm).getByLabelText("To beat") as HTMLSelectElement;
-    // Options are duplicated across both selects, so scope the option lookup to each select element.
-    const beat0Option = within(fromBeat).getByRole("option", { name: /beat #0/ });
-    const beat1Option = within(toBeat).getByRole("option", { name: /beat #1/ });
-    await user.selectOptions(fromBeat, beat0Option);
-    await user.selectOptions(toBeat, beat1Option);
-    await user.click(within(edgeForm).getByRole("button", { name: "Draw edge" }));
-    await screen.findByTestId("form-edge-ok");
-    await waitFor(() => expect(screen.getByTestId("edge-list")).toBeInTheDocument());
 
-    // F1 at the UI boundary: nothing the studio sent carried a user_id.
+    // The POST hit /variants and carried the re-stamped beat_id, never a user_id.
+    const lastVariantPost = server.lastBodies.filter((b) => b.path === "/variants").at(-1);
+    expect(lastVariantPost?.body).toMatchObject({ beat_id: "bbbbbbbb-0000-0000-0000-000000000001" });
     for (const rec of server.lastBodies) {
       expect(rec.body).not.toHaveProperty("user_id");
     }
   });
 
-  it("shows a 404 error when loading an unknown series id", async () => {
-    const server = createFakeContentServer();
+  it("sets a premium price (POST /variants is_premium) from the Pricing panel", async () => {
     const user = userEvent.setup();
     renderStudio(server);
-    await user.type(screen.getByTestId("series-id-input"), "00000000-0000-4000-8000-0000000000aa");
-    await user.click(screen.getByTestId("load-series"));
-    const alert = await screen.findByTestId("graph-error");
-    expect(alert).toHaveTextContent("series_not_found");
+    await user.click(screen.getByTestId("library-card-live"));
+    await waitFor(() => expect(screen.getByTestId("panel-branch")).toBeInTheDocument());
+    await user.click(screen.getByTestId("goto-media"));
+    await user.click(await screen.findByTestId("goto-pricing"));
+
+    const pricing = await screen.findByTestId("panel-pricing");
+    const priceInput = within(pricing).getByLabelText(/Premium alternate ending/);
+    await user.clear(priceInput);
+    await user.type(priceInput, "7");
+    await user.click(within(pricing).getByRole("button", { name: "Set premium price" }));
+    await screen.findByTestId("form-pricing-ok");
+
+    const lastPost = server.lastBodies.filter((b) => b.path === "/variants").at(-1);
+    expect(lastPost?.body).toMatchObject({ is_premium: true, coin_cost: 7 });
   });
 
-  it("surfaces a server validation error in the form status (server-authoritative)", async () => {
-    const server = createFakeContentServer();
+  it("renders the Publish checklist derived from the real graph (publish is a flagged no-op)", async () => {
     const user = userEvent.setup();
     renderStudio(server);
-    // Empty title triggers the server's invalid_title. The required attribute is bypassed by submitting
-    // the form programmatically via the button after clearing, so we rely on the server check; to surface
-    // it we type a space then the server trims to empty.
-    const seriesForm = screen.getByTestId("form-series");
-    await user.type(within(seriesForm).getByLabelText("Title"), "   ");
-    await user.click(within(seriesForm).getByRole("button", { name: "Create series" }));
-    expect(await screen.findByTestId("form-series-error")).toHaveTextContent("invalid_title");
+    await user.click(screen.getByTestId("library-card-live"));
+    await waitFor(() => expect(screen.getByTestId("panel-branch")).toBeInTheDocument());
+    await user.click(screen.getByTestId("goto-media"));
+    await user.click(await screen.findByTestId("goto-pricing"));
+    await user.click(await screen.findByTestId("goto-publish"));
+
+    const publish = await screen.findByTestId("panel-publish");
+    expect(within(publish).getByTestId("publish-checklist")).toBeInTheDocument();
+    expect(within(publish).getByText(/Premium ending priced \(5 coins\)/)).toBeInTheDocument();
+
+    await user.click(within(publish).getByTestId("publish-to-feed"));
+    expect(await screen.findByTestId("publish-confirmation")).toHaveTextContent("flagged no-op");
+  });
+
+  it("shows a load error when the series graph is missing", async () => {
+    const empty = createFakeContentServer(); // not seeded: the live series id 404s
+    const user = userEvent.setup();
+    renderStudio(empty);
+    await user.click(screen.getByTestId("library-card-live"));
+    expect(await screen.findByTestId("graph-error")).toHaveTextContent("series_not_found");
   });
 });

@@ -21,6 +21,7 @@ import type {
   SeriesGraph,
   ApiError,
 } from "./contractGap.js";
+import { flattenGraph, type FlatGraph } from "./flattenGraph.js";
 
 // CONTRACT BINDING (reads): assert the documented graph route and its path-param type exist in the
 // codegen. These types are compile-time only; if content.yaml drops or renames the route or the {id}
@@ -63,13 +64,20 @@ export class ContentClient {
     this.fetchImpl = opts.fetchImpl ?? fetch;
   }
 
-  // GET /series/{id}/graph
+  // GET /series/{id}/graph : the raw NESTED graph as the service returns it.
   async getSeriesGraph(seriesId: GraphIdParam): Promise<SeriesGraph> {
     const res = await this.fetchImpl(
       joinUrl(this.baseUrl, `/series/${encodeURIComponent(seriesId)}/graph`),
       { method: "GET", headers: { accept: "application/json" } },
     );
     return this.parse<SeriesGraph>(res);
+  }
+
+  // GET /series/{id}/graph, FLATTENED at the client boundary: beats and variants are lifted out of the
+  // tree and beat_id is re-stamped onto every variant (the nested response omits it). Every studio surface
+  // consumes this flat shape, so the consumer-app nested-graph bug cannot recur here.
+  async getFlatGraph(seriesId: GraphIdParam): Promise<FlatGraph> {
+    return flattenGraph(await this.getSeriesGraph(seriesId));
   }
 
   createSeries(body: CreateSeriesBody): Promise<SeriesRow> {
