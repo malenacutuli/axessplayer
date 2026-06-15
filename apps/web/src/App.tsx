@@ -15,6 +15,7 @@ import { WalletScreen } from "./wallet/Wallet.js";
 import { Profile } from "./profile/Profile.js";
 import { BottomNav, type Tab } from "./ui/BottomNav.js";
 import { StatusBar } from "./ui/StatusBar.js";
+import type { ConsentControls } from "./consent/useConsent.js";
 
 export interface AppProps {
   clients: Clients;
@@ -24,11 +25,14 @@ export interface AppProps {
   userId: string;
   // Display name for the profile screen.
   viewerName?: string;
+  // Consent controls, passed when the app is mounted behind the consent gate (Root). Profile uses them to
+  // show the GDPR data-subject actions. Optional so the app shell can still be rendered in isolation.
+  consent?: ConsentControls;
 }
 
 type Screen = "feed" | "player" | "wallet" | "profile";
 
-export function App({ clients, seriesId, userId, viewerName = "Malena" }: AppProps) {
+export function App({ clients, seriesId, userId, viewerName = "Malena", consent }: AppProps) {
   const [graph, setGraph] = useState<SeriesGraph | null>(null);
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -124,7 +128,7 @@ export function App({ clients, seriesId, userId, viewerName = "Malena" }: AppPro
           <div className="feedhead">
             <span className="t">You</span>
           </div>
-          <Profile name={viewerName} coins={coins} />
+          <Profile name={viewerName} coins={coins} consent={consent} />
           <BottomNav active="you" onNavigate={onNavigate} />
         </div>
       );

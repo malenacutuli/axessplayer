@@ -516,3 +516,51 @@ button { font-family: var(--font-body); cursor: pointer; }
   }
   .phone .notch { display: none; }
 }
+
+/* ----- consent gate (signup) + privacy panel ----- */
+.consent-scr { background: var(--bg); overflow-y: auto; }
+.consent-pad { padding: 22px 18px 28px; }
+.consent-brand {
+  font-family: "Outfit", sans-serif; font-weight: 600; font-size: 20px;
+  letter-spacing: -0.03em; margin-bottom: 14px;
+}
+.consent-brand .pl { color: var(--rose); }
+.consent-h { font-size: 22px; margin-bottom: 8px; }
+.consent-lead { font-size: 13px; line-height: 1.5; margin-bottom: 16px; max-width: 260px; }
+.consent-required {
+  display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.45;
+  border: 1px solid var(--line); border-radius: 12px; padding: 13px; background: #fff;
+}
+.consent-required input { margin-top: 2px; width: 16px; height: 16px; flex: none; accent-color: var(--rose); }
+.consent-required a { color: var(--rose); font-weight: 600; }
+.consent-optionals { margin-top: 16px; }
+.consent-optionals .ey { margin-bottom: 8px; }
+.consent-purpose {
+  display: flex; gap: 12px; align-items: flex-start; justify-content: space-between;
+  padding: 12px 0; border-bottom: 1px solid var(--line);
+}
+.consent-purpose-label { font-size: 13px; font-weight: 600; }
+.consent-purpose-detail { margin-top: 3px; line-height: 1.4; }
+/* the switch button reuses the .toggle visual; reset native button chrome */
+button.toggle { border: 0; padding: 0; flex: none; cursor: pointer; appearance: none; }
+.demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.demo-fld label {
+  display: block; font-family: "JetBrains Mono", monospace; font-size: 9px;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--mut); margin-bottom: 5px;
+}
+.demo-fld select {
+  width: 100%; background: #fff; border: 1px solid var(--line); border-radius: 9px;
+  padding: 9px 10px; color: var(--ink); font-family: "Inter", sans-serif; font-size: 13px;
+}
+.consent-disclose { margin-top: 16px; font-size: 11.5px; line-height: 1.5; }
+.consent-continue { width: 100%; margin-top: 16px; padding: 13px; font-size: 15px; }
+.consent-continue:disabled { opacity: 0.45; cursor: not-allowed; }
+.consent-ver { text-align: center; margin-top: 10px; font-size: 10px; }
+
+.privacy-panel { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 8px; }
+.privacy-state { font-size: 13px; margin: 6px 0 12px; line-height: 1.5; }
+.privacy-action { width: 100%; margin-bottom: 8px; text-align: left; }
+.privacy-action:disabled { opacity: 0.45; cursor: not-allowed; }
+.privacy-action.danger { color: var(--rose-deep, var(--rose)); border-color: var(--rose); }
+.privacy-note { margin-top: 6px; }
+.privacy-fine { margin-top: 10px; font-size: 11px; line-height: 1.5; }

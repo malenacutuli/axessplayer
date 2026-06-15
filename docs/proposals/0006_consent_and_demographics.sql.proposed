@@ -1,0 +1,140 @@
+-- PROPOSED - requires schema/ledger sign-off. Do NOT move under supabase/migrations until ratified.
+--
+-- 0006_consent_and_demographics.sql.proposed
+-- Draft schema extension for GDPR granular consent + anonymized demographics.
+-- Companion design: docs/DATA_GDPR_DESIGN.md. Grounded in supabase/migrations/0001_init.sql.
+-- This is a DRAFT. It is intentionally NOT in supabase/migrations/ (those auto-apply and are a
+-- human sign-off gate). No em dashes anywhere. Append-only where the design requires it.
+--
+-- Summary of what this proposes:
+--   1) consent_record  : per-user, per-purpose, append-only, HASH-CHAINED consent log. Reuses the same
+--                        prev_hash / row_hash discipline as consent_ledger (0001_init.sql:137-145) and
+--                        services/trust/src/hashChain.ts:24-27. (Design sections 1, 2.)
+--   2) demographics    : pseudonymous, COARSE cohort features only. No DOB, no precise location.
+--                        Maps to viewer_state.cohort_id (0001_init.sql:78). (Design section 4.)
+--
+-- Both tables key off users.id (UUID), the only identity token on the event spine (Design section 3).
+
+-- =====================================================================================================
+-- ENUMS
+-- =====================================================================================================
+
+-- Discrete, independently withdrawable consent purposes. Matches the lawful-basis matrix in
+-- DATA_GDPR_DESIGN.md section 1. biometric_face is GDPR Art. 9 + BIPA special-category (Design 2c).
+CREATE TYPE consent_purpose AS ENUM (
+  'essential',                 -- provide-service; Art. 6(1)(b). Not separately withdrawable.
+  'analytics_personalization', -- Art. 6(1)(a). Mirrors users.adaptive_opt_in (0001_init.sql:10).
+  'demographics',              -- Art. 6(1)(a). Gates the demographics table below.
+  'biometric_face',            -- Art. 9(2)(a) EXPLICIT + BIPA. Gates B_likeness serving (Design 2c).
+  'product_placement'          -- Art. 6(1)(a) when targeted; 6(1)(f) contextual.
+);
+
+-- Coarse gender, including an explicit opt-out value. Non-identifying (Design 4a).
+CREATE TYPE demographic_gender AS ENUM (
+  'female',
+  'male',
+  'nonbinary',
+  'other',
+  'prefer_not_to_say'
+);
+
+-- Coarse age bands. NEVER a date of birth (Design 4a).
+CREATE TYPE demographic_age_band AS ENUM (
+  'under_18',
+  '18_24',
+  '25_34',
+  '35_44',
+  '45_54',
+  '55_64',
+  '65_plus',
+  'prefer_not_to_say'
+);
+
+-- =====================================================================================================
+-- consent_record : per-user, per-purpose, append-only, hash-chained consent log.
+-- Generalizes consent_ledger (0001_init.sql:137-145) from "likeness consent per beat_variant" to
+-- "any purpose consent per user". Withdrawal is an APPENDED row (granted = false), never an UPDATE,
+-- so the grant-then-withdraw history stays verifiable. (Design 2a, 2b.)
+-- =====================================================================================================
+CREATE TABLE consent_record (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID NOT NULL REFERENCES users(id),          -- the only identity token here (Design 3)
+  purpose         consent_purpose NOT NULL,                    -- discrete withdrawable purpose (Design 2a)
+  policy_version  TEXT NOT NULL,                               -- re-consent on bump (Design 2b); mirrors
+                                                               -- decision_log.policy_version (0001_init.sql:89)
+  granted         BOOLEAN NOT NULL,                            -- true = grant row, false = withdrawal row
+  granted_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),          -- server-authoritative event time
+  withdrawn_at    TIMESTAMPTZ,                                 -- nullable; set on a withdrawal row only
+  expires_at      TIMESTAMPTZ,                                 -- time-limited grants (biometric_face, Design 2c/6)
+  source          TEXT NOT NULL,                               -- where consent was captured (e.g. signup_flow,
+                                                               -- settings, biometric_modal); audit provenance
+  -- Hash chain, identical discipline to consent_ledger.prev_hash / row_hash (0001_init.sql:143) and
+  -- services/trust/src/hashChain.ts:24-27: row_hash = sha256(prev_hash || canonical(content)).
+  -- One chain PER user_id. prev_hash is NULL only for that user's genesis row (Design 2a).
+  prev_hash       TEXT,
+  row_hash        TEXT NOT NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- A withdrawal row (granted = false) must carry withdrawn_at; a grant row must not.
+  CONSTRAINT consent_withdrawal_shape CHECK (
+    (granted = TRUE  AND withdrawn_at IS NULL) OR
+    (granted = FALSE AND withdrawn_at IS NOT NULL)
+  ),
+  -- row_hash is the chain tip identifier; it must be unique so the next row can link to exactly one.
+  CONSTRAINT consent_record_row_hash_unique UNIQUE (row_hash)
+);
+
+-- Read pattern: latest row per (user_id, purpose) ordered by created_at gives the current consent state.
+-- Serving gate (Design 2b): live == latest row granted AND policy_version == current AND not expired.
+CREATE INDEX idx_consent_record_user_purpose ON consent_record(user_id, purpose, created_at);
+
+-- Append-only enforcement note (for the ratifying reviewer): like consent_ledger, this table must be
+-- protected by a trigger and/or RLS that forbids UPDATE and DELETE on existing rows (erasure handled by
+-- tombstone-append per Design section 5 step 6, never by mutating history). The trigger is intentionally
+-- left for the schema owner (W0) to add at ratification, not drafted here.
+
+COMMENT ON TABLE consent_record IS
+  'PROPOSED. Per-user per-purpose append-only hash-chained consent log. Withdrawal is an appended row, never an update. See docs/DATA_GDPR_DESIGN.md sections 1, 2.';
+COMMENT ON COLUMN consent_record.policy_version IS
+  'Privacy-policy / consent-copy version at capture. A bump invalidates prior consent and forces re-consent (Design 2b).';
+COMMENT ON COLUMN consent_record.expires_at IS
+  'Time-limited grants. Required posture for biometric_face (Art. 9 + BIPA); on expiry the grant is treated as withdrawn (Design 2c, 6).';
+COMMENT ON COLUMN consent_record.prev_hash IS
+  'Previous row_hash in this user chain, NULL only for the user genesis row. Same chaining as services/trust/src/hashChain.ts.';
+COMMENT ON COLUMN consent_record.row_hash IS
+  'sha256(prev_hash || canonical(content)). Server-computed, never trusted from the client (mirrors trust.ts:93-112).';
+
+-- =====================================================================================================
+-- demographics : pseudonymous, COARSE cohort features. No DOB, no precise location, no free text.
+-- Used ONLY as cohort features mapping to viewer_state.cohort_id (0001_init.sql:78). (Design section 4.)
+-- Gated by the 'demographics' consent purpose above. Deleted on withdrawal or erasure (Design 5, 6).
+-- =====================================================================================================
+CREATE TABLE demographics (
+  user_id     UUID PRIMARY KEY REFERENCES users(id),  -- pseudonymous key; the ONLY identifier here (Design 3, 4d)
+  gender      demographic_gender   NOT NULL DEFAULT 'prefer_not_to_say',
+  age_band    demographic_age_band NOT NULL DEFAULT 'prefer_not_to_say',
+  country     TEXT,                                    -- ISO country code; coarse (Design 4a)
+  region      TEXT,                                    -- coarse admin region only; NEVER precise geo / postcode
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- Defense in depth: country is a short code, region is coarse. These length bounds make it harder to
+  -- smuggle a precise address / free-text identifier into the coarse fields. Tune at ratification.
+  CONSTRAINT demographics_country_coarse CHECK (country IS NULL OR char_length(country) <= 3),
+  CONSTRAINT demographics_region_coarse  CHECK (region  IS NULL OR char_length(region)  <= 64)
+);
+
+COMMENT ON TABLE demographics IS
+  'PROPOSED. Pseudonymous, COARSE, ANONYMIZED cohort features ONLY. No DOB, no precise location. Used as cohort inputs mapping to viewer_state.cohort_id. K-anonymity (recommend k>=20, TUNABLE) applies to any reporting. See docs/DATA_GDPR_DESIGN.md section 4.';
+COMMENT ON COLUMN demographics.age_band IS
+  'Coarse age band. NEVER store a date of birth (Design 4a).';
+COMMENT ON COLUMN demographics.region IS
+  'Coarse administrative region only. NEVER a precise location, lat/long, or postcode (Design 4a).';
+
+-- =====================================================================================================
+-- RLS floor: deny-all by default, consistent with 0001_init.sql:147-160. Per-service policies land
+-- separately at ratification (owned by W0).
+-- =====================================================================================================
+ALTER TABLE consent_record ENABLE ROW LEVEL SECURITY;
+ALTER TABLE demographics   ENABLE ROW LEVEL SECURITY;
+
+-- END PROPOSED. Requires schema/ledger sign-off before moving under supabase/migrations.

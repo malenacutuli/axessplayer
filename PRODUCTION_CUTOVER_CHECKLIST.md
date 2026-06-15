@@ -42,6 +42,12 @@ deploy to prod) without an explicit per-action human go.
 - [x] RATIFIED 2026-06-15 Control holdout 10% global (operational default, accepted as-is).
 - [ ] QUEUED EU AI Act explainability bar - LEGAL posture, with counsel. The ONE remaining placeholder in
       config.ts (EXPLAINABILITY_TOP_N). Awaits counsel ratification.
+- [ ] QUEUED Privacy Policy + Terms ratification. DRAFT templates shipped at apps/web/public/legal/
+      (privacy-policy.html, terms.html, policy version 2026-06-15.1). Counsel must review, fill the
+      [PLACEHOLDERS] (controller, DPO, retention, jurisdictions, processors), and confirm before launch.
+      On any change, bump POLICY_VERSION in apps/web/src/consent/model.ts to force re-consent.
+- [ ] QUEUED Data retention windows + k-anonymity threshold. Recommendations are in
+      docs/DATA_GDPR_DESIGN.md, all marked TUNABLE/PENDING-LEGAL. Ratify per data category.
 
 ## 5. Contract / schema / ledger changes (orchestrator-owned, human sign-off)
 - [ ] QUEUED content.yaml enrichment: the create endpoints define NO request-body schemas, so create
@@ -49,11 +55,20 @@ deploy to prod) without an explicit per-action human go.
       create-with-validation. Orchestrator drafts the version bump; human signs off.
 - [ ] QUEUED Economy refund redesign: refund is currently a flat credit; it should reference the original
       spend. Touches ledger code -> sign-off gate.
+- [ ] QUEUED Consent + demographics schema: draft proposed at docs/proposals/0006_consent_and_demographics.sql.proposed
+      (consent_record append-only/hash-chained, pseudonymous coarse demographics). Sign off, then move under
+      supabase/migrations and add the consent ENDPOINT contract (POST /consent, session-derived identity, F1).
+      The web app records consent locally today via apps/web/src/consent and mirrors best-effort to
+      VITE_CONSENT_BASE_URL when set.
 
 ## 6. Content, consent, and signing (real-world actions, human-gated)
 - [ ] QUEUED Real content generation at GPU/model cost (pipeline built with mocked models behind a cost gate).
 - [ ] QUEUED Real likeness consent capture (consent ledger built with a test path).
 - [ ] QUEUED Real C2PA signing keys + KMS (trust service built with a test signer).
+- [ ] QUEUED Biometric consent infrastructure for the "be the protagonist" face feature (GDPR Article 9 +
+      BIPA): explicit separate opt-in captured at point of use, time-limited + hard-deletable, recorded on
+      the consent_ledger hash chain BEFORE any personalized render serves; plus verified-permission face
+      matching. Design in docs/DATA_GDPR_DESIGN.md + docs/DATA_ML_DYNAMIC_CONTENT_SPEC.md section 5b.
 
 ## 7. Container readiness (orchestrator-verified by real `docker build`/`run`, 2026-06-15)
 - [x] DONE apps/web image builds (76MB, nginx + Vite dist) and is a clean static deploy. Caught + fixed a

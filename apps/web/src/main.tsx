@@ -5,7 +5,7 @@
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { App } from "./App.js";
+import { Root } from "./Root.js";
 import { buildClients } from "./clients.js";
 import { staticSession } from "./api/session.js";
 // Brand tokens FIRST (the official guideline variables + fonts), then the app styles that consume them.
@@ -26,7 +26,7 @@ const rootEl = document.getElementById("root");
 if (rootEl) {
   createRoot(rootEl).render(
     <StrictMode>
-      <App clients={clients} seriesId={SERIES_ID} userId={DEMO_USER} />
+      <Root clients={clients} seriesId={SERIES_ID} userId={DEMO_USER} />
     </StrictMode>,
   );
 }
