@@ -59,11 +59,15 @@ deploy to prod) without an explicit per-action human go.
 - [x] DONE apps/web image builds (76MB, nginx + Vite dist) and is a clean static deploy. Caught + fixed a
       real `.dockerignore` bug (excluded the tests/ workspace dir, broke `pnpm install --frozen-lockfile`).
 - [x] DONE service-image build pattern verified (manifest image builds, 864MB).
-- [ ] TODO (orchestrator build work, NOT a human gate): the service CONTAINERS do not serve yet.
-      (a) The listeners bind 127.0.0.1 (per the W12 harness pattern); containers must bind 0.0.0.0.
-      (b) content/economy/decision/trust have no `serve` entrypoint at all (only manifest does); each needs
-      a src/server.ts listener like manifest's, binding 0.0.0.0 on PORT, wired to a `serve` script.
-      (c) Optional: prune image size with `pnpm deploy --filter` (manifest is 864MB from the full workspace).
+- [x] DONE (a) listeners bind 0.0.0.0 (was 127.0.0.1); (b) economy/decision/content gained guard-free
+      src/serve.ts entrypoints; (c) Dockerfile CMD fixed to `node --import tsx src/serve.ts` (the pnpm
+      --filter CMD did not spawn the child in-container). Serve code proven (direct node run prints the
+      listening line + serves 200); image entrypoint config verified via docker inspect.
+- [ ] TODO (re-validate in a CLEAN docker env): full container-run -> curl -> 200 was NOT completed end to
+      end because the LOCAL Docker daemon corrupted its containerd store (input/output error) under repeated
+      864MB builds during testing. Fix: restart/purge Docker Desktop, OR rely on the deploy.yml CI build job
+      in a clean runner. Then re-run: build each service image, `docker run` on a FREE host port (8080 is
+      taken locally), curl the route. (Optional) prune image size with `pnpm deploy --filter` (864MB now).
 - [ ] QUEUED (human) provide real secret VALUES per infra/ENV.md into Vercel/Supabase/container env.
 
 ---
