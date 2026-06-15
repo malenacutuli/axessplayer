@@ -55,6 +55,17 @@ deploy to prod) without an explicit per-action human go.
 - [ ] QUEUED Real likeness consent capture (consent ledger built with a test path).
 - [ ] QUEUED Real C2PA signing keys + KMS (trust service built with a test signer).
 
+## 7. Container readiness (orchestrator-verified by real `docker build`/`run`, 2026-06-15)
+- [x] DONE apps/web image builds (76MB, nginx + Vite dist) and is a clean static deploy. Caught + fixed a
+      real `.dockerignore` bug (excluded the tests/ workspace dir, broke `pnpm install --frozen-lockfile`).
+- [x] DONE service-image build pattern verified (manifest image builds, 864MB).
+- [ ] TODO (orchestrator build work, NOT a human gate): the service CONTAINERS do not serve yet.
+      (a) The listeners bind 127.0.0.1 (per the W12 harness pattern); containers must bind 0.0.0.0.
+      (b) content/economy/decision/trust have no `serve` entrypoint at all (only manifest does); each needs
+      a src/server.ts listener like manifest's, binding 0.0.0.0 on PORT, wired to a `serve` script.
+      (c) Optional: prune image size with `pnpm deploy --filter` (manifest is 864MB from the full workspace).
+- [ ] QUEUED (human) provide real secret VALUES per infra/ENV.md into Vercel/Supabase/container env.
+
 ---
 Built-and-ready items (no human needed) are tracked in git history and MEMORY, not here. This file lists
 only what a human must do to go live.
