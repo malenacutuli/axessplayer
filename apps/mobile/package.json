@@ -3,10 +3,20 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "description": "Expo/React Native consumer app: vertical swipe feed, adaptive player, wallet + paywall, accessibility-first. Logic/data/contract layers are tested with node:test + tsx; native rendering is integration-time verification. No em dashes.",
   "scripts": {
     "build": "echo build ok",
-    "typecheck": "echo typecheck ok",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo lint ok",
-    "test": "echo test ok"
+    "test": "node --import tsx --test \"src/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@axessplayer/player-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@axessplayer/contracts": "workspace:*",
+    "@types/node": "^20.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
   }
 }
