@@ -7,6 +7,7 @@ import { useContentClient } from "../../api/useContentClient.js";
 import { ContentApiError } from "../../api/client.js";
 import { layoutGraph } from "../../api/graphLayout.js";
 import { BEAT_ROLES, type BeatRole } from "../../api/contractGap.js";
+import { brokenEdges, serializeInterchange } from "../../api/graphInterchange.js";
 import type { FlatGraph } from "../../api/flattenGraph.js";
 
 export interface BranchEditorPanelProps {
@@ -31,6 +32,23 @@ export function BranchEditorPanel({
   const epLabel = ep
     ? `${graph.seriesTitle} - Ep ${ep.episode_number}`
     : graph.seriesTitle;
+  const broken = brokenEdges(graph);
+
+  // Twine's "plain interchange is a feature": download the authored graph as canonical, diffable JSON.
+  const exportGraph = () => {
+    try {
+      const json = serializeInterchange(graph);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${graph.seriesTitle.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "story"}.story-graph.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      /* download unavailable in this environment */
+    }
+  };
 
   return (
     <div className="spanel" data-testid="panel-branch">
@@ -39,10 +57,20 @@ export function BranchEditorPanel({
           <div className="ey rose">{epLabel}</div>
           <h2 style={{ marginTop: 8 }}>Branch editor</h2>
         </div>
-        <button type="button" className="btn pri" onClick={onGoToMedia} data-testid="goto-media">
-          Upload variants →
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button type="button" className="btn" onClick={exportGraph} data-testid="export-graph">
+            Export graph
+          </button>
+          <button type="button" className="btn pri" onClick={onGoToMedia} data-testid="goto-media">
+            Upload variants →
+          </button>
+        </div>
       </div>
+      {broken.length > 0 ? (
+        <p className="statusline err" role="alert" data-testid="broken-edges">
+          {broken.length} broken edge{broken.length === 1 ? "" : "s"} point at a missing beat.
+        </p>
+      ) : null}
 
       <div
         className="canvas"

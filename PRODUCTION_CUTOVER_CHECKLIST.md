@@ -57,6 +57,11 @@ deploy to prod) without an explicit per-action human go.
       On any change, bump POLICY_VERSION in apps/web/src/consent/model.ts to force re-consent.
 - [ ] QUEUED Data retention windows + k-anonymity threshold. Recommendations are in
       docs/DATA_GDPR_DESIGN.md, all marked TUNABLE/PENDING-LEGAL. Ratify per data category.
+- [ ] QUEUED LICENSE REVIEW BEFORE DEPENDENCY (hard gate, see docs/RENDER_AUTHORING_PLAYER_REFERENCES.md):
+      Kaltura PlayKit JS is AGPL-3.0 -> DO NOT fork or link into the shipping player (reimplement patterns as
+      our own code). Remotion has a custom license -> obtain a company license decision BEFORE it becomes a
+      load-bearing dependency in the Studio render path. Any new media/runtime dependency gets a license
+      check first; copyleft (AGPL/GPL) source must not be absorbed into the proprietary SaaS.
 
 ## 5. Contract / schema / ledger changes (orchestrator-owned, human sign-off)
 - [ ] QUEUED content.yaml enrichment: the create endpoints define NO request-body schemas, so create
