@@ -1,0 +1,27 @@
+# Keep build contexts small and reproducible. The Dockerfiles build from the repo root so pnpm can resolve
+# the whole workspace, but none of the following belong in an image layer. No em dashes.
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/.vercel
+**/*.log
+
+# Local env and secrets must never enter an image. .env.example is the only env file that is allowed in,
+# and it carries names only, never values; it is not needed at build time either, so it is excluded too.
+**/.env
+**/.env.*
+
+# VCS and CI metadata
+.git
+.github
+
+# Editor and OS cruft
+.DS_Store
+**/coverage
+
+# Tests are not needed in a runtime image. The service Dockerfiles install dev deps to typecheck/build,
+# but the test fixtures and suites do not ship.
+**/*.test.ts
+**/test
+**/tests

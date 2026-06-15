@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "cd ../.. && pnpm gen && pnpm --filter @axessplayer/studio... build",
+  "outputDirectory": "dist",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "github": {
+    "silent": true
+  }
+}
