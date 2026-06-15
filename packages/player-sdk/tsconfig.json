@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": false,
+    "outDir": "dist",
+    // rootDir spans the repo so the SDK can bind to the frozen, read-only generated contract types
+    // (contracts/types/generated/{decision,manifest}.ts) via type-only imports. Those imports are
+    // erased at emit, so dist contains only this package's sources. No consumer reads dist; the
+    // package exports src directly (workspace, type: module). Mirrors services/decision/tsconfig.json.
+    "rootDir": "../.."
+  },
+  "include": [
+    "src",
+    "../../contracts/types/generated/decision.ts",
+    "../../contracts/types/generated/manifest.ts"
+  ]
+}
