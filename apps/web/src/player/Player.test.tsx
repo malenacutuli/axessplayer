@@ -69,6 +69,20 @@ describe("Player", () => {
     expect(screen.getByTestId("branch-tense")).toBeInTheDocument();
   });
 
+  it("starts vertical and rotates to landscape on the rotate button", async () => {
+    const user = userEvent.setup();
+    const { economy, transport } = setup();
+    renderPlayer(transport, economy);
+    const player = screen.getByTestId("player");
+    expect(player).toHaveAttribute("data-orientation", "portrait");
+    await user.click(screen.getByTestId("player-rotate"));
+    expect(player).toHaveAttribute("data-orientation", "landscape");
+    expect(player.className).toContain("landscape");
+    // Toggling back returns to vertical.
+    await user.click(screen.getByTestId("player-rotate"));
+    expect(player).toHaveAttribute("data-orientation", "portrait");
+  });
+
   it("feels the per-viewer re-cut: picking Calm shows the calm beat line", async () => {
     const { economy, transport } = setup();
     renderPlayer(transport, economy);

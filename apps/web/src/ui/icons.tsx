@@ -87,3 +87,14 @@ export function LockIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+export function RotateIcon(props: SVGProps<SVGSVGElement>) {
+  // A phone with a rotate arrow: vertical to horizontal.
+  return (
+    <svg {...stroke(props)}>
+      <rect x="3" y="4" width="11" height="16" rx="2" />
+      <path d="M17 9a5 5 0 0 1 4 5v3" />
+      <path d="M21 17l-2-2M21 17l2-2" />
+    </svg>
+  );
+}

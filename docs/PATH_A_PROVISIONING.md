@@ -6,6 +6,16 @@ lists exactly what a human must provision and hand over, in priority order, so e
 orchestrator never creates these accounts or holds the secrets; they go into env (Supabase/Vercel/CI), and
 the code that consumes them is built around them. No em dashes.
 
+## Update 2026-06-15: the secrets + edge functions already live in Supabase
+Confirmed by the team: all API secrets and the edge functions are already in the Axessible Supabase project
+`faeyekynudyzeotbjfsj` (https://faeyekynudyzeotbjfsj.supabase.co, 64 functions incl. `aws-s3-upload-url`,
+`s3-multipart-upload`, `transcribe`, `analyze-vocal-intensity`, Stripe, Gemini, ElevenLabs). So Path A
+REUSES that project rather than re-provisioning. The 22-key table below is informational: those values stay
+as Supabase function secrets and never need to be handed to the client. The only thing the Axessplayer
+client needs to call them is the project URL + anon key (both already in the mvpsigndemo-20 repo). What
+remains is a decision per slice: point the Axessplayer client at that Supabase project, and apply the
+0007 schema for the accessibility tables.
+
 ## Already working WITHOUT any of this (the gate-free slice)
 Real upload-and-watch runs locally today via tools/media-server (see the Studio Media panel). The upload
 client (apps/studio/src/api/media.ts `uploadMaster`) is shaped to re-point at S3 with a one-line base-URL

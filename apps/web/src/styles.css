@@ -564,3 +564,18 @@ button.toggle { border: 0; padding: 0; flex: none; cursor: pointer; appearance: 
 .privacy-action.danger { color: var(--rose-deep, var(--rose)); border-color: var(--rose); }
 .privacy-note { margin-top: 6px; }
 .privacy-fine { margin-top: 10px; font-size: 11px; line-height: 1.5; }
+
+/* ----- player orientation: vertical 9:16 default, rotate to full-bleed landscape ----- */
+.ptop-actions { display: flex; align-items: center; gap: 8px; }
+.poster video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.player.landscape {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+}
+/* In landscape the bottom text block reads across the wider frame. */
+.player.landscape .pbody { max-width: 60%; }
+.player.landscape .branchpick { left: auto; right: 14px; width: 320px; }

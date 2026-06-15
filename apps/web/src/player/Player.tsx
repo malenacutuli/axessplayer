@@ -27,7 +27,8 @@ import {
 import { PaywallSheet, type PaywallChoice } from "../wallet/Paywall.js";
 import { useUnlock } from "../wallet/useUnlock.js";
 import { sceneVideoUrl } from "../config.js";
-import { BackIcon, A11yIcon, HeartIcon, CommentIcon } from "../ui/icons.js";
+import { BackIcon, A11yIcon, HeartIcon, CommentIcon, RotateIcon } from "../ui/icons.js";
+import { useIsLandscape, requestLandscape, exitLandscape } from "./useOrientation.js";
 
 export interface PlayerProps {
   graph: SeriesGraph;
@@ -57,6 +58,21 @@ export function Player({
   const resolveBeatId = useMemo(() => variantToBeatResolver(graph), [graph]);
   const { state, advance } = usePlayer({ transport, userId, startBeatId, resolveBeatId });
   const unlock = useUnlock(economy);
+
+  // Orientation: vertical 9:16 by default; rotate the phone (or tap the rotate button) for full-bleed
+  // landscape. deviceLandscape follows the real orientation; manualLandscape is the explicit toggle.
+  const playerRef = useRef<HTMLDivElement>(null);
+  const deviceLandscape = useIsLandscape();
+  const [manualLandscape, setManualLandscape] = useState(false);
+  const landscape = deviceLandscape || manualLandscape;
+  const toggleLandscape = useCallback(() => {
+    setManualLandscape((cur) => {
+      const next = !cur;
+      if (next) void requestLandscape(playerRef.current);
+      else void exitLandscape();
+      return next;
+    });
+  }, []);
 
   const [prefs, setPrefs] = useState<A11yPreferences>(() => loadA11yPreferences());
   const onPrefsChange = useCallback((next: A11yPreferences) => {
@@ -146,7 +162,12 @@ export function Player({
   const cutLabel = unlocked && premiumGate ? "Alternate ending unlocked" : "Picked for you in real time";
 
   return (
-    <div className="player" data-testid="player">
+    <div
+      ref={playerRef}
+      className={`player${landscape ? " landscape" : ""}`}
+      data-testid="player"
+      data-orientation={landscape ? "landscape" : "portrait"}
+    >
       <PosterSurface
         posterClass={posterClass}
         variantId={onScreen?.id}
@@ -163,15 +184,27 @@ export function Player({
           <span className="dot" aria-hidden="true" />
           {badgeLabel}
         </div>
-        <button
-          type="button"
-          className="icbtn"
-          onClick={() => setShowA11y(true)}
-          aria-label="Accessibility and language"
-          data-testid="player-a11y-open"
-        >
-          <A11yIcon />
-        </button>
+        <div className="ptop-actions">
+          <button
+            type="button"
+            className="icbtn"
+            onClick={toggleLandscape}
+            aria-label={landscape ? "Back to vertical" : "Rotate to landscape"}
+            aria-pressed={manualLandscape}
+            data-testid="player-rotate"
+          >
+            <RotateIcon />
+          </button>
+          <button
+            type="button"
+            className="icbtn"
+            onClick={() => setShowA11y(true)}
+            aria-label="Accessibility and language"
+            data-testid="player-a11y-open"
+          >
+            <A11yIcon />
+          </button>
+        </div>
       </div>
 
       {/* right rail */}
