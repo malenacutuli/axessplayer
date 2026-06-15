@@ -1,8 +1,11 @@
-// Configurable content service base URL. Resolves from the Vite env (VITE_CONTENT_BASE_URL) with a local
-// default, so the studio can point at the live content service per environment without a code change.
-// Secrets never live here: this is a public base URL only. No em dashes.
+// Configurable content service base URL. Resolves from the Vite env (VITE_CONTENT_BASE_URL) with a
+// SAME-ORIGIN default (empty string), so in dev the browser hits Vite which proxies the content route
+// prefixes to the live content service (see vite.config.ts, mirroring apps/web). In a built deployment
+// set VITE_CONTENT_BASE_URL to the live content origin. Secrets never live here: a public base URL only.
+// No em dashes.
 
-const DEFAULT_CONTENT_BASE_URL = "http://localhost:8787";
+// Same origin: the dev proxy (and a co-deployed reverse proxy) route /series, /beats, etc. by prefix.
+const DEFAULT_CONTENT_BASE_URL = "";
 
 export function resolveContentBaseUrl(env?: Record<string, string | undefined>): string {
   const source = env ?? readImportMetaEnv();

@@ -1,105 +1,98 @@
-// StudioPage: the authoring workspace. Pick a series id, view its graph, and create episodes, beats,
-// variants, and edges against the live content service. A successful create bumps a reload token so the
-// graph refreshes and the beat and episode pickers stay in sync. No em dashes.
-import { useCallback, useMemo, useState } from "react";
-import { GraphViewer } from "./GraphViewer.js";
-import {
-  CreateSeriesForm,
-  CreateEpisodeForm,
-  CreateBeatForm,
-  CreateVariantForm,
-  CreateEdgeForm,
-} from "./AuthoringForms.js";
-import type { SeriesGraph } from "../api/contractGap.js";
+// StudioPage: the authoring workspace shell, matching the "Studio" section of the brand prototype. A left
+// rail ("axess studio" + nav) and a main area that shows one of five panels: Library, Branch editor,
+// Media & variants, Pricing, Publish. The active series (the real seeded "The Last Signal" by default) is
+// loaded once as a FLATTENED graph (beat_id re-stamped onto every variant) and shared across the panels.
+// A successful create bumps a reload token so the graph refreshes. No em dashes.
+import { useCallback, useState } from "react";
+import { SideRail, type PanelId } from "./studio/SideRail.js";
+import { LibraryPanel } from "./studio/LibraryPanel.js";
+import { BranchEditorPanel } from "./studio/BranchEditorPanel.js";
+import { MediaPanel } from "./studio/MediaPanel.js";
+import { PricingPanel } from "./studio/PricingPanel.js";
+import { PublishPanel } from "./studio/PublishPanel.js";
+import { useFlatGraph } from "../api/useFlatGraph.js";
+import { LAST_SIGNAL_SERIES_ID } from "../api/knownSeries.js";
 
 export function StudioPage(): JSX.Element {
-  const [seriesId, setSeriesId] = useState("");
-  const [seriesIdInput, setSeriesIdInput] = useState("");
+  const [panel, setPanel] = useState<PanelId>("library");
+  // Default to the real seeded series so the studio is wired to live content on first paint.
+  const [seriesId, setSeriesId] = useState<string>(LAST_SIGNAL_SERIES_ID);
+  const [selectedBeatId, setSelectedBeatId] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
-  const [graph, setGraph] = useState<SeriesGraph | null>(null);
 
   const reload = useCallback(() => setReloadToken((t) => t + 1), []);
+  const graphState = useFlatGraph(seriesId, reloadToken);
 
-  const onGraphLoaded = useCallback((g: SeriesGraph) => setGraph(g), []);
-
-  const onCreated = useCallback(
-    (_kind: string, _id: string) => {
-      reload();
+  const openSeries = useCallback(
+    (id: string | undefined) => {
+      if (id) {
+        setSeriesId(id);
+        setSelectedBeatId(null);
+        reload();
+      }
+      setPanel("branch");
     },
     [reload],
   );
 
-  const onSeriesCreated = useCallback(
-    (id: string) => {
-      setSeriesId(id);
-      setSeriesIdInput(id);
-      reload();
-    },
-    [reload],
-  );
-
-  const episodeOptions = useMemo(
-    () =>
-      (graph?.episodes ?? []).map((ep) => ({
-        id: ep.id,
-        label: `Episode ${ep.episode_number}${ep.title ? `: ${ep.title}` : ""}`,
-      })),
-    [graph],
-  );
-
-  const beatOptions = useMemo(
-    () =>
-      (graph?.episodes ?? []).flatMap((ep) =>
-        ep.beats.map((beat) => ({
-          id: beat.id,
-          label: `Ep ${ep.episode_number} / beat #${beat.beat_index} [${beat.role}]`,
-        })),
-      ),
-    [graph],
-  );
+  const selectBeat = useCallback((beatId: string) => setSelectedBeatId(beatId), []);
 
   return (
-    <main>
-      <h1>Axessplayer Studio</h1>
+    <div className="studio-shell">
+      <div className="studio-wrap">
+        <div className="studio">
+          <SideRail active={panel} onSelect={setPanel} />
+          <div className="smain">
+            {panel === "library" && <LibraryPanel onOpenSeries={openSeries} />}
 
-      <section aria-label="Series selector">
-        <label>
-          Series id
-          <input
-            value={seriesIdInput}
-            onChange={(e) => setSeriesIdInput(e.target.value)}
-            data-testid="series-id-input"
-            placeholder="series uuid"
-          />
-        </label>
-        <button
-          type="button"
-          onClick={() => {
-            setSeriesId(seriesIdInput.trim());
-            reload();
-          }}
-          data-testid="load-series"
-        >
-          Load graph
-        </button>
-      </section>
+            {panel !== "library" && graphState.status === "loading" && (
+              <p className="muted" data-testid="graph-loading">
+                Loading graph...
+              </p>
+            )}
+            {panel !== "library" && graphState.status === "error" && (
+              <p role="alert" className="statusline err" data-testid="graph-error">
+                Could not load graph: {graphState.message}
+              </p>
+            )}
+            {panel !== "library" && graphState.status === "idle" && (
+              <p className="muted" data-testid="graph-idle">
+                Open a series from the Library to start.
+              </p>
+            )}
 
-      <CreateSeriesForm onSeriesCreated={onSeriesCreated} />
-
-      <GraphViewer seriesId={seriesId} reloadToken={reloadToken} onGraphLoaded={onGraphLoaded} />
-
-      {seriesId && (
-        <section aria-label="Authoring">
-          <CreateEpisodeForm seriesId={seriesId} onCreated={onCreated} />
-          <CreateBeatForm
-            seriesId={seriesId}
-            episodeOptions={episodeOptions}
-            onCreated={onCreated}
-          />
-          <CreateVariantForm beatOptions={beatOptions} onCreated={onCreated} />
-          <CreateEdgeForm beatOptions={beatOptions} onCreated={onCreated} />
-        </section>
-      )}
-    </main>
+            {panel === "branch" && graphState.status === "loaded" && (
+              <BranchEditorPanel
+                seriesId={seriesId}
+                graph={graphState.graph}
+                selectedBeatId={selectedBeatId}
+                onSelectBeat={selectBeat}
+                onCreated={reload}
+                onGoToMedia={() => setPanel("media")}
+              />
+            )}
+            {panel === "media" && graphState.status === "loaded" && (
+              <MediaPanel
+                graph={graphState.graph}
+                selectedBeatId={selectedBeatId}
+                onSelectBeat={selectBeat}
+                onCreated={reload}
+                onGoToPricing={() => setPanel("pricing")}
+              />
+            )}
+            {panel === "pricing" && graphState.status === "loaded" && (
+              <PricingPanel
+                graph={graphState.graph}
+                onCreated={reload}
+                onGoToPublish={() => setPanel("publish")}
+              />
+            )}
+            {panel === "publish" && graphState.status === "loaded" && (
+              <PublishPanel graph={graphState.graph} />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
