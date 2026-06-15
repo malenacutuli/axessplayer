@@ -1,31 +1,41 @@
-# W5 : Player SDK (branching runtime)
+# W5 Player runtime agent brief
 
-Paste this as the opening prompt to a Claude Code agent in its own git worktree. Read repo `00_START_HERE.md`, `01_ARCHITECTURE.md`, `CLAUDE.md`, and `02_CONVENTIONS.md` first.
+**Mission.** The seamless branching runtime: a player that pre-buffers the candidate next beats the
+decision engine returns and switches between them frame-accurately, with no stall or seam, so the
+per-viewer re-cut is invisible. This is the hard playback IP. No em dashes.
 
-**Mission.** Build the client runtime that prefetches the top-k next variants and switches at a branch with no visible seam or buffer.
+**Branch.** `w5-player`, off main. Merge by PR with orchestrator sign-off.
 
-**Owns (write only here).** `packages/player-sdk`.
+**Owns.** `packages/player-sdk/src/**`, `packages/player-sdk/test/**`, and that package's manifest.
 
-**Consumes (contracts + mocks).** `contracts/api/manifest.yaml`, decision prefetch list, low-latency player primitives.
+**Consumes (read-only).**
+- `contracts/api/decision.yaml`: calls `/decide`, reads `next_variant_id` and `prefetch_variant_ids`.
+- `contracts/api/manifest.yaml`: fetches `/manifest/{variant_id}.m3u8` for the chosen and prefetch
+  variants.
+- The codegen client for both. Build against MOCK servers (Prism over the two specs) until W3 and W4
+  are live, then integrate.
 
-**Produces (contracts others depend on).** the player SDK consumed by apps/mobile.
+**Must not touch.** `contracts/`, the services' code, `supabase/`.
 
-**Stack.** React Native, ExoPlayer/AVPlayer or Mux/FastPix SDK, dual-decoder or pre-stitched switching.
+**Build.**
+1. Predictive prefetch: ask `/decide` at a beat boundary, then fetch and buffer the top-k
+   `prefetch_variant_ids` manifests ahead of the decision point. Keep top-k small (2 to 3) to bound
+   egress.
+2. Frame-accurate seamless switch at the branch point, using multiple decoders or pre-stitched
+   candidate segments so there is no gap.
+3. Adaptive bitrate and a graceful fallback to the default cut on low bandwidth (degrade to a great
+   fixed film, never to a spinner).
+4. Target React Native (Expo) for the consumer app plus a web target, over a low-latency player base
+   (ExoPlayer/AVPlayer/Media Source Extensions), with the branching logic on top.
+5. Emit beat-level signals (completion, dwell, replays, skipped, choice) back to `/decide`.
 
-**First tasks (in order).**
-1. Build a vertical player wrapper over the chosen low-latency primitive.
-2. Implement top-k prefetch driven by the decision prefetch list.
-3. Implement frame-accurate switching at a branch (dual-decoder or pre-stitched).
-4. Implement graceful fallback to a single fixed cut on low bandwidth.
-5. Emit the signal events; test the seamless switch on a mid-tier device.
+**Definition of done.** Typecheck + lint clean; tests green; FULL `pnpm test` green. A demo harness that,
+against the mock servers, walks the seed graph cold-open to branch to ending and logs the switch points
+with zero reported gap.
 
-**Definition of done (must pass in CI).**
-- frame-accurate switch with no buffer on a mid-tier device
-- graceful low-bandwidth fallback
-- emits signal events
+**Tests.** Unit tests for the prefetch and switch logic with a fake transport; an integration test
+against Prism mocks of decision + manifest that exercises one full branch. `node:test` + tsx.
 
-**Guardrails.**
-- hardest IP: human-authored design + human sign-off required
-- never let a decision delay block playback
-
-Never edit `contracts/`; file a change request. No em dashes.
+**Flag, do not fake.** True frame-accuracy needs a real media stack and devices; if you can only prove
+the buffering and switch-decision logic in the test environment, say exactly that and mark the
+device-level seamlessness as the remaining verification.

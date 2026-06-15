@@ -1,31 +1,36 @@
-# W4 : Edge Manifest Stitching
+# W4 Manifest service agent brief
 
-Paste this as the opening prompt to a Claude Code agent in its own git worktree. Read repo `00_START_HERE.md`, `01_ARCHITECTURE.md`, `CLAUDE.md`, and `02_CONVENTIONS.md` first.
+**Mission.** Implement `/manifest/{variant_id}.m3u8`: a pure function of one variant id that returns a
+seamless HLS playlist for that beat variant. This is the delivery primitive the player stitches into a
+per-viewer cut. No em dashes.
 
-**Mission.** Compose candidate beat variants into one seamless HLS/DASH playlist at the edge.
+**Branch.** `w4-manifest`, off main. Merge by PR with orchestrator sign-off.
 
-**Owns (write only here).** `services/manifest`.
+**Owns.** `services/manifest/src/**`, `services/manifest/test/**`, `services/manifest/package.json`,
+`tsconfig.json`.
 
-**Consumes (contracts + mocks).** `contracts/api/manifest.yaml`, content read API, decision prefetch list.
+**Consumes (read-only).**
+- `contracts/api/manifest.yaml` (frozen, 0.3.1): path `/manifest/{variant_id}.m3u8`, the `200` HLS
+  playlist response, the `404 variant_not_found` error. Note there is no session id by design (PF-6).
+- Schema `beat_variants` (frozen): `playback_url`, `duration_ms`, codec/tier metadata.
 
-**Produces (contracts others depend on).** the stitched manifest endpoint.
+**Must not touch.** `contracts/`, `supabase/migrations/`, other services.
 
-**Stack.** Cloudflare Worker or Supabase edge function, HLS/DASH manipulation.
+**Build.**
+1. Resolve `variant_id` to its `beat_variants` row; 404 if missing.
+2. Emit a valid CMAF/LL-HLS media playlist for that variant, with independently decodable segment
+   boundaries so the player can switch at a branch point with no gap.
+3. Adaptive bitrate variants per beat where available; a default-cut fallback for low bandwidth.
+4. Cache headers tuned so the CDN caches at the SEGMENT (shared variant) granularity, never per viewer.
+   The manifest itself is cheap to regenerate; the media bytes are the shared, cacheable asset.
+5. Keep it stateless and horizontally scalable.
 
-**First tasks (in order).**
-1. Implement GET manifest that stitches the chosen variant plus prefetch into one playlist.
-2. Define and document the segment-boundary contract with W5.
-3. Implement director's-cut fallback playlist on any error.
-4. Write a test that a branch produces a continuous playlist with no gap marker.
-5. Add a compose-latency budget test.
+**Definition of done.** Typecheck + lint clean; tests green; FULL `pnpm test` green. The response is a
+spec-valid HLS playlist, validated by a parser in a test. Matches `manifest.yaml` exactly.
 
-**Definition of done (must pass in CI).**
-- branch point yields a continuous playlist, no gap
-- compose stays within budget
-- error falls back to director's cut
+**Tests.** A known `variant_id` returns a parseable playlist with the expected segments; an unknown id
+returns 404; cache headers assert segment-level caching. `node:test` + tsx.
 
-**Guardrails.**
-- do not transcode here, only manipulate manifests
-- coordinate segment boundaries with W5
-
-Never edit `contracts/`; file a change request. No em dashes.
+**Flag, do not fake.** If real transcoded segments are not available yet, serve against fixture segment
+URLs from the seed and say so. Do not claim seamless switching works without the W5 player to prove it;
+your job is the manifest, the switch is W5.

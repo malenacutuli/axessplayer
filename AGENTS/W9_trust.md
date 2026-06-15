@@ -1,32 +1,34 @@
-# W9 : Trust Layer
+# W9 Trust (provenance + consent) agent brief
 
-Paste this as the opening prompt to a Claude Code agent in its own git worktree. Read repo `00_START_HERE.md`, `01_ARCHITECTURE.md`, `CLAUDE.md`, and `02_CONVENTIONS.md` first.
+**Mission.** Record where every variant came from and who consented to it: C2PA provenance per variant
+and a tamper-evident consent ledger for likeness and AI-generated content. This is the rights and trust
+layer that a funded incumbent cannot copy quickly. No em dashes.
 
-**Mission.** Build C2PA stamping, the signed append-only consent and likeness ledger, AI disclosure, and the AI-Act opt-out to director's cut.
+**Branch.** `w9-trust`, off main. Merge by PR with orchestrator sign-off.
 
-**Owns (write only here).** `services/trust`.
+**Owns.** `services/trust/src/**`, `services/trust/test/**`, that package's manifest.
 
-**Consumes (contracts + mocks).** content_credentials and consent_ledger schema, generation outputs.
+**Consumes (writes the trust tables it owns).**
+- Schema (frozen): `content_credentials` (signed C2PA manifest per `beat_variant_id`, NOT NULL link),
+  `consent_ledger` (likeness subject, consent ref, royalty terms, and the `prev_hash`/`row_hash` chain).
 
-**Produces (contracts others depend on).** the provenance and consent APIs.
+**Must not touch.** `contracts/`, `supabase/migrations/`, other services' code.
 
-**Stack.** Postgres hash-chained ledger, C2PA tooling.
+**Build.**
+1. Provenance: accept a signed C2PA manifest for a variant (produced by W1) and persist it in
+   `content_credentials`, enforcing the not-null link to `beat_variants`.
+2. Consent ledger: append-only, hash-chained. Each row carries `prev_hash` and a `row_hash` over its
+   contents, so the chain is verifiable and tampering is detectable. This is a signed append-only log,
+   NOT a smart contract.
+3. A verification routine: given a variant, confirm its provenance exists and its consent chain is
+   intact back to the genesis row.
 
-**First tasks (in order).**
-1. Implement C2PA manifest creation and verification for variants.
-2. Implement the hash-chained consent_ledger with tamper-evidence.
-3. Implement royalty-split computation from view counts.
-4. Implement the one-action opt-out that immediately returns director's-cut playback.
-5. Implement AI-disclosure metadata where required.
+**Definition of done.** Typecheck + lint clean; tests green; FULL `pnpm test` green. A test proves the
+hash chain detects a tampered row, and that a variant cannot be marked servable without a provenance
+record.
 
-**Definition of done (must pass in CI).**
-- every generated variant has a verifiable C2PA manifest
-- consent_ledger rows are hash-chained and tamper-evident
-- opt-out returns director's cut immediately
-- royalty splits compute correctly
+**Tests.** Append several consent rows, verify the chain; mutate a row and assert verification fails;
+assert the not-null provenance link is enforced. PGlite with the real migrations.
 
-**Guardrails.**
-- NOT a smart contract: signed Postgres hash chain only
-- legal posture needs human review
-
-Never edit `contracts/`; file a change request. No em dashes.
+**Flag, do not fake.** Real C2PA signing keys and a KMS are out of scope for the first cut; use a test
+signer and say so. The hash-chain integrity itself must be genuinely tested, not assumed.

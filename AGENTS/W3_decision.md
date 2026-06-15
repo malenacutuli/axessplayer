@@ -1,33 +1,50 @@
-# W3 : Decision Engine and Emotional Graph
+# W3 Decision engine agent brief
 
-Paste this as the opening prompt to a Claude Code agent in its own git worktree. Read repo `00_START_HERE.md`, `01_ARCHITECTURE.md`, `CLAUDE.md`, and `02_CONVENTIONS.md` first.
+**Mission.** Replace the deterministic walking-skeleton stub with the real per-viewer decision engine:
+a contextual bandit over the viewer state that selects the next beat variant, served as the `/decide`
+endpoint inside the p99 < 50ms budget, with every decision logged for offline training. This is the
+moat. No em dashes.
 
-**Mission.** Build the per-viewer state model and variant-selection policy behind a sub-50ms decision API, with a control holdout and director's-cut fallback.
+**Branch.** `w3-decision`, off main. Never commit to main; merge by PR with orchestrator sign-off.
 
-**Owns (write only here).** `services/decision`, `packages/analytics-sdk`.
+**Owns (create/edit only these).**
+- `services/decision/src/**` (the policy, the handler, the serving layer, the KV cache adapter)
+- `services/decision/test/**`
+- `services/decision/package.json`, `tsconfig.json`
 
-**Consumes (contracts + mocks).** `contracts/api/decision.yaml`, `contracts/events`, viewer_state schema, Redis/KV.
+**Consumes (read-only).**
+- `contracts/api/decision.yaml` (frozen, 0.3.1): the `/decide` request and response shape, including
+  `decision_id`, `next_variant_id`, `prefetch_variant_ids`, `is_control`, `policy_version`, and the
+  `422 no_successors` error.
+- Schema (frozen, migrations 0001 to 0004): `viewer_state`, `decision_log`, `beats`, `beat_variants`,
+  `beat_edges`. Read these; do not alter them.
+- The existing `services/decision/src/policy.ts` and `decide.ts` from the walking skeleton as the
+  starting shape (injected `DecisionDB`, the control-holdout pattern).
 
-**Produces (contracts others depend on).** the /decide implementation, the analytics-sdk, and decision_made events.
+**Must not touch.** `contracts/`, `supabase/migrations/`, any other service's files, the economy code.
 
-**Stack.** Python or Rust service, KV-cached viewer vectors, contextual bandit (Thompson or LinUCB).
+**Build.**
+1. Signal capture: accept the beat-level signals in the request (completion, dwell, replays, skipped,
+   choice) and update the per-viewer preference vector in `viewer_state`.
+2. Policy: a contextual bandit (start with Thompson sampling or LinUCB over engineered features) that
+   chooses the next beat variant to maximize a reward blend (completion, return, monetization) subject
+   to canon-safety. Keep it explainable enough to prove lift. Keep the control holdout
+   (`assignControl`) so you can measure adaptive lift vs the director's cut.
+3. Serving: sub-50ms. Read the viewer vector and hot policy params from a KV cache (Redis or an edge KV
+   adapter), NOT from Postgres on the hot path. On timeout or opt-out, return the director's cut.
+4. Logging: write each decision to `decision_log` asynchronously (a queue or batched writer), never a
+   synchronous insert on the serving path.
+5. Cold start: seed new viewers from population cohorts; the interactive cold-open calibrates the
+   vector in the first 60 seconds.
 
-**First tasks (in order).**
-1. Implement viewer_state read and update from beat signals, with a KV hot copy.
-2. Implement a contextual bandit policy returning next + top-k prefetch.
-3. Implement control assignment (stable per user) and director's-cut fallback on timeout or opt-out.
-4. Implement the analytics-sdk to emit the signal events.
-5. Write the latency-budget test (p99 < 50ms in harness) and an explainability test.
+**Definition of done.** Typecheck + lint clean; your tests green; FULL `pnpm test` green. The `/decide`
+handler matches `decision.yaml` exactly (use the codegen types). A documented latency measurement of
+the serving path. A test that demonstrates control-vs-treatment assignment is stable and bounded.
 
-**Definition of done (must pass in CI).**
-- /decide returns valid next + prefetch under budget
-- opt-out and timeouts get the director's cut
-- control fraction logged is_control=true
-- feature attributions exposed
+**Tests.** Unit tests for the policy (deterministic given a seed), handler-shape tests against the
+contract, a control-share test (bounded, with the observed share printed on failure), and a logged
+decision assertion. Use `node:test` + tsx, matching the repo convention.
 
-**Guardrails.**
-- never block playback: return within budget or fall back
-- ML design and reward function need human review
-- write only decision_log and viewer_state hot copy
-
-Never edit `contracts/`; file a change request. No em dashes.
+**Flag, do not fake.** The bandit's online learning loop and the offline training job can be stubbed
+behind clear interfaces if the data pipeline is not ready, but say so. Do not claim measured lift
+without a logged dataset.

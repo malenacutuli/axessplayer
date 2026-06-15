@@ -1,31 +1,35 @@
-# W1 : Content Graph Service
+# W1 Content service agent brief
 
-Paste this as the opening prompt to a Claude Code agent in its own git worktree. Read repo `00_START_HERE.md`, `01_ARCHITECTURE.md`, `CLAUDE.md`, and `02_CONVENTIONS.md` first.
+**Mission.** Implement the content graph API: resolve a series into a playable graph, and the authoring
+CRUD for series, episodes, beats, variants, and edges. This is the backbone the studio writes to and
+the player reads from. No em dashes.
 
-**Mission.** Build CRUD and graph resolution for series, beats, variants, edges, reusing the Axessible media pipeline.
+**Branch.** `w1-content`, off main. Merge by PR with orchestrator sign-off.
 
-**Owns (write only here).** `services/content`.
+**Owns.** `services/content/src/**`, `services/content/test/**`, that package's manifest.
 
-**Consumes (contracts + mocks).** `contracts/types`, `contracts/schema` (read), `contracts/api/content.yaml`, Axessible media edge functions.
+**Consumes (read-only on schema, read/write on the content tables it owns at runtime).**
+- `contracts/api/content.yaml` (frozen, 0.3.1): `/series/{id}/graph` (read) and the create endpoints
+  for series, episodes, beats, variants, edges, including the documented `4xx` shapes and operationIds.
+- Schema (frozen): `series`, `episodes`, `beats` (composite FK to episodes), `beat_variants`,
+  `beat_edges`. Respect the composite FK (a beat's `series_id` must equal its episode's series).
 
-**Produces (contracts others depend on).** the content read and write API and a resolved beat-graph endpoint.
+**Must not touch.** `contracts/`, `supabase/migrations/`, other services.
 
-**Stack.** Node or Deno edge functions, Supabase, reused Axessible functions.
+**Build.**
+1. `GET /series/{id}/graph`: assemble episodes, beats, variants, and edges into the playable graph the
+   decision engine and player expect. 404 on unknown series.
+2. The create endpoints, each validating the composite-FK integrity and the enum fields (role, tier,
+   scope). Return the documented 201 and 400 shapes.
+3. Server-authoritative defaults (coin_cost, is_free, is_premium) per the schema; never trust a client
+   to set a price the catalog does not allow.
 
-**First tasks (in order).**
-1. Implement create endpoints for series, beats, variants, edges per content.yaml.
-2. Implement GET /series/{id}/graph returning a playable beat graph with no orphan edges.
-3. Wire reuse: attach transcription and dubbing outputs as language and accessibility variants.
-4. Seed one demo series with three beats and a branch at beat 2 (for the walking skeleton).
-5. Write unit tests on graph integrity.
+**Definition of done.** Typecheck + lint clean; tests green; FULL `pnpm test` green. Graph resolution
+matches what the seed produces for the walking-skeleton series. Matches `content.yaml` exactly.
 
-**Definition of done (must pass in CI).**
-- create a full series graph and resolve it
-- reuse transcription and dubbing to attach variants
-- graph integrity tests pass (no orphan edges, valid branch points)
+**Tests.** Build the seed series through the create endpoints and assert `GET .../graph` returns the
+expected nodes and edges; assert the composite-FK rule rejects a beat whose series does not match its
+episode; validation rejects bad enums. Run against PGlite (fast) with the real migrations applied.
 
-**Guardrails.**
-- never write to wallet or decision tables
-- treat media functions as dependencies, do not fork them
-
-Never edit `contracts/`; file a change request. No em dashes.
+**Flag, do not fake.** If you need a content field the schema does not have, STOP and raise a contract
+change to the orchestrator; do not add a column in this branch.
