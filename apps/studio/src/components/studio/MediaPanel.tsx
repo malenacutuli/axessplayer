@@ -5,7 +5,7 @@
 //
 // OUT OF SCOPE (flagged): real file upload and HLS encoding are the generation pipeline. Here we accept a
 // playback_url (or a placeholder) and create the row, exactly as the brief scopes it. No em dashes.
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type DragEvent, type FormEvent } from "react";
 import { useContentClient } from "../../api/useContentClient.js";
 import { ContentApiError } from "../../api/client.js";
 import { VARIANT_TIERS, type VariantTier } from "../../api/contractGap.js";
@@ -45,6 +45,21 @@ export function MediaPanel({
     ? `Beat - #${beat.beat_index} ${beat.is_branch_point ? "branch point" : beat.role}`
     : "No beat selected";
 
+  // The drop zone stages a local master file. Real upload + HLS encode is the generation pipeline (out of
+  // scope), so the file is not sent to a server here; it labels the beat_variant row the form registers.
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [picked, setPicked] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  const acceptFile = (file: File | null | undefined) => {
+    if (file) setPicked(file);
+  };
+  const onDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragging(false);
+    acceptFile(e.dataTransfer.files?.[0]);
+  };
+
   return (
     <div className="spanel" data-testid="panel-media">
       <div className="sbar">
@@ -59,15 +74,63 @@ export function MediaPanel({
 
       <div className="insp">
         <div>
-          <div className="drop" data-testid="drop-zone">
+          <div
+            className="drop"
+            data-testid="drop-zone"
+            role="button"
+            tabIndex={0}
+            aria-label="Choose or drop a 9:16 master video"
+            style={{
+              cursor: "pointer",
+              borderColor: dragging ? "var(--rose)" : undefined,
+              background: dragging ? "var(--rose-t)" : undefined,
+            }}
+            onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={onDrop}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="video/mp4,video/quicktime,.mp4,.mov"
+              hidden
+              data-testid="file-input"
+              onChange={(e) => {
+                acceptFile(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
             <div className="up">
               <svg viewBox="0 0 24 24" fill="none" stroke="var(--rose)" strokeWidth={2}>
                 <path d="M12 19V7M5 12l7-7 7 7" />
               </svg>
             </div>
-            Drag a 9:16 master here, or connect the AI generation pipeline.
-            <br />
-            <span className="muted">MP4 / MOV - auto-encodes to HLS</span>
+            {picked ? (
+              <>
+                <strong data-testid="picked-name">{picked.name}</strong>
+                <br />
+                <span className="muted">
+                  {(picked.size / 1_000_000).toFixed(1)} MB selected. Set the fields and press Upload variant
+                  to register it (real encode is the generation pipeline).
+                </span>
+              </>
+            ) : (
+              <>
+                Click to choose, or drag a 9:16 master here, or connect the AI generation pipeline.
+                <br />
+                <span className="muted">MP4 / MOV - auto-encodes to HLS</span>
+              </>
+            )}
           </div>
 
           <div className="vlist" data-testid="variant-list">
@@ -109,7 +172,14 @@ export function MediaPanel({
           </div>
         </div>
 
-        <UploadVariantInspector beat={beat} onCreated={onCreated} />
+        <UploadVariantInspector
+          beat={beat}
+          picked={picked}
+          onCreated={() => {
+            setPicked(null);
+            onCreated();
+          }}
+        />
       </div>
 
       <div className="note">
@@ -130,9 +200,11 @@ type Status =
 
 function UploadVariantInspector({
   beat,
+  picked,
   onCreated,
 }: {
   beat: FlatBeat | undefined;
+  picked: File | null;
   onCreated: () => void;
 }): JSX.Element {
   const client = useContentClient();
@@ -151,8 +223,21 @@ function UploadVariantInspector({
     e.preventDefault();
     if (!beat) return;
     setStatus({ state: "submitting" });
-    // A placeholder URL if the author has not pasted one (encode is out of scope): keeps the row creatable.
-    const url = playbackUrl.trim() || `https://cdn.example/placeholder/${beat.id}.m3u8`;
+    // Resolve the playback URL. Priority: an explicit URL the author pasted, else a placeholder derived
+    // from the staged master file name, else a beat-scoped placeholder. Real upload + encode are the
+    // generation pipeline (out of scope); this only registers the beat_variant row.
+    const fileSlug = picked
+      ? picked.name
+          .replace(/\.[^.]+$/, "")
+          .replace(/[^a-z0-9]+/gi, "-")
+          .replace(/^-+|-+$/g, "")
+          .toLowerCase()
+      : "";
+    const url =
+      playbackUrl.trim() ||
+      (fileSlug
+        ? `https://cdn.example/uploads/${fileSlug}.m3u8`
+        : `https://cdn.example/placeholder/${beat.id}.m3u8`);
     try {
       const row = await client.createVariant({
         beat_id: beat.id,
@@ -260,8 +345,15 @@ function UploadVariantInspector({
           id="v-url"
           value={playbackUrl}
           onChange={(e) => setPlaybackUrl(e.target.value)}
-          placeholder="https://cdn/.../master.m3u8"
+          placeholder={
+            picked ? `auto from ${picked.name}` : "https://cdn/.../master.m3u8"
+          }
         />
+        {picked ? (
+          <p className="muted" data-testid="picked-hint" style={{ marginTop: 6, fontSize: 12 }}>
+            Master staged: {picked.name}. Leave blank to register a placeholder HLS URL for it.
+          </p>
+        ) : null}
       </div>
       <div className="fld">
         <label htmlFor="v-prov">Provenance (C2PA)</label>

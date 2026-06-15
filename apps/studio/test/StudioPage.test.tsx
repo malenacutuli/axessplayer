@@ -104,6 +104,32 @@ describe("StudioPage", () => {
     }
   });
 
+  it("stages a chosen master in the drop zone and registers it with a derived URL", async () => {
+    const user = userEvent.setup();
+    renderStudio(server);
+    await user.click(screen.getByTestId("library-card-live"));
+    await waitFor(() => expect(screen.getByTestId("panel-branch")).toBeInTheDocument());
+    await user.click(screen.getByTestId("gnode-bbbbbbbb-0000-0000-0000-000000000001"));
+    await user.click(screen.getByTestId("goto-media"));
+    const mediaPanel = await screen.findByTestId("panel-media");
+
+    // The fix: the drop zone exposes a real file input and choosing a file stages it. Before, the drop
+    // zone had no input and clicking it opened nothing.
+    const input = within(mediaPanel).getByTestId("file-input");
+    const file = new File([new Uint8Array(2048)], "Rooftop Master.mov", { type: "video/quicktime" });
+    await user.upload(input, file);
+    expect(within(mediaPanel).getByTestId("picked-name")).toHaveTextContent("Rooftop Master.mov");
+
+    // Register with NO playback URL typed: the row gets a placeholder HLS URL derived from the file name.
+    await user.click(within(mediaPanel).getByRole("button", { name: "Upload variant" }));
+    await screen.findByTestId("form-variant-ok");
+    const lastVariantPost = server.lastBodies.filter((b) => b.path === "/variants").at(-1);
+    expect(lastVariantPost?.body).toMatchObject({
+      beat_id: "bbbbbbbb-0000-0000-0000-000000000001",
+      playback_url: "https://cdn.example/uploads/rooftop-master.m3u8",
+    });
+  });
+
   it("sets a premium price (POST /variants is_premium) from the Pricing panel", async () => {
     const user = userEvent.setup();
     renderStudio(server);
