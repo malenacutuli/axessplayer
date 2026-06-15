@@ -71,3 +71,34 @@ jobs:
       - run: pnpm --filter @axessplayer/economy test:hardening
         env:
           DATABASE_URL: postgres://postgres:pw@localhost:5432/postgres
+
+  # W12 end-to-end acceptance gate. Stands up the four real HTTP services on ephemeral localhost ports and
+  # drives the adaptive-cinema flow over the network against a real Postgres with migrations 0001..0005 +
+  # seed applied to a fresh database. Like the ledger suites it gets its OWN postgres:15 service (so it
+  # applies the schema to a clean database, and matches prod Supabase's major). It needs the generated
+  # contract types the services import, so `pnpm gen` runs before the suite. DATABASE_URL points the
+  # harness at the service container instead of the local embedded-postgres used for local runs.
+  e2e-acceptance:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: pw
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm gen
+      - run: pnpm --filter @axessplayer/e2e-acceptance test
+        env:
+          DATABASE_URL: postgres://postgres:pw@localhost:5432/postgres

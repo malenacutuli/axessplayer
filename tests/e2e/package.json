@@ -1,0 +1,23 @@
+{
+  "name": "@axessplayer/e2e-acceptance",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "W12 end-to-end acceptance gate. Stands up the four real HTTP services plus a real Postgres and drives the adaptive-cinema flow over the network. No em dashes.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo lint ok",
+    "test": "node --import tsx --test \"src/*.test.ts\""
+  },
+  "devDependencies": {
+    "@axessplayer/contracts": "workspace:*",
+    "@axessplayer/player-sdk": "workspace:*",
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.11.0",
+    "embedded-postgres": "18.4.0-beta.17",
+    "hono": "^4.12.25",
+    "pg": "^8.12.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}
