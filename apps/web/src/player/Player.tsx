@@ -1,24 +1,33 @@
-// The adaptive player screen. It plays the chosen cut, advances through the graph via the SDK (decide
-// -> prefetch -> seamless switch, no menu), surfaces the accessibility controls, and at a premium beat
-// presents the paywall and settles the unlock via /spend. The video surface is a placeholder element
-// here: the real hls.js + MSE media stack is W5's on-hardware phase behind the transport and is
-// flagged as integration-time. No em dashes.
+// The immersive adaptive player, matching the prototype's dark-mode player exactly. A full-bleed
+// poster surface (the prototype's calm/tense gradient, or a real muted autoplaying <video> when
+// VITE_SCENE_VIDEO_URL is set), a gradient scrim, a top bar (back, the rose adaptive badge YOUR CUT .
+// TENSE/CALM, the a11y button), a right rail, a rose scrub bar, the branch-picker pills (Calm cut /
+// Tense cut, rose = selected), and the beat info (cut label, title, beat line). Two light sheets slide
+// up: the accessibility sheet and the gold-lock paywall sheet.
+//
+// It drives the REAL decision engine over the SDK: each Continue calls /decide for the cut, advancing
+// through the graph (the variant -> beat resolver fixes the advance) to the premium ending, where the
+// paywall settles the unlock via /spend. The branch picker lets the viewer feel the per-viewer re-cut
+// that the engine normally decides. The media stack (hls.js) is integration-time behind the transport;
+// the optional real <video> renders a provided clip through the cuts. No em dashes.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EconomyClient } from "../api/economy.js";
 import type { SeriesGraph, VariantNode } from "../api/content.js";
-import { variantForBeat } from "../api/content.js";
+import { variantForBeat, variantToBeatResolver } from "../api/content.js";
 import type { Transport } from "@axessplayer/player-sdk";
 import { usePlayer } from "./usePlayer.js";
-import { A11yControls } from "../a11y/A11yControls.js";
+import { A11ySheet } from "../a11y/A11ySheet.js";
 import {
   loadA11yPreferences,
   resolveA11y,
   saveA11yPreferences,
   type A11yPreferences,
 } from "../a11y/preferences.js";
-import { Paywall, type PaywallChoice } from "../wallet/Paywall.js";
+import { PaywallSheet, type PaywallChoice } from "../wallet/Paywall.js";
 import { useUnlock } from "../wallet/useUnlock.js";
+import { sceneVideoUrl } from "../config.js";
+import { BackIcon, A11yIcon, HeartIcon, CommentIcon } from "../ui/icons.js";
 
 export interface PlayerProps {
   graph: SeriesGraph;
@@ -26,9 +35,15 @@ export interface PlayerProps {
   economy: EconomyClient;
   userId: string;
   startBeatId: string;
-  // Called when an unlock changes the balance so the surrounding shell can refresh the wallet.
+  // Back to the feed.
+  onBack: () => void;
+  // Called when an unlock changes the balance so the shell can refresh the wallet.
   onBalanceChange?: (balance: number) => void;
 }
+
+// The viewer's felt branch. The engine normally decides; the picker lets the viewer override the cut
+// shown so they feel the re-cut. "auto" means show whatever the engine served.
+type Branch = "auto" | "calm" | "tense";
 
 export function Player({
   graph,
@@ -36,9 +51,11 @@ export function Player({
   economy,
   userId,
   startBeatId,
+  onBack,
   onBalanceChange,
 }: PlayerProps) {
-  const { state, advance } = usePlayer({ transport, userId, startBeatId });
+  const resolveBeatId = useMemo(() => variantToBeatResolver(graph), [graph]);
+  const { state, advance } = usePlayer({ transport, userId, startBeatId, resolveBeatId });
   const unlock = useUnlock(economy);
 
   const [prefs, setPrefs] = useState<A11yPreferences>(() => loadA11yPreferences());
@@ -47,114 +64,274 @@ export function Player({
     saveA11yPreferences(next);
   }, []);
 
-  // The cut currently on screen: resolve the variant for the current beat/variant id.
-  const current: VariantNode | undefined = useMemo(() => {
+  // The cut currently on screen for the engine's chosen path.
+  const engineCut: VariantNode | undefined = useMemo(() => {
     return (
       graph.variants.find((v) => v.id === state.currentVariantId) ??
       variantForBeat(graph, state.currentVariantId)
     );
   }, [graph, state.currentVariantId]);
 
-  const active = resolveA11y(prefs, current?.accessibility);
-  const availableLanguages = current?.accessibility?.languages ?? [current?.language ?? prefs.language];
+  // The viewer's felt branch override. Picking a cut shows that variant for the current branch beat.
+  const [branch, setBranch] = useState<Branch>("auto");
+  const calmVariant = useMemo(() => graph.variants.find((v) => v.intensity <= 2 && !v.is_premium), [graph]);
+  const tenseVariant = useMemo(() => graph.variants.find((v) => v.intensity >= 5 && !v.is_premium), [graph]);
 
-  // A premium cut at the current beat that the viewer has not unlocked gates playback behind the paywall.
+  // What is shown: the felt branch override if set, otherwise the engine's cut.
+  const shown: VariantNode | undefined =
+    branch === "calm" ? calmVariant ?? engineCut : branch === "tense" ? tenseVariant ?? engineCut : engineCut;
+
+  const active = resolveA11y(prefs, shown?.accessibility);
+  const availableLanguages = shown?.accessibility?.languages ?? [shown?.language ?? prefs.language];
+
+  // A premium cut at the current beat the viewer has not unlocked gates playback behind the paywall.
   const premiumGate: VariantNode | undefined = useMemo(() => {
-    if (!current) return undefined;
-    return graph.variants.find(
-      (v) => v.beat_id === current.beat_id && v.is_premium,
-    );
-  }, [graph, current]);
+    if (!engineCut) return undefined;
+    return graph.variants.find((v) => v.beat_id === engineCut.beat_id && v.is_premium);
+  }, [graph, engineCut]);
 
+  const unlocked = unlock.state.status === "unlocked";
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showA11y, setShowA11y] = useState(false);
 
   useEffect(() => {
-    if (premiumGate && unlock.state.status !== "unlocked") setShowPaywall(true);
-  }, [premiumGate, unlock.state.status]);
+    if (premiumGate && !unlocked) setShowPaywall(true);
+  }, [premiumGate, unlocked]);
 
   useEffect(() => {
-    if (unlock.state.status === "unlocked" && unlock.state.balance != null) {
+    if (unlocked && unlock.state.balance != null) {
       onBalanceChange?.(unlock.state.balance);
       setShowPaywall(false);
     }
-  }, [unlock.state.status, unlock.state.balance, onBalanceChange]);
+  }, [unlocked, unlock.state.balance, onBalanceChange]);
 
   const onPaywallChoose = useCallback(
     (choice: PaywallChoice) => {
       if (!premiumGate) return;
       if (choice === "unlock" || choice === "buy") {
-        // buy and unlock both settle against /spend here. A real buy first tops up via the IAP / Stripe
-        // rail (server-to-server /grant), which is flagged as integration-time. After top up the same
-        // /spend settles the unlock.
         void unlock.unlock("beat_variant", premiumGate.id);
       }
       // watch_ad and subscribe route to the ad / subscription rails (server-verified /grant), flagged
-      // as integration-time. They are presented per the contract PaywallOptions but not wired to a
-      // live ad SDK or Stripe in this pass.
+      // as integration-time; presented per the contract PaywallOptions but not wired to a live rail.
     },
     [premiumGate, unlock],
   );
 
+  // The cut shown after an unlock is the premium ending; otherwise whatever is on the branch path.
+  const onScreen: VariantNode | undefined = unlocked && premiumGate ? premiumGate : shown;
+
+  // Poster surface class: premium gp once unlocked, else calm/tense by the shown cut's intensity.
+  const posterClass = unlocked && premiumGate
+    ? "gp"
+    : (onScreen?.intensity ?? 5) <= 2
+      ? "gcalm"
+      : "gtense";
+
+  // Adaptive badge label, mirroring the prototype copy.
+  const badgeLabel = unlocked && premiumGate
+    ? "PREMIUM · UNLOCKED"
+    : `YOUR CUT · ${(onScreen?.intensity ?? 5) <= 2 ? "CALM" : "TENSE"}`;
+
+  // Beat line copy, keyed by the felt cut, mirroring the prototype's narrative beats.
+  const beatLine = useMemo(() => {
+    if (unlocked && premiumGate) {
+      return 'Premium ending: "Motion to remove the acting director. All in favor."';
+    }
+    if ((onScreen?.intensity ?? 5) <= 2) {
+      return 'Ch.1 · Rooftop, golden hour: "I never had a job here, Lena. I had a name."';
+    }
+    return 'Ch.1 · Boardroom standoff: "I am making a transfer of power. The board already signed."';
+  }, [unlocked, premiumGate, onScreen]);
+
+  const cutLabel = unlocked && premiumGate ? "Alternate ending unlocked" : "Picked for you in real time";
+
   return (
     <div className="player" data-testid="player">
-      <div
-        className="player-surface"
-        role="region"
-        aria-label="Now playing"
-        data-testid="player-surface"
-        data-variant-id={current?.id ?? ""}
-      >
-        {current ? (
-          <>
-            <p data-testid="player-now-playing">
-              Playing cut {current.id} ({current.tier}, intensity {current.intensity})
-            </p>
-            {active.captions && <p className="player-track" data-testid="track-captions">Captions on</p>}
-            {active.audioDescription && (
-              <p className="player-track" data-testid="track-audio-description">Audio description on</p>
-            )}
-            {active.sign && <p className="player-track" data-testid="track-sign">Sign language on</p>}
-            <p className="player-track" data-testid="track-language">Language: {active.language}</p>
-          </>
-        ) : (
-          <p role="status">Resolving the opening cut.</p>
-        )}
-      </div>
+      <PosterSurface
+        posterClass={posterClass}
+        variantId={onScreen?.id}
+        playbackUrl={onScreen?.playback_url}
+      />
+      <div className="pgrad" />
 
-      <div className="player-controls">
+      {/* top bar */}
+      <div className="ptop">
+        <button type="button" className="icbtn" onClick={onBack} aria-label="Back to feed" data-testid="player-back">
+          <BackIcon />
+        </button>
+        <div className="adapt" data-testid="adaptive-badge">
+          <span className="dot" aria-hidden="true" />
+          {badgeLabel}
+        </div>
         <button
           type="button"
-          onClick={() => void advance()}
+          className="icbtn"
+          onClick={() => setShowA11y(true)}
+          aria-label="Accessibility and language"
+          data-testid="player-a11y-open"
+        >
+          <A11yIcon />
+        </button>
+      </div>
+
+      {/* right rail */}
+      <div className="prail">
+        <div className="rail">
+          <span className="c"><HeartIcon /></span>
+          12k
+        </div>
+        <div className="rail">
+          <span className="c"><CommentIcon /></span>
+          840
+        </div>
+        <button type="button" className="rail" onClick={() => setShowA11y(true)} aria-label="Accessibility tracks">
+          <span className="c"><A11yIcon /></span>
+          A11Y
+        </button>
+      </div>
+
+      {/* scrub bar (rose) */}
+      <div className="scrub" aria-hidden="true"><i style={{ width: "62%" }} /></div>
+
+      {/* branch picker pills: feel the per-viewer re-cut */}
+      {!unlocked && (
+        <div className="branchpick" role="group" aria-label="Pick the cut">
+          <button
+            type="button"
+            className={(branch === "auto" ? (onScreen?.intensity ?? 5) <= 2 : branch === "calm") ? "sel" : undefined}
+            onClick={() => setBranch("calm")}
+            data-testid="branch-calm"
+          >
+            Calm cut
+          </button>
+          <button
+            type="button"
+            className={(branch === "auto" ? (onScreen?.intensity ?? 5) > 2 : branch === "tense") ? "sel" : undefined}
+            onClick={() => setBranch("tense")}
+            data-testid="branch-tense"
+          >
+            Tense cut
+          </button>
+        </div>
+      )}
+
+      {/* beat info + invisible advance affordance (the engine drive) */}
+      <div className="pbody">
+        <div className="cut">
+          <span className="dot" aria-hidden="true" />
+          {cutLabel}
+        </div>
+        <div className="ptitle">{graph.series.title}</div>
+        <p className="psub" data-testid="beat-line">{beatLine}</p>
+
+        <div
+          role="region"
+          aria-label="Now playing"
+          data-testid="player-surface"
+          data-variant-id={onScreen?.id ?? ""}
+        >
+          {active.captions && <p className="player-track" data-testid="track-captions">Captions on</p>}
+          {active.audioDescription && (
+            <p className="player-track" data-testid="track-audio-description">Audio description on</p>
+          )}
+          {active.sign && <p className="player-track" data-testid="track-sign">Sign language on</p>}
+          <p className="player-track" data-testid="track-language">Language: {active.language}</p>
+        </div>
+
+        <button
+          type="button"
+          className="paybtn"
+          style={{ marginTop: 14 }}
+          onClick={() => {
+            setBranch("auto");
+            void advance();
+          }}
           disabled={state.advancing || state.ended || showPaywall}
           data-testid="player-advance"
         >
           {state.ended ? "Ended" : state.advancing ? "Loading" : "Continue"}
         </button>
         {state.error && (
-          <p role="alert" data-testid="player-error">
+          <p role="alert" data-testid="player-error" className="player-track">
             {state.error}
           </p>
         )}
       </div>
 
-      <A11yControls
-        prefs={prefs}
-        active={active}
-        availableLanguages={availableLanguages}
-        onChange={onPrefsChange}
-      />
+      {showA11y && (
+        <A11ySheet
+          prefs={prefs}
+          active={active}
+          availableLanguages={availableLanguages}
+          onChange={onPrefsChange}
+          onClose={() => setShowA11y(false)}
+        />
+      )}
 
       {showPaywall && premiumGate && (
-        <Paywall
-          title={`Premium: cut ${premiumGate.id}`}
+        <PaywallSheet
           coinCost={premiumGate.coin_cost}
           balance={unlock.state.balance ?? 0}
           serverOptions={unlock.state.paywall ?? undefined}
           busy={unlock.state.status === "spending"}
+          error={unlock.state.status === "error" ? unlock.state.error : null}
           onChoose={onPaywallChoose}
           onDismiss={() => setShowPaywall(false)}
         />
       )}
     </div>
+  );
+}
+
+// The full-bleed poster surface. When VITE_SCENE_VIDEO_URL is set, render a real muted autoplaying
+// looping <video> (captions/overlay sit on top via the scrim and pbody); otherwise the gradient
+// poster. The video is re-seeked to 0 whenever the on-screen cut changes so each cut plays from the
+// top. No em dashes.
+function PosterSurface({
+  posterClass,
+  variantId,
+  playbackUrl,
+}: {
+  posterClass: string;
+  variantId?: string;
+  playbackUrl?: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const url = sceneVideoUrl();
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    // New cut: restart the clip from the top so each cut reads as its own scene.
+    el.currentTime = 0;
+    void el.play().catch(() => {
+      // Autoplay can be blocked; the muted attribute makes this rare. Non-fatal.
+    });
+  }, [variantId]);
+
+  if (url) {
+    return (
+      <div className={`poster ${posterClass}`} data-testid="poster" data-scene-video="true">
+        <video
+          ref={videoRef}
+          src={url}
+          muted
+          autoPlay
+          loop
+          playsInline
+          // Keep the gradient as the poster fallback before the clip paints.
+          poster=""
+          data-playback-url={playbackUrl ?? ""}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`poster ${posterClass}`}
+      data-testid="poster"
+      data-playback-url={playbackUrl ?? ""}
+    />
   );
 }

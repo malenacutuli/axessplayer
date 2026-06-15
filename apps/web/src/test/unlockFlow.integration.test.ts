@@ -12,6 +12,7 @@ import { createMockServer } from "./mockServer.js";
 import { buildClients } from "../clients.js";
 import { staticSession } from "../api/session.js";
 import { BranchingPlayer } from "@axessplayer/player-sdk";
+import { variantToBeatResolver } from "../api/content.js";
 import {
   SERIES_ID,
   VAR_ENDING_PREMIUM,
@@ -47,11 +48,19 @@ describe("unlock flow (integration)", () => {
     expect(wallet0.balance).toBe(10);
 
     // Play the adaptive episode over the SDK: decide -> prefetch -> seamless switch, to the 422 end.
+    // The resolveBeatId maps each chosen variant back to its beat so the next /decide is made from the
+    // right beat (the player fix). Built from the live graph, exactly as the Player screen does it.
     const stripped: string[] = [];
     const transport = clients.playerTransport((id) => stripped.push(id));
-    const player = new BranchingPlayer({ transport, userId: "viewer-id", startBeatId: BEAT_COLD_OPEN });
+    const player = new BranchingPlayer({
+      transport,
+      userId: "viewer-id",
+      startBeatId: BEAT_COLD_OPEN,
+      resolveBeatId: variantToBeatResolver(graph),
+    });
     const steps = await player.play();
-    expect(steps.length).toBeGreaterThan(0);
+    // The full walk: cold_open -> branch -> tense -> ending, then the 422 at the ending beat.
+    expect(steps.length).toBe(3);
     // The web transport stripped the user_id the SDK put in the decide body (F1) on every /decide,
     // including the final boundary call that returns the 422 end-of-graph. So at least one strip per
     // played step occurred.

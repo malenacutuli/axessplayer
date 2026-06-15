@@ -29,6 +29,15 @@ export interface PlayerOptions {
   prefetch?: PrefetchOptions;
   // Bandwidth floor for the switch fallback (kbps). Default handled in switch.ts.
   bandwidthFloorKbps?: number;
+  // Resolve the chosen cut's VARIANT id to the BEAT id the next /decide must be made from.
+  //
+  // /decide takes a beat id and returns the next cut's VARIANT id (the real decision service walks
+  // beat_edges from current_beat_id and joins beat_variants on to_beat_id). To advance, the next
+  // /decide must be made from the chosen variant's beat, not the variant id itself. The web host
+  // builds this from the content graph (variants carry beat_id). When omitted, the resolver is the
+  // identity (variantId is used as the next beat id), which preserves the historical fake-graph
+  // behavior the existing SDK tests rely on (those graphs key beats by the chosen variant id). No em dashes.
+  resolveBeatId?: (chosenVariantId: VariantId) => VariantId;
 }
 
 // One resolved branch point: the decision the engine returned, what we played, and the buffer state.
@@ -48,6 +57,7 @@ export class BranchingPlayer {
   private readonly userId: string;
   private readonly buffer: PrefetchBuffer;
   private readonly bandwidthFloorKbps?: number;
+  private readonly resolveBeatId: (chosenVariantId: VariantId) => VariantId;
 
   // The beat the next /decide will be made from. Advances to the played cut after each branch point.
   private currentBeatId: string;
@@ -62,6 +72,9 @@ export class BranchingPlayer {
     this.currentBeatId = opts.startBeatId;
     this.buffer = new PrefetchBuffer(opts.transport, opts.prefetch);
     this.bandwidthFloorKbps = opts.bandwidthFloorKbps;
+    // Identity by default: backward compatible with the historical fake-graph tests where the chosen
+    // variant id doubles as the next beat key. The web host overrides this with a graph-backed mapper.
+    this.resolveBeatId = opts.resolveBeatId ?? ((variantId) => variantId);
   }
 
   // The host (web/native player shell) reports the viewer's beat-level behavior as it happens. These
@@ -123,8 +136,10 @@ export class BranchingPlayer {
       missed,
     };
 
-    // Advance to the cut we played and drop everything else: the next boundary re-buffers from here.
-    this.currentBeatId = played.variantId;
+    // Advance to the BEAT the cut we played lives on (not the variant id): the next /decide is made
+    // from that beat. With the default identity resolver this is the played variant id, preserving the
+    // historical fake-graph behavior; the web host maps variant -> beat from the content graph.
+    this.currentBeatId = this.resolveBeatId(played.variantId);
     this.buffer.evictExcept([played.variantId]);
 
     return step;

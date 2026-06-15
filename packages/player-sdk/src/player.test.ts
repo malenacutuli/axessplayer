@@ -126,3 +126,80 @@ test("the play loop stops cleanly at the end of the graph (contract 422)", async
   assert.equal(steps.length, 1);
   assert.equal(player.beatId, CUT_A); // advanced to the played cut, then hit 422
 });
+
+// ---- multi-step advance over a REAL-shaped graph (beats keyed by beat id, cuts carry beat_id) ----
+//
+// The real /decide takes a BEAT id and returns the next cut's VARIANT id (the decision service walks
+// beat_edges and joins beat_variants on to_beat_id). To advance the next /decide must be made from
+// the chosen variant's BEAT, resolved via resolveBeatId. This proves the full walk:
+//   cold_open -> branch -> calm/tense -> ending -> 422
+// which the identity-resolver fake graph above cannot model (its beats are keyed by variant id).
+
+const B_OPEN = "bbbbbbbb-0000-0000-0000-000000000001";
+const B_BRANCH = "bbbbbbbb-0000-0000-0000-000000000002";
+const B_TENSE = "bbbbbbbb-0000-0000-0000-00000000000b";
+const B_ENDING = "bbbbbbbb-0000-0000-0000-000000000004";
+
+const V_BRANCH = "cccccccc-0000-0000-0000-000000000002";
+const V_CALM = "cccccccc-0000-0000-0000-00000000000a";
+const V_TENSE = "cccccccc-0000-0000-0000-00000000000b";
+const V_ENDING = "cccccccc-0000-0000-0000-000000000004";
+
+// variant id -> the beat it lives on (what the web host derives from the content graph).
+const VARIANT_TO_BEAT: Record<string, string> = {
+  [V_BRANCH]: B_BRANCH,
+  [V_CALM]: "bbbbbbbb-0000-0000-0000-00000000000a",
+  [V_TENSE]: B_TENSE,
+  [V_ENDING]: B_ENDING,
+};
+
+// A graph keyed by BEAT id: each beat names the chosen next cut and the prefetch hint.
+function realShapedGraph(): Record<string, GraphNode> {
+  return {
+    [B_OPEN]: { nextVariantId: V_BRANCH, prefetchVariantIds: [] },
+    [B_BRANCH]: { nextVariantId: V_TENSE, prefetchVariantIds: [V_CALM] },
+    [B_TENSE]: { nextVariantId: V_ENDING, prefetchVariantIds: [] },
+    // B_ENDING is absent -> decide rejects 422 (ending).
+  };
+}
+
+test("multi-step advance walks cold-open -> branch -> tense -> ending via resolveBeatId", async () => {
+  const transport = new FakeTransport({ graph: realShapedGraph() });
+  const player = new BranchingPlayer({
+    transport,
+    userId: "viewer-1",
+    startBeatId: B_OPEN,
+    resolveBeatId: (variantId) => VARIANT_TO_BEAT[variantId] ?? variantId,
+  });
+
+  const steps = await player.play();
+
+  // Three branch points resolved, then the 422 at the ending beat.
+  assert.equal(steps.length, 3);
+  assert.deepEqual(
+    steps.map((s) => s.beatId),
+    [B_OPEN, B_BRANCH, B_TENSE],
+  );
+  assert.deepEqual(
+    steps.map((s) => s.played.variantId),
+    [V_BRANCH, V_TENSE, V_ENDING],
+  );
+  for (const step of steps) {
+    assert.equal(step.played.reason, "chosen", `beat ${step.beatId} should switch to the chosen cut`);
+    assert.equal(step.played.seamless, true, `beat ${step.beatId} reported a gap`);
+  }
+  // After the ending cut the next /decide is made from its BEAT (resolved), which has no successors.
+  assert.equal(player.beatId, B_ENDING);
+});
+
+test("default resolver is the identity (backward compatible with variant-keyed fake graphs)", async () => {
+  // No resolveBeatId: the chosen variant id is used as the next beat key, the historical behavior.
+  const transport = new FakeTransport({ graph: seedGraph() });
+  const player = new BranchingPlayer({ transport, userId: "viewer-1", startBeatId: OPEN });
+  const steps = await player.play();
+  assert.deepEqual(
+    steps.map((s) => s.played.variantId),
+    [CUT_A, CUT_C, CUT_END],
+  );
+  assert.equal(player.beatId, CUT_END);
+});

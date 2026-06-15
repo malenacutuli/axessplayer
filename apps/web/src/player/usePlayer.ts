@@ -19,6 +19,9 @@ export interface UsePlayerOptions {
   // sends the session bearer instead (F1). See webTransport.ts and the report's contract-change note.
   userId: string;
   startBeatId: string;
+  // Map a chosen cut's VARIANT id to the BEAT id the next /decide must be made from. The web host
+  // builds this from the content graph (variants carry beat_id), fixing the variant-vs-beat advance.
+  resolveBeatId?: (chosenVariantId: string) => string;
 }
 
 export interface PlayerState {
@@ -47,8 +50,9 @@ export function usePlayer(opts: UsePlayerOptions): UsePlayer {
         transport: opts.transport,
         userId: opts.userId,
         startBeatId: opts.startBeatId,
+        resolveBeatId: opts.resolveBeatId,
       }),
-    [opts.transport, opts.userId, opts.startBeatId],
+    [opts.transport, opts.userId, opts.startBeatId, opts.resolveBeatId],
   );
 
   const [state, setState] = useState<PlayerState>({

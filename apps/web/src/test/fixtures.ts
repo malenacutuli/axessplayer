@@ -62,3 +62,34 @@ export function seedGraph(): SeriesGraph {
     ],
   };
 }
+
+// The NESTED graph shape the real content service returns (episodes[].beats[].variants[] plus
+// top-level edges). The content client flattens this at its boundary. The mock server serves this so
+// the flatten the app relies on is exercised, exactly as it is against the live service. Derived from
+// the flat seedGraph so the two never drift. No em dashes.
+export function nestedSeedGraph(): unknown {
+  const g = seedGraph();
+  return {
+    series: g.series,
+    episodes: g.episodes.map((ep) => ({
+      id: ep.id,
+      episode_number: ep.episode_number,
+      title: ep.title,
+      is_free: ep.is_free,
+      coin_cost: ep.coin_cost,
+      beats: g.beats
+        .filter((b) => b.episode_id === ep.id)
+        .map((b) => ({
+          id: b.id,
+          episode_id: b.episode_id,
+          beat_index: b.beat_index,
+          role: b.role,
+          is_branch_point: b.is_branch_point,
+          variants: g.variants
+            .filter((v) => v.beat_id === b.id)
+            .map(({ beat_id: _beat_id, ...rest }) => rest),
+        })),
+    })),
+    edges: g.edges,
+  };
+}

@@ -28,3 +28,11 @@ export function loadConfig(env: EnvBag = readEnv()): AppConfig {
     manifestBaseUrl: env.VITE_MANIFEST_BASE_URL ?? DEFAULT_GATEWAY,
   };
 }
+
+// Optional real video clip for the player poster surface. When VITE_SCENE_VIDEO_URL is set, the player
+// renders a muted autoplaying looping <video> as the full-bleed surface (captions/overlay on top),
+// seeked per cut, so a provided clip plays through the cuts. When unset, the gradient poster is used.
+export function sceneVideoUrl(env: EnvBag = readEnv()): string | undefined {
+  const u = env.VITE_SCENE_VIDEO_URL;
+  return u && u.trim() ? u : undefined;
+}
