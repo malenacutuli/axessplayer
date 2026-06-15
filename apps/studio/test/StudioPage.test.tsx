@@ -2,13 +2,26 @@
 // Last Signal" fixture, and walk the studio panels (Library, Branch editor, Media & variants, Pricing,
 // Publish). Verifies the live wiring (the branch editor renders nodes/edges from the real graph; uploading
 // a variant POSTs to /variants and the canvas refreshes) and F1 at the UI boundary. No em dashes.
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ContentClient } from "../src/api/client.js";
 import { ContentClientContext } from "../src/api/useContentClient.js";
 import { StudioPage } from "../src/components/StudioPage.js";
 import { createFakeContentServer, type FakeServer } from "./fakeContentServer.js";
+
+// The Media panel uploads the staged master to the media server. Mock that network call so the test stays
+// hermetic; the mock returns a served /media URL exactly as the real media server would.
+vi.mock("../src/api/media.js", () => ({
+  uploadMaster: vi.fn(async (file: File) => ({
+    url: `http://127.0.0.1:8095/media/${file.name.replace(/\s+/g, "-")}`,
+    name: file.name,
+    size: file.size,
+  })),
+  isPlayableVideoUrl: (u: string | undefined) =>
+    !!u && (/\.(mp4|m4v|mov|webm|ogv|ogg)(\?|$)/i.test(u) || u.includes("/media/")),
+  mediaBaseUrl: () => "http://127.0.0.1:8095",
+}));
 
 function renderStudio(server: FakeServer) {
   const client = new ContentClient({ baseUrl: "http://content.test", fetchImpl: server.fetch });
@@ -120,14 +133,20 @@ describe("StudioPage", () => {
     await user.upload(input, file);
     expect(within(mediaPanel).getByTestId("picked-name")).toHaveTextContent("Rooftop Master.mov");
 
-    // Register with NO playback URL typed: the row gets a placeholder HLS URL derived from the file name.
-    await user.click(within(mediaPanel).getByRole("button", { name: "Upload variant" }));
+    // Register with NO playback URL typed: the staged master is uploaded for real and the served URL is
+    // registered as the beat_variant playback_url.
+    await user.click(within(mediaPanel).getByRole("button", { name: "Upload and register" }));
     await screen.findByTestId("form-variant-ok");
     const lastVariantPost = server.lastBodies.filter((b) => b.path === "/variants").at(-1);
     expect(lastVariantPost?.body).toMatchObject({
       beat_id: "bbbbbbbb-0000-0000-0000-000000000001",
-      playback_url: "https://cdn.example/uploads/rooftop-master.m3u8",
+      playback_url: "http://127.0.0.1:8095/media/Rooftop-Master.mov",
     });
+    // The uploaded variant plays back in the preview.
+    expect(await screen.findByTestId("preview-video")).toHaveAttribute(
+      "src",
+      "http://127.0.0.1:8095/media/Rooftop-Master.mov",
+    );
   });
 
   it("sets a premium price (POST /variants is_premium) from the Pricing panel", async () => {

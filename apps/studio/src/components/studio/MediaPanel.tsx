@@ -9,6 +9,7 @@ import { useRef, useState, type DragEvent, type FormEvent } from "react";
 import { useContentClient } from "../../api/useContentClient.js";
 import { ContentApiError } from "../../api/client.js";
 import { VARIANT_TIERS, type VariantTier } from "../../api/contractGap.js";
+import { isPlayableVideoUrl, uploadMaster } from "../../api/media.js";
 import type { FlatGraph, FlatBeat, FlatVariant } from "../../api/flattenGraph.js";
 
 export interface MediaPanelProps {
@@ -50,6 +51,9 @@ export function MediaPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [picked, setPicked] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
+  // The most recently uploaded or selected playable variant, shown in the preview player so the author can
+  // confirm the real video plays.
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const acceptFile = (file: File | null | undefined) => {
     if (file) setPicked(file);
@@ -147,7 +151,10 @@ export function MediaPanel({
                     type="button"
                     className="vrow"
                     data-testid={`variant-row-${v.id}`}
-                    onClick={() => beat && onSelectBeat(beat.id)}
+                    onClick={() => {
+                      if (beat) onSelectBeat(beat.id);
+                      if (isPlayableVideoUrl(v.playback_url)) setPreviewUrl(v.playback_url);
+                    }}
                   >
                     <div className={`th ${thumbClass(v)}`} />
                     <div className="meta">
@@ -170,13 +177,27 @@ export function MediaPanel({
               })
             )}
           </div>
+
+          {previewUrl ? (
+            <div className="preview" data-testid="variant-preview">
+              <div className="scaption" style={{ marginTop: 14 }}>Preview</div>
+              <video
+                src={previewUrl}
+                controls
+                playsInline
+                data-testid="preview-video"
+                style={{ width: "100%", maxHeight: 340, borderRadius: 12, background: "#000" }}
+              />
+            </div>
+          ) : null}
         </div>
 
         <UploadVariantInspector
           beat={beat}
           picked={picked}
-          onCreated={() => {
+          onCreated={(createdUrl) => {
             setPicked(null);
+            if (isPlayableVideoUrl(createdUrl)) setPreviewUrl(createdUrl);
             onCreated();
           }}
         />
@@ -184,9 +205,10 @@ export function MediaPanel({
 
       <div className="note">
         <span className="notetag">PIPELINE</span>
-        Upload → encode to HLS → register as a beat_variant → CDN. Real upload and encode are the generation
-        pipeline (out of scope here): this registers the beat_variant row from a playback URL. These fields
-        are exactly what the manifest and decision services consume.
+        Choose a master and press Upload: the file is uploaded for real to the local media server, registered
+        as a beat_variant, and plays in the preview above and in the consumer app. HLS transcode + CDN are the
+        production path (Path A points this at the S3 presigner). These fields are what the manifest and
+        decision services consume.
       </div>
     </div>
   );
@@ -194,6 +216,7 @@ export function MediaPanel({
 
 type Status =
   | { state: "idle" }
+  | { state: "uploading" }
   | { state: "submitting" }
   | { state: "ok"; message: string }
   | { state: "error"; message: string };
@@ -205,7 +228,7 @@ function UploadVariantInspector({
 }: {
   beat: FlatBeat | undefined;
   picked: File | null;
-  onCreated: () => void;
+  onCreated: (createdUrl: string) => void;
 }): JSX.Element {
   const client = useContentClient();
   const [status, setStatus] = useState<Status>({ state: "idle" });
@@ -222,23 +245,18 @@ function UploadVariantInspector({
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!beat) return;
-    setStatus({ state: "submitting" });
-    // Resolve the playback URL. Priority: an explicit URL the author pasted, else a placeholder derived
-    // from the staged master file name, else a beat-scoped placeholder. Real upload + encode are the
-    // generation pipeline (out of scope); this only registers the beat_variant row.
-    const fileSlug = picked
-      ? picked.name
-          .replace(/\.[^.]+$/, "")
-          .replace(/[^a-z0-9]+/gi, "-")
-          .replace(/^-+|-+$/g, "")
-          .toLowerCase()
-      : "";
-    const url =
-      playbackUrl.trim() ||
-      (fileSlug
-        ? `https://cdn.example/uploads/${fileSlug}.m3u8`
-        : `https://cdn.example/placeholder/${beat.id}.m3u8`);
     try {
+      // Resolve the playback URL. If a master file is staged, upload it FOR REAL to the media server and
+      // use the served URL; otherwise use a pasted URL, else a beat-scoped placeholder. This is the real
+      // upload path locally; under Path A it points at the S3 presigner instead (same client shape).
+      let url = playbackUrl.trim();
+      if (picked) {
+        setStatus({ state: "uploading" });
+        url = (await uploadMaster(picked)).url;
+      } else if (!url) {
+        url = `https://cdn.example/placeholder/${beat.id}.m3u8`;
+      }
+      setStatus({ state: "submitting" });
       const row = await client.createVariant({
         beat_id: beat.id,
         language: language.trim() || undefined,
@@ -250,7 +268,7 @@ function UploadVariantInspector({
         accessibility: { captions, audio_description: audioDesc, sign },
       });
       setStatus({ state: "ok", message: row.id });
-      onCreated();
+      onCreated(url);
     } catch (err) {
       const message =
         err instanceof ContentApiError
@@ -340,18 +358,16 @@ function UploadVariantInspector({
         </div>
       ) : null}
       <div className="fld">
-        <label htmlFor="v-url">Playback URL (or leave blank for a placeholder)</label>
+        <label htmlFor="v-url">Playback URL (blank uploads the staged master, or a placeholder)</label>
         <input
           id="v-url"
           value={playbackUrl}
           onChange={(e) => setPlaybackUrl(e.target.value)}
-          placeholder={
-            picked ? `auto from ${picked.name}` : "https://cdn/.../master.m3u8"
-          }
+          placeholder={picked ? `uploads ${picked.name}` : "https://cdn/.../master.m3u8"}
         />
         {picked ? (
           <p className="muted" data-testid="picked-hint" style={{ marginTop: 6, fontSize: 12 }}>
-            Master staged: {picked.name}. Leave blank to register a placeholder HLS URL for it.
+            Master staged: {picked.name}. Leave the URL blank to upload it for real and play it back.
           </p>
         ) : null}
       </div>
@@ -363,9 +379,15 @@ function UploadVariantInspector({
         <button
           type="submit"
           className="btn pri"
-          disabled={status.state === "submitting" || !beat}
+          disabled={status.state === "submitting" || status.state === "uploading" || !beat}
         >
-          Upload variant
+          {status.state === "uploading"
+            ? "Uploading..."
+            : status.state === "submitting"
+              ? "Registering..."
+              : picked
+                ? "Upload and register"
+                : "Upload variant"}
         </button>
       </div>
       {status.state === "ok" ? (

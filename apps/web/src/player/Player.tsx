@@ -283,6 +283,15 @@ export function Player({
   );
 }
 
+// True when a variant playback_url points at a directly playable video (an uploaded master on the media
+// server, or a plain video file) rather than an HLS playlist or a cdn.example placeholder. Kept in sync
+// with apps/studio/src/api/media.ts isPlayableVideoUrl. No em dashes.
+function isPlayableVideoUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  if (/\.(mp4|m4v|mov|webm|ogv|ogg)(\?|$)/i.test(url)) return true;
+  return url.includes("/media/");
+}
+
 // The full-bleed poster surface. When VITE_SCENE_VIDEO_URL is set, render a real muted autoplaying
 // looping <video> (captions/overlay sit on top via the scrim and pbody); otherwise the gradient
 // poster. The video is re-seeked to 0 whenever the on-screen cut changes so each cut plays from the
@@ -297,7 +306,9 @@ function PosterSurface({
   playbackUrl?: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const url = sceneVideoUrl();
+  // Prefer the per-variant playable video (a real uploaded master), else the global scene clip, else the
+  // gradient poster. So a variant uploaded in the Studio actually plays here.
+  const url = isPlayableVideoUrl(playbackUrl) ? playbackUrl : sceneVideoUrl();
 
   useEffect(() => {
     const el = videoRef.current;
