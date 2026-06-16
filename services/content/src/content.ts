@@ -77,6 +77,10 @@ export interface SeriesRow {
   base_language: string;
   available_languages: string[];
   cover_url: string | null;
+  // 0009b publish state (NULL = draft), 0009c poster art + its C2PA/synthetic provenance. All nullable.
+  published_at?: string | null;
+  poster_url?: string | null;
+  poster_provenance?: Record<string, unknown> | null;
 }
 export interface EpisodeRow {
   id: string;
@@ -110,6 +114,18 @@ export interface VariantRow {
   provenance_id: string | null;
   qa_status: QaStatus;
   placement_slots: unknown[];
+  // 0009a real accessibility track URLs (Axessible pipeline output). All nullable; dub map is per-language.
+  caption_doc_url?: string | null;
+  audio_description_url?: string | null;
+  sign_video_url?: string | null;
+  dub_audio_urls?: Record<string, string>;
+}
+// The fields settable on an existing variant via PATCH /variants/{id}/tracks (0009a).
+export interface VariantTracks {
+  caption_doc_url?: string | null;
+  audio_description_url?: string | null;
+  sign_video_url?: string | null;
+  dub_audio_urls?: Record<string, string>;
 }
 export interface EdgeRow {
   from_beat_id: string;
@@ -130,6 +146,11 @@ export interface GraphVariant {
   playback_url: string;
   duration_ms: number | null;
   qa_status: QaStatus;
+  // 0009a track URLs flow to the player so it renders real captions / AD / sign / dubs.
+  caption_doc_url?: string | null;
+  audio_description_url?: string | null;
+  sign_video_url?: string | null;
+  dub_audio_urls?: Record<string, string>;
 }
 export interface GraphBeat {
   id: string;
@@ -159,6 +180,21 @@ export interface SeriesGraph {
   edges: GraphEdge[];
 }
 
+// ---------- GET /feed (0009b): published series only ----------
+export interface FeedItem {
+  id: string;
+  title: string;
+  genre: string | null;
+  cover_url: string | null;
+  poster_url: string | null;
+  base_language: string;
+  available_languages: string[];
+  published_at: string;
+}
+export interface Feed {
+  series: FeedItem[];
+}
+
 export interface HandlerResult<T> {
   status: number;
   body: T;
@@ -176,8 +212,13 @@ export interface ContentDB {
   insertEpisode(row: Omit<EpisodeRow, "id">): Promise<EpisodeRow>;
   insertBeat(row: Omit<BeatRow, "id">): Promise<BeatRow>;
   insertVariant(row: Omit<VariantRow, "id">): Promise<VariantRow>;
+  deleteVariant(id: string): Promise<boolean>;
+  setVariantTracks(id: string, tracks: VariantTracks): Promise<VariantRow | null>;
   insertEdge(row: EdgeRow): Promise<EdgeRow>;
   getSeriesGraph(seriesId: string): Promise<SeriesGraph | null>;
+  setSeriesPublished(id: string, published: boolean): Promise<{ id: string; published_at: string | null } | null>;
+  listPublishedSeries(): Promise<FeedItem[]>;
+  setSeriesPoster(id: string, posterUrl: string, provenance: Record<string, unknown>): Promise<{ id: string; poster_url: string } | null>;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -360,6 +401,82 @@ export async function handleCreateVariant(
     placement_slots: body.placement_slots ?? [],
   });
   return { status: 201, body: row };
+}
+
+// ---------- DELETE /variants/{id} ----------
+// Remove a beat_variant (an uploaded or registered cut). Idempotent at the API: a valid uuid that is not
+// present returns 404 variant_not_found, while a successful delete returns 200 with the id. The media bytes on
+// the ingest server are removed separately by the caller (the Studio), since the content DB owns only the row.
+export async function handleDeleteVariant(
+  variantId: string,
+  db: ContentDB
+): Promise<HandlerResult<{ id: string; deleted: true } | ApiError>> {
+  if (typeof variantId !== "string" || !UUID_RE.test(variantId)) return err(400, "invalid_variant_id");
+  const deleted = await db.deleteVariant(variantId);
+  if (!deleted) return err(404, "variant_not_found");
+  return { status: 200, body: { id: variantId, deleted: true } };
+}
+
+// ---------- PATCH /variants/{id}/tracks (0009a) ----------
+// Attach real accessibility track URLs (produced by the Axessible pipeline) to an existing variant. Only the
+// provided fields are set; omitted fields are left unchanged. Validates each url is a string when present.
+export async function handleSetVariantTracks(
+  variantId: string,
+  body: unknown,
+  db: ContentDB
+): Promise<HandlerResult<VariantRow | ApiError>> {
+  if (typeof variantId !== "string" || !UUID_RE.test(variantId)) return err(400, "invalid_variant_id");
+  if (!isObject(body)) return err(400, "invalid_body");
+  const tracks: VariantTracks = {};
+  for (const key of ["caption_doc_url", "audio_description_url", "sign_video_url"] as const) {
+    if (body[key] != null) {
+      if (typeof body[key] !== "string") return err(400, `invalid_${key}`);
+      tracks[key] = body[key] as string;
+    }
+  }
+  if (body.dub_audio_urls != null) {
+    if (!isObject(body.dub_audio_urls)) return err(400, "invalid_dub_audio_urls");
+    for (const v of Object.values(body.dub_audio_urls)) {
+      if (typeof v !== "string") return err(400, "invalid_dub_audio_urls");
+    }
+    tracks.dub_audio_urls = body.dub_audio_urls as Record<string, string>;
+  }
+  const row = await db.setVariantTracks(variantId, tracks);
+  if (!row) return err(404, "variant_not_found");
+  return { status: 200, body: row };
+}
+
+// ---------- POST /series/{id}/publish and /unpublish (0009b) ----------
+export async function handleSetSeriesPublished(
+  seriesId: string,
+  published: boolean,
+  db: ContentDB
+): Promise<HandlerResult<{ id: string; published_at: string | null } | ApiError>> {
+  if (typeof seriesId !== "string" || !UUID_RE.test(seriesId)) return err(400, "invalid_series_id");
+  const row = await db.setSeriesPublished(seriesId, published);
+  if (!row) return err(404, "series_not_found");
+  return { status: 200, body: row };
+}
+
+// ---------- GET /feed (0009b): published series only, newest first ----------
+export async function handleGetFeed(db: ContentDB): Promise<HandlerResult<Feed>> {
+  return { status: 200, body: { series: await db.listPublishedSeries() } };
+}
+
+// ---------- PATCH /series/{id}/poster (0009c) ----------
+// Store the chosen generated poster URL on the series, with its C2PA / synthetic provenance (Article 50).
+export async function handleSetSeriesPoster(
+  seriesId: string,
+  body: unknown,
+  db: ContentDB
+): Promise<HandlerResult<{ id: string; poster_url: string } | ApiError>> {
+  if (typeof seriesId !== "string" || !UUID_RE.test(seriesId)) return err(400, "invalid_series_id");
+  if (!isObject(body)) return err(400, "invalid_body");
+  if (typeof body.poster_url !== "string" || body.poster_url.length === 0) return err(400, "invalid_poster_url");
+  const provenance = isObject(body.provenance) ? body.provenance : { c2pa: true, synthetic: true };
+  const row = await db.setSeriesPoster(seriesId, body.poster_url, provenance);
+  if (!row) return err(404, "series_not_found");
+  return { status: 200, body: row };
 }
 
 // ---------- POST /edges ----------

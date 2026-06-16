@@ -12,6 +12,7 @@
 // where it would mount. No em dashes.
 
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import type { operations } from "@axessplayer/contracts/content";
 import {
   handleGetSeriesGraph,
@@ -19,6 +20,11 @@ import {
   handleCreateEpisode,
   handleCreateBeat,
   handleCreateVariant,
+  handleDeleteVariant,
+  handleSetVariantTracks,
+  handleSetSeriesPublished,
+  handleGetFeed,
+  handleSetSeriesPoster,
   handleCreateEdge,
   type ContentDB,
   type CreateSeriesBody,
@@ -43,6 +49,16 @@ export interface AppDeps {
 // delegates to a handler that owns the ContentDB port.
 export function createContentApp(deps: AppDeps): Hono {
   const app = new Hono();
+  // Permissive CORS so the consumer app and Studio (different localhost ports in dev) can call this service
+  // from the browser. Identity rides the bearer token, not cookies, so origin "*" is safe (no credentials).
+  app.use(
+    "*",
+    cors({
+      origin: "*",
+      allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+      allowHeaders: ["content-type", "authorization", "accept"],
+    }),
+  );
   const { db } = deps;
 
   // GET /series/{id}/graph : resolve a series into its playable graph, or 404. The id is validated by the
@@ -85,6 +101,45 @@ export function createContentApp(deps: AppDeps): Hono {
     if (raw == null) return c.json({ error: "invalid_json" }, 400);
     const result = await handleCreateVariant(raw as CreateVariantBody, db);
     return c.json(result.body, result.status as 201 | 400);
+  });
+
+  // DELETE /variants/{id} : remove a beat_variant (an uploaded or registered cut). The media bytes on the
+  // ingest server are pruned separately by the Studio; the content DB owns only the row.
+  app.delete("/variants/:id", async (c) => {
+    const result = await handleDeleteVariant(c.req.param("id"), db);
+    return c.json(result.body, result.status as 200 | 400 | 404);
+  });
+
+  // PATCH /variants/{id}/tracks (0009a) : attach real accessibility track URLs from the Axessible pipeline.
+  app.patch("/variants/:id/tracks", async (c) => {
+    const raw = await readJson(c);
+    if (raw == null) return c.json({ error: "invalid_json" }, 400);
+    const result = await handleSetVariantTracks(c.req.param("id"), raw, db);
+    return c.json(result.body, result.status as 200 | 400 | 404);
+  });
+
+  // POST /series/{id}/publish and /unpublish (0009b) : flip the series publish state.
+  app.post("/series/:id/publish", async (c) => {
+    const result = await handleSetSeriesPublished(c.req.param("id"), true, db);
+    return c.json(result.body, result.status as 200 | 400 | 404);
+  });
+  app.post("/series/:id/unpublish", async (c) => {
+    const result = await handleSetSeriesPublished(c.req.param("id"), false, db);
+    return c.json(result.body, result.status as 200 | 400 | 404);
+  });
+
+  // GET /feed (0009b) : published series only, newest first.
+  app.get("/feed", async (c) => {
+    const result = await handleGetFeed(db);
+    return c.json(result.body, result.status as 200);
+  });
+
+  // PATCH /series/{id}/poster (0009c) : store the chosen generated poster URL + C2PA provenance.
+  app.patch("/series/:id/poster", async (c) => {
+    const raw = await readJson(c);
+    if (raw == null) return c.json({ error: "invalid_json" }, 400);
+    const result = await handleSetSeriesPoster(c.req.param("id"), raw, db);
+    return c.json(result.body, result.status as 200 | 400 | 404);
   });
 
   // POST /edges : connect two beats with an optional condition. The handler rejects self-edges and

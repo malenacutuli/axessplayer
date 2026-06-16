@@ -16,6 +16,8 @@ import type {
   VariantRow,
   EdgeRow,
   SeriesGraph,
+  FeedItem,
+  VariantTracks,
 } from "../src/content.js";
 import { assembleGraph } from "../src/pgContentDb.js";
 
@@ -151,6 +153,13 @@ export function pgliteContentDb(db: PGlite): ContentDB {
         placement_slots: out.placement_slots ?? [],
       };
     },
+    async deleteVariant(id: string): Promise<boolean> {
+      const r = await db.query<{ id: string }>(
+        "delete from beat_variants where id = $1 returning id",
+        [id]
+      );
+      return r.rows.length > 0;
+    },
     async insertEdge(row: EdgeRow): Promise<EdgeRow> {
       const r = await db.query<EdgeRow>(
         `insert into beat_edges (from_beat_id, to_beat_id, condition)
@@ -163,7 +172,7 @@ export function pgliteContentDb(db: PGlite): ContentDB {
     },
     async getSeriesGraph(seriesId: string): Promise<SeriesGraph | null> {
       const s = await db.query<Record<string, unknown>>(
-        "select id, title, genre, base_language, available_languages, cover_url from series where id = $1",
+        "select id, title, genre, base_language, available_languages, cover_url, published_at, poster_url, poster_provenance from series where id = $1",
         [seriesId]
       );
       if (s.rows.length === 0) return null;
@@ -177,7 +186,8 @@ export function pgliteContentDb(db: PGlite): ContentDB {
       );
       const variants = await db.query<Record<string, unknown>>(
         `select v.id, v.beat_id, v.language, v.accessibility, v.intensity, v.pov, v.tier, v.is_premium,
-                v.coin_cost, v.playback_url, v.duration_ms, v.qa_status
+                v.coin_cost, v.playback_url, v.duration_ms, v.qa_status,
+                v.caption_doc_url, v.audio_description_url, v.sign_video_url, v.dub_audio_urls
          from beat_variants v join beats b on b.id = v.beat_id
          where b.series_id = $1 order by v.id`,
         [seriesId]
@@ -188,6 +198,7 @@ export function pgliteContentDb(db: PGlite): ContentDB {
          where b.series_id = $1 order by e.from_beat_id, e.to_beat_id`,
         [seriesId]
       );
+      const sp = s.rows[0].poster_provenance;
       const series: SeriesRow = {
         id: s.rows[0].id as string,
         title: s.rows[0].title as string,
@@ -195,8 +206,85 @@ export function pgliteContentDb(db: PGlite): ContentDB {
         base_language: s.rows[0].base_language as string,
         available_languages: (s.rows[0].available_languages as string[]) ?? [],
         cover_url: (s.rows[0].cover_url as string) ?? null,
+        published_at: (s.rows[0].published_at as string) ?? null,
+        poster_url: (s.rows[0].poster_url as string) ?? null,
+        poster_provenance: sp == null ? null : typeof sp === "string" ? JSON.parse(sp) : (sp as Record<string, unknown>),
       };
       return assembleGraph(series, eps.rows, beats.rows, variants.rows, edges.rows);
+    },
+
+    async setVariantTracks(id: string, tracks: VariantTracks): Promise<VariantRow | null> {
+      const r = await db.query<Record<string, unknown>>(
+        `update beat_variants set
+           caption_doc_url       = coalesce($2, caption_doc_url),
+           audio_description_url = coalesce($3, audio_description_url),
+           sign_video_url        = coalesce($4, sign_video_url),
+           dub_audio_urls        = coalesce($5, dub_audio_urls)
+         where id = $1
+         returning id, beat_id, language, accessibility, intensity, pov, tier, is_premium, coin_cost,
+                   playback_url, duration_ms, provenance_id, qa_status, placement_slots,
+                   caption_doc_url, audio_description_url, sign_video_url, dub_audio_urls`,
+        [
+          id,
+          tracks.caption_doc_url ?? null,
+          tracks.audio_description_url ?? null,
+          tracks.sign_video_url ?? null,
+          tracks.dub_audio_urls ? JSON.stringify(tracks.dub_audio_urls) : null,
+        ]
+      );
+      if (r.rows.length === 0) return null;
+      const out = r.rows[0];
+      const dub = out.dub_audio_urls;
+      return {
+        ...(out as unknown as VariantRow),
+        intensity: Number(out.intensity),
+        coin_cost: Number(out.coin_cost),
+        is_premium: Boolean(out.is_premium),
+        duration_ms: out.duration_ms == null ? null : Number(out.duration_ms),
+        accessibility: (out.accessibility as Record<string, unknown>) ?? {},
+        pov: (out.pov as string) ?? null,
+        provenance_id: (out.provenance_id as string) ?? null,
+        placement_slots: (out.placement_slots as unknown[]) ?? [],
+        caption_doc_url: (out.caption_doc_url as string) ?? null,
+        audio_description_url: (out.audio_description_url as string) ?? null,
+        sign_video_url: (out.sign_video_url as string) ?? null,
+        dub_audio_urls: dub == null ? {} : typeof dub === "string" ? JSON.parse(dub) : (dub as Record<string, string>),
+      };
+    },
+
+    async setSeriesPublished(id: string, published: boolean): Promise<{ id: string; published_at: string | null } | null> {
+      const r = await db.query<Record<string, unknown>>(
+        "update series set published_at = case when $2 then now() else null end where id = $1 returning id, published_at",
+        [id, published]
+      );
+      if (r.rows.length === 0) return null;
+      return { id: r.rows[0].id as string, published_at: (r.rows[0].published_at as string) ?? null };
+    },
+
+    async listPublishedSeries(): Promise<FeedItem[]> {
+      const r = await db.query<Record<string, unknown>>(
+        `select id, title, genre, cover_url, poster_url, base_language, available_languages, published_at
+         from series where published_at is not null order by published_at desc, id`
+      );
+      return r.rows.map((row) => ({
+        id: row.id as string,
+        title: row.title as string,
+        genre: (row.genre as string) ?? null,
+        cover_url: (row.cover_url as string) ?? null,
+        poster_url: (row.poster_url as string) ?? null,
+        base_language: row.base_language as string,
+        available_languages: (row.available_languages as string[]) ?? [],
+        published_at: row.published_at as string,
+      }));
+    },
+
+    async setSeriesPoster(id: string, posterUrl: string, provenance: Record<string, unknown>): Promise<{ id: string; poster_url: string } | null> {
+      const r = await db.query<Record<string, unknown>>(
+        "update series set poster_url = $2, poster_provenance = $3 where id = $1 returning id, poster_url",
+        [id, posterUrl, JSON.stringify(provenance)]
+      );
+      if (r.rows.length === 0) return null;
+      return { id: r.rows[0].id as string, poster_url: r.rows[0].poster_url as string };
     },
   };
 }

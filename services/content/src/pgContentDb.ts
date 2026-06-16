@@ -18,6 +18,8 @@ import type {
   BeatRole,
   VariantTier,
   QaStatus,
+  FeedItem,
+  VariantTracks,
 } from "./content.js";
 
 type Q = Pick<pg.Pool, "query">;
@@ -102,6 +104,70 @@ export class PgContentDb implements ContentDB {
     return mapVariant(r.rows[0]);
   }
 
+  async deleteVariant(id: string): Promise<boolean> {
+    const r = await this.db.query(
+      "delete from public.beat_variants where id = $1 returning id",
+      [id]
+    );
+    return r.rows.length > 0;
+  }
+
+  async setVariantTracks(id: string, tracks: VariantTracks): Promise<VariantRow | null> {
+    // coalesce leaves a column unchanged when its param is null, so only provided tracks are written.
+    const r = await this.db.query(
+      `update public.beat_variants set
+         caption_doc_url       = coalesce($2, caption_doc_url),
+         audio_description_url = coalesce($3, audio_description_url),
+         sign_video_url        = coalesce($4, sign_video_url),
+         dub_audio_urls        = coalesce($5, dub_audio_urls)
+       where id = $1
+       returning ${VARIANT_COLS}`,
+      [
+        id,
+        tracks.caption_doc_url ?? null,
+        tracks.audio_description_url ?? null,
+        tracks.sign_video_url ?? null,
+        tracks.dub_audio_urls ? JSON.stringify(tracks.dub_audio_urls) : null,
+      ]
+    );
+    return r.rows[0] ? mapVariant(r.rows[0]) : null;
+  }
+
+  async setSeriesPublished(id: string, published: boolean): Promise<{ id: string; published_at: string | null } | null> {
+    const r = await this.db.query(
+      "update public.series set published_at = case when $2 then now() else null end where id = $1 returning id, published_at",
+      [id, published]
+    );
+    if (r.rows.length === 0) return null;
+    return { id: r.rows[0].id as string, published_at: toIso(r.rows[0].published_at) };
+  }
+
+  async listPublishedSeries(): Promise<FeedItem[]> {
+    const r = await this.db.query(
+      `select id, title, genre, cover_url, poster_url, base_language, available_languages, published_at
+       from public.series where published_at is not null order by published_at desc, id`
+    );
+    return r.rows.map((row) => ({
+      id: row.id as string,
+      title: row.title as string,
+      genre: (row.genre as string) ?? null,
+      cover_url: (row.cover_url as string) ?? null,
+      poster_url: (row.poster_url as string) ?? null,
+      base_language: row.base_language as string,
+      available_languages: (row.available_languages as string[]) ?? [],
+      published_at: toIso(row.published_at) as string,
+    }));
+  }
+
+  async setSeriesPoster(id: string, posterUrl: string, provenance: Record<string, unknown>): Promise<{ id: string; poster_url: string } | null> {
+    const r = await this.db.query(
+      "update public.series set poster_url = $2, poster_provenance = $3 where id = $1 returning id, poster_url",
+      [id, posterUrl, JSON.stringify(provenance)]
+    );
+    if (r.rows.length === 0) return null;
+    return { id: r.rows[0].id as string, poster_url: r.rows[0].poster_url as string };
+  }
+
   async insertEdge(row: EdgeRow): Promise<EdgeRow> {
     const r = await this.db.query(
       `insert into public.beat_edges (from_beat_id, to_beat_id, condition)
@@ -114,7 +180,7 @@ export class PgContentDb implements ContentDB {
 
   async getSeriesGraph(seriesId: string): Promise<SeriesGraph | null> {
     const s = await this.db.query(
-      "select id, title, genre, base_language, available_languages, cover_url from public.series where id = $1",
+      "select id, title, genre, base_language, available_languages, cover_url, published_at, poster_url, poster_provenance from public.series where id = $1",
       [seriesId]
     );
     if (s.rows.length === 0) return null;
@@ -131,7 +197,8 @@ export class PgContentDb implements ContentDB {
     );
     const variants = await this.db.query(
       `select v.id, v.beat_id, v.language, v.accessibility, v.intensity, v.pov, v.tier, v.is_premium,
-              v.coin_cost, v.playback_url, v.duration_ms, v.qa_status
+              v.coin_cost, v.playback_url, v.duration_ms, v.qa_status,
+              v.caption_doc_url, v.audio_description_url, v.sign_video_url, v.dub_audio_urls
        from public.beat_variants v
        join public.beats b on b.id = v.beat_id
        where b.series_id = $1 order by v.id`,
@@ -164,6 +231,9 @@ function mapSeries(r: Record<string, unknown>): SeriesRow {
     base_language: r.base_language as string,
     available_languages: (r.available_languages as string[]) ?? [],
     cover_url: (r.cover_url as string) ?? null,
+    published_at: toIso(r.published_at),
+    poster_url: (r.poster_url as string) ?? null,
+    poster_provenance: toObj(r.poster_provenance),
   };
 }
 function mapEpisode(r: Record<string, unknown>): EpisodeRow {
@@ -203,8 +273,44 @@ function mapVariant(r: Record<string, unknown>): VariantRow {
     provenance_id: (r.provenance_id as string) ?? null,
     qa_status: r.qa_status as QaStatus,
     placement_slots: (r.placement_slots as unknown[]) ?? [],
+    caption_doc_url: (r.caption_doc_url as string) ?? null,
+    audio_description_url: (r.audio_description_url as string) ?? null,
+    sign_video_url: (r.sign_video_url as string) ?? null,
+    dub_audio_urls: toStrMap(r.dub_audio_urls),
   };
 }
+
+// timestamptz comes back as a Date from node-postgres and a string from PGlite; normalize to ISO or null.
+function toIso(v: unknown): string | null {
+  if (v == null) return null;
+  if (v instanceof Date) return v.toISOString();
+  return String(v);
+}
+// jsonb comes back parsed from node-postgres and may be a string from PGlite; normalize to an object or null.
+function toObj(v: unknown): Record<string, unknown> | null {
+  if (v == null) return null;
+  if (typeof v === "string") {
+    try {
+      return JSON.parse(v) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof v === "object") return v as Record<string, unknown>;
+  return null;
+}
+function toStrMap(v: unknown): Record<string, string> {
+  const o = toObj(v);
+  if (!o) return {};
+  const out: Record<string, string> = {};
+  for (const [k, val] of Object.entries(o)) if (typeof val === "string") out[k] = val;
+  return out;
+}
+// All beat_variant columns, for the RETURNING of inserts/updates that map back through mapVariant.
+const VARIANT_COLS =
+  "id, beat_id, language, accessibility, intensity, pov, tier, is_premium, coin_cost, playback_url, " +
+  "duration_ms, provenance_id, qa_status, placement_slots, caption_doc_url, audio_description_url, " +
+  "sign_video_url, dub_audio_urls";
 function mapEdge(r: Record<string, unknown>): EdgeRow {
   return {
     from_beat_id: r.from_beat_id as string,
@@ -238,6 +344,10 @@ export function assembleGraph(
       playback_url: v.playback_url,
       duration_ms: v.duration_ms,
       qa_status: v.qa_status,
+      caption_doc_url: v.caption_doc_url ?? null,
+      audio_description_url: v.audio_description_url ?? null,
+      sign_video_url: v.sign_video_url ?? null,
+      dub_audio_urls: v.dub_audio_urls ?? {},
     });
     variantsByBeat.set(v.beat_id, list);
   }

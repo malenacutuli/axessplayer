@@ -178,3 +178,98 @@ test("a malformed JSON body is 400, not a 500", async () => {
   assert.equal(res.status, 400);
   assert.equal(((await res.json()) as { error: string }).error, "invalid_json");
 });
+
+// ---------- DELETE /variants/{id} ----------
+
+test("DELETE /variants/{id} removes a variant and is idempotent (200 then 404)", async () => {
+  const app = appFor(await freshDb());
+  // Create a fresh variant on the cold-open beat, then delete it over the route.
+  const created = (await (
+    await app.request("/variants", json({ beat_id: FIX.beatColdOpen, tier: "A_filmed", playback_url: "https://cdn/del.m3u8" }))
+  ).json()) as { id: string };
+
+  const del = await app.request(`/variants/${created.id}`, { method: "DELETE" });
+  assert.equal(del.status, 200);
+  assert.deepEqual(await del.json(), { id: created.id, deleted: true });
+
+  // The graph no longer carries it.
+  const g = (await (await app.request(`/series/${FIX.series}/graph`)).json()) as {
+    episodes: { beats: { variants: { id: string }[] }[] }[];
+  };
+  const stillThere = g.episodes[0].beats.some((b) => b.variants.some((v) => v.id === created.id));
+  assert.equal(stillThere, false);
+
+  // Deleting again is a clean 404, not a 500.
+  const again = await app.request(`/variants/${created.id}`, { method: "DELETE" });
+  assert.equal(again.status, 404);
+  assert.equal(((await again.json()) as { error: string }).error, "variant_not_found");
+});
+
+test("DELETE /variants/{id} rejects a malformed id with 400", async () => {
+  const app = appFor(await freshDb());
+  const res = await app.request("/variants/not-a-uuid", { method: "DELETE" });
+  assert.equal(res.status, 400);
+  assert.equal(((await res.json()) as { error: string }).error, "invalid_variant_id");
+});
+
+// ---------- publish / feed (0009b) ----------
+
+test("publish puts a series on the feed; unpublish removes it", async () => {
+  const app = appFor(await freshDb());
+  // Draft: not on the feed.
+  assert.deepEqual(((await (await app.request("/feed")).json()) as { series: unknown[] }).series, []);
+
+  const pub = await app.request(`/series/${FIX.series}/publish`, { method: "POST" });
+  assert.equal(pub.status, 200);
+  assert.ok(((await pub.json()) as { published_at: string }).published_at);
+
+  const feed = (await (await app.request("/feed")).json()) as { series: { id: string }[] };
+  assert.equal(feed.series.length, 1);
+  assert.equal(feed.series[0].id, FIX.series);
+
+  const un = await app.request(`/series/${FIX.series}/unpublish`, { method: "POST" });
+  assert.equal(un.status, 200);
+  assert.equal(((await un.json()) as { published_at: string | null }).published_at, null);
+  assert.deepEqual(((await (await app.request("/feed")).json()) as { series: unknown[] }).series, []);
+});
+
+test("publish on an unknown series is 404", async () => {
+  const app = appFor(await freshDb());
+  const res = await app.request("/series/99999999-9999-9999-9999-999999999999/publish", { method: "POST" });
+  assert.equal(res.status, 404);
+  assert.equal(((await res.json()) as { error: string }).error, "series_not_found");
+});
+
+// ---------- variant tracks (0009a) ----------
+
+test("PATCH /variants/{id}/tracks attaches accessibility track URLs", async () => {
+  const app = appFor(await freshDb());
+  const created = (await (
+    await app.request("/variants", json({ beat_id: FIX.beatColdOpen, tier: "A_filmed", playback_url: "https://cdn/x.m3u8" }))
+  ).json()) as { id: string };
+  const res = await app.request(`/variants/${created.id}/tracks`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ caption_doc_url: "https://ax/cap.json", dub_audio_urls: { es: "https://ax/es.mp3" } }),
+  });
+  assert.equal(res.status, 200);
+  const row = (await res.json()) as { caption_doc_url: string; dub_audio_urls: Record<string, string> };
+  assert.equal(row.caption_doc_url, "https://ax/cap.json");
+  assert.deepEqual(row.dub_audio_urls, { es: "https://ax/es.mp3" });
+});
+
+// ---------- poster (0009c) ----------
+
+test("PATCH /series/{id}/poster stores the poster url", async () => {
+  const app = appFor(await freshDb());
+  const res = await app.request(`/series/${FIX.series}/poster`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ poster_url: "https://posters/ls.png", provenance: { c2pa: true, synthetic: true } }),
+  });
+  assert.equal(res.status, 200);
+  assert.equal(((await res.json()) as { poster_url: string }).poster_url, "https://posters/ls.png");
+  // The graph read now carries it.
+  const g = (await (await app.request(`/series/${FIX.series}/graph`)).json()) as { series: { poster_url: string } };
+  assert.equal(g.series.poster_url, "https://posters/ls.png");
+});
