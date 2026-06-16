@@ -426,7 +426,7 @@ export function Player({
           pointerEvents: "none",
         }}
       >
-        build CAPTIONS-2 (tap-to-play)
+        build CAPTIONS-4 (tap-diag)
       </div>
 
       {/* top bar */}
@@ -674,14 +674,39 @@ function PosterSurface({
   const [soundOn, setSoundOn] = useState(false);
   const soundOnRef = useRef(false);
   soundOnRef.current = soundOn;
-  // A user tap: start playback (a guaranteed user gesture, so it works even when autoplay was blocked) and
-  // turn on sound.
+  // A user tap: start playback (a guaranteed user gesture). Reports its result into the status line so a
+  // "nothing happens" tap is diagnosable: readyState (0 = no media buffered) and any rejection reason.
   const tapToPlay = () => {
     const el = videoRef.current;
-    if (el) {
-      el.muted = false;
-      setSoundOn(true);
-      el.play()?.catch?.(() => {});
+    if (!el) {
+      setStatus("tap: no video element");
+      return;
+    }
+    setSoundOn(true);
+    el.muted = false;
+    setStatus(`tap: play rs=${el.readyState} net=${el.networkState}`);
+    const p = el.play();
+    if (p && typeof p.then === "function") {
+      p.then(() => {
+        setStatus(`tap: playing rs=${el.readyState}`);
+        setPaused(false);
+      }).catch((e: unknown) => {
+        const name = (e as Error)?.name ?? "?";
+        // Unmuted play rejected: retry MUTED (still a gesture).
+        el.muted = true;
+        const p2 = el.play();
+        if (p2 && typeof p2.then === "function") {
+          p2.then(() => {
+            setStatus("tap: playing (muted)");
+            setPaused(false);
+          }).catch((e2: unknown) => setStatus(`tap: BLOCKED ${name} / ${(e2 as Error)?.name ?? "?"}`));
+        } else {
+          setStatus(`tap: rejected ${name}, no retry promise`);
+        }
+      });
+    } else {
+      setStatus("tap: play() returned undefined");
+      setPaused(false);
     }
   };
   // Prefer the per-variant playable video (a real uploaded master), else the global scene clip, else the
@@ -738,24 +763,6 @@ function PosterSurface({
     return () => el.removeEventListener("timeupdate", tick);
   }, [onTimeMs, url]);
 
-  // Track real play/pause so the "Tap to play" overlay shows whenever the frame is not actually playing
-  // (blocked autoplay, buffering, end). Never leave a black frame with no affordance.
-  useEffect(() => {
-    const el = videoRef.current;
-    if (!el) return;
-    const onPlaying = () => setPaused(false);
-    const onPause = () => setPaused(true);
-    el.addEventListener("playing", onPlaying);
-    el.addEventListener("pause", onPause);
-    el.addEventListener("waiting", onPause);
-    el.addEventListener("ended", onPause);
-    return () => {
-      el.removeEventListener("playing", onPlaying);
-      el.removeEventListener("pause", onPause);
-      el.removeEventListener("waiting", onPause);
-      el.removeEventListener("ended", onPause);
-    };
-  }, [url]);
 
   if (url) {
     return (
@@ -772,6 +779,13 @@ function PosterSurface({
           autoPlay
           loop
           playsInline
+          // React video events are more reliable than addEventListener for tracking real play state, so the
+          // "Tap to play" overlay always reflects whether the frame is actually playing.
+          onPlaying={() => setPaused(false)}
+          onPlay={() => setPaused(false)}
+          onPause={() => setPaused(true)}
+          onWaiting={() => setPaused(true)}
+          onEnded={() => setPaused(true)}
           // Keep the gradient as the poster fallback before the clip paints.
           poster=""
           data-playback-url={playbackUrl ?? ""}
@@ -841,6 +855,7 @@ function PosterSurface({
               ▶
             </span>
             <span style={{ fontSize: 15, fontWeight: 700 }}>Tap to play</span>
+            <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "monospace" }}>{status}</span>
           </button>
         )}
         {/* Playing but muted: a small affordance to enable sound. */}
