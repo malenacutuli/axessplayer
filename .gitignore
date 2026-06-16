@@ -14,3 +14,9 @@ contracts/types/generated
 # local media-server uploaded files (dev only)
 tools/media-server/uploads/
 supabase/.temp/
+
+# Large regenerable sign-language datasets (raw + extracted pose/video). ~22GB.
+# These are re-downloadable via tools/accessibility-pipeline scripts; never commit to git.
+# Back these up separately (external drive / object storage), not in the repo.
+tools/accessibility-pipeline/libras-raw/
+tools/accessibility-pipeline/libras-extracted/
