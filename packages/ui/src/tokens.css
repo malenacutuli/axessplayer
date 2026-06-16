@@ -1,0 +1,43 @@
+/* Axessplayer brand tokens as CSS custom properties.
+   Generated companion to tokens.ts. Single source of truth for web and studio.
+   No em dashes. No emoji in product UI. */
+
+:root {
+  --ap-ink: #111114;
+  --ap-ink-soft: #2A2A2E;
+  --ap-electric-rose: #FF2E6E;
+  --ap-electric-rose-hi: #FF5C8D;
+  --ap-electric-rose-lo: #E0246B;
+  --ap-gold: #E8B54B;
+
+  --ap-paper: #FAFAF8;
+  --ap-bone: #F4F2EC;
+  --ap-line: #ECECEC;
+  --ap-muted: #6B6B72;
+  --ap-muted-soft: #9A9AA0;
+  --ap-carbon: #0B0B0D;
+  --ap-slate: #3A3A40;
+  --ap-white: #FFFFFF;
+
+  --ap-danger: #E5484D;
+  --ap-info: #2E8BFF;
+
+  --ap-font-display: Outfit, sans-serif;
+  --ap-font-text: Inter, sans-serif;
+  --ap-font-mono: 'JetBrains Mono', monospace;
+  --ap-font-caption: 'Roboto Flex', sans-serif;
+
+  --ap-space-xs: 4px;
+  --ap-space-sm: 8px;
+  --ap-space-md: 16px;
+  --ap-space-lg: 24px;
+  --ap-space-xl: 40px;
+  --ap-space-xxl: 64px;
+
+  --ap-radius-sm: 6px;
+  --ap-radius-md: 12px;
+  --ap-radius-lg: 20px;
+  --ap-radius-pill: 999px;
+}
+
+::selection { background: var(--ap-electric-rose); color: var(--ap-white); }
