@@ -13,6 +13,7 @@
 // layer in decide(). This file adds none of it and does NOT modify the engine. No em dashes.
 
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import type { operations } from "../../../../contracts/types/generated/decision.js";
 import {
   decide,
@@ -42,6 +43,15 @@ export interface AppDeps {
 // stores plus a real session verifier, while tests wire in-memory stores plus the test verifier.
 export function createDecisionApp(deps: AppDeps): Hono {
   const app = new Hono();
+  // Permissive CORS so the consumer app (browser) can call /decide with its bearer token. No cookies.
+  app.use(
+    "*",
+    cors({
+      origin: "*",
+      allowMethods: ["GET", "POST", "OPTIONS"],
+      allowHeaders: ["content-type", "authorization", "accept"],
+    }),
+  );
   const { decisionDeps, verifiers } = deps;
 
   // POST /decide : sessionAuth. The acting viewer is the session subject, passed to the engine as

@@ -11,6 +11,7 @@
 // in spend_coins/grant_coins and the handlers. This file adds none of it. No em dashes.
 
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import type { paths } from "../../../../contracts/types/generated/economy.js";
 import {
   handleGetWallet,
@@ -36,6 +37,16 @@ export interface AppDeps {
 // PgEconomyDb plus a real JWKS verifier, while tests wire a PGlite DB plus the test verifiers.
 export function createEconomyApp(deps: AppDeps): Hono {
   const app = new Hono();
+  // Permissive CORS so the consumer app (browser, different localhost port) can call /wallet and /spend with
+  // its bearer token. No cookies, so origin "*" is safe.
+  app.use(
+    "*",
+    cors({
+      origin: "*",
+      allowMethods: ["GET", "POST", "OPTIONS"],
+      allowHeaders: ["content-type", "authorization", "accept"],
+    }),
+  );
   const { db, verifiers } = deps;
 
   // GET /wallet : sessionAuth. Self-scoped to the token subject. No user id input exists (F1).

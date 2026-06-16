@@ -19,9 +19,16 @@ function toWebRequest(req: IncomingMessage): Request {
   return new Request(url, { method });
 }
 
-// Copy a Web Response back onto the Node response: status, headers, then the body bytes.
+// Permissive CORS so the consumer app (browser, different localhost port in dev) can fetch manifests.
+const CORS_HEADERS: Record<string, string> = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET, OPTIONS",
+  "access-control-allow-headers": "content-type, authorization, accept",
+};
+
+// Copy a Web Response back onto the Node response: status, headers (plus CORS), then the body bytes.
 async function writeWebResponse(res: ServerResponse, webRes: Response): Promise<void> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...CORS_HEADERS };
   webRes.headers.forEach((value, key) => {
     headers[key] = value;
   });
@@ -38,6 +45,12 @@ export function createServerForDB(db: ManifestDB): Server {
   return createServer((req, res) => {
     void (async () => {
       try {
+        // Preflight: answer OPTIONS directly with the CORS headers.
+        if ((req.method ?? "GET").toUpperCase() === "OPTIONS") {
+          res.writeHead(204, CORS_HEADERS);
+          res.end();
+          return;
+        }
         const webRes = await handler(toWebRequest(req));
         await writeWebResponse(res, webRes);
       } catch {
