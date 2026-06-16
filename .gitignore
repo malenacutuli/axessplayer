@@ -13,3 +13,4 @@ contracts/types/generated
 
 # local media-server uploaded files (dev only)
 tools/media-server/uploads/
+supabase/.temp/
