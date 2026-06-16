@@ -3,7 +3,7 @@
 // viewer who turns a track off stays off. The resolver intersects the viewer's preference with what
 // the variant actually offers, so we never claim a track the cut does not carry. No em dashes.
 
-import type { VariantAccessibility } from "../api/content.js";
+import type { VariantAccessibility, VariantNode } from "../api/content.js";
 
 export interface A11yPreferences {
   captions: boolean;
@@ -55,6 +55,24 @@ export function resolveA11y(
     sign: prefs.sign && !!a.sign,
     language,
     unavailable,
+  };
+}
+
+// Derive a variant's accessibility offering from the PRESENCE of its real track URLs (0009a), not from a
+// separate flag object. URL presence is the single source of truth: the player renders a track only when
+// its asset URL exists, so availability computed this way can never disagree with what actually plays, and
+// no track can silently vanish when a flag and a URL drift apart. Languages are the base language plus any
+// language present in the dub audio map. No em dashes.
+export function accessibilityFromVariant(variant: VariantNode | undefined | null): VariantAccessibility {
+  if (!variant) return { captions: false, audio_description: false, sign: false, languages: [] };
+  const languages = Array.from(
+    new Set([variant.language ?? "en", ...Object.keys(variant.dub_audio_urls ?? {})]),
+  );
+  return {
+    captions: !!variant.caption_doc_url,
+    audio_description: !!variant.audio_description_url,
+    sign: !!variant.sign_video_url,
+    languages,
   };
 }
 

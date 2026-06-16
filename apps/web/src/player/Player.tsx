@@ -19,6 +19,7 @@ import type { Transport } from "@axessplayer/player-sdk";
 import { usePlayer } from "./usePlayer.js";
 import { A11ySheet } from "../a11y/A11ySheet.js";
 import {
+  accessibilityFromVariant,
   loadA11yPreferences,
   resolveA11y,
   saveA11yPreferences,
@@ -187,8 +188,11 @@ export function Player({
   const shown: VariantNode | undefined =
     branch === "calm" ? calmVariant ?? engineCut : branch === "tense" ? tenseVariant ?? engineCut : engineCut;
 
-  const active = resolveA11y(prefs, shown?.accessibility);
-  const availableLanguages = shown?.accessibility?.languages ?? [shown?.language ?? prefs.language];
+  // Availability is derived from the variant's real track URLs (single source of truth), so the resolved
+  // active tracks agree with what the player will actually render. See accessibilityFromVariant.
+  const shownAvail = accessibilityFromVariant(shown);
+  const active = resolveA11y(prefs, shownAvail);
+  const availableLanguages = shownAvail.languages ?? [shown?.language ?? prefs.language];
 
   // A premium cut at the current beat the viewer has not unlocked gates playback behind the paywall.
   const premiumGate: VariantNode | undefined = useMemo(() => {
@@ -241,14 +245,10 @@ export function Player({
 
   // Real per-variant accessibility track availability (0009a). Drives the graceful-absence pattern: a toggle
   // is enabled only when its track exists, and absent tracks render no empty element.
-  const trackAvail = useMemo(
-    () => ({
-      captions: !!playable?.caption_doc_url,
-      audioDescription: !!playable?.audio_description_url,
-      sign: !!playable?.sign_video_url,
-    }),
-    [playable?.caption_doc_url, playable?.audio_description_url, playable?.sign_video_url],
-  );
+  const trackAvail = useMemo(() => {
+    const a = accessibilityFromVariant(playable);
+    return { captions: !!a.captions, audioDescription: !!a.audio_description, sign: !!a.sign };
+  }, [playable?.caption_doc_url, playable?.audio_description_url, playable?.sign_video_url]);
 
   // Dubbing + per-language captions. The base language is the variant's own; other languages are available
   // only when present in dub_audio_urls. Switching language switches BOTH the audio (to the dub track) and the
