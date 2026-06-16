@@ -35,6 +35,10 @@ export interface EconomyServerConfig {
   databaseUrl: string;
   nodeEnv: string | undefined;
   serviceSecret: string | undefined;
+  // Optional Postgres startup options, passed verbatim as the connection `options` parameter. On the shared
+  // hosted project set DB_OPTIONS=-c search_path=mobile,public so unqualified names resolve to the `mobile`
+  // schema. Unset for local dev. The spend/grant RPCs are immune (search_path='' + self-qualified).
+  dbOptions?: string;
 }
 
 // Read the config from the process environment. Throws on a missing DATABASE_URL because the ledger has no
@@ -44,10 +48,12 @@ export function readConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Economy
   if (databaseUrl == null || databaseUrl.length === 0) {
     throw new Error("economy server: DATABASE_URL is required");
   }
+  const dbOptions = env.DB_OPTIONS;
   return {
     databaseUrl,
     nodeEnv: env.NODE_ENV,
     serviceSecret: env.ECONOMY_SERVICE_SECRET,
+    ...(dbOptions != null && dbOptions.length > 0 ? { dbOptions } : {}),
   };
 }
 
@@ -150,7 +156,10 @@ export async function runServer(): Promise<void> {
     const cfg = readConfigFromEnv();
     const port = Number(process.env.PORT ?? 8080);
     const host = process.env.HOST ?? "0.0.0.0";
-    const pool = new pg.Pool({ connectionString: cfg.databaseUrl });
+    const pool = new pg.Pool({
+      connectionString: cfg.databaseUrl,
+      ...(cfg.dbOptions ? { options: cfg.dbOptions } : {}),
+    });
     const app = buildEconomyApp(pool, cfg);
     const { port: bound } = await startServer(app, port, host);
     // eslint-disable-next-line no-console

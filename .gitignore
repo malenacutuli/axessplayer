@@ -8,6 +8,7 @@ dist
 # .env.example files carry variable NAMES only, never values, and must be tracked as the schema template.
 !.env.example
 !**/.env.example
+!**/.env.hosted.example
 .vercel
 contracts/types/generated
 

@@ -24,6 +24,11 @@ import { PgContentDb } from "./pgContentDb.js";
 
 export interface ContentServerConfig {
   databaseUrl: string;
+  // Optional Postgres startup options string, passed verbatim as the connection `options` parameter.
+  // On the shared hosted project set DB_OPTIONS=-c search_path=mobile,public so unqualified table names
+  // resolve to the isolated `mobile` schema. Unset for local dev (default `public` search path). The ledger
+  // RPCs are immune either way (they hard-set search_path='' and self-qualify).
+  dbOptions?: string;
 }
 
 // Read config from the environment. Throws on a missing DATABASE_URL: content reads and writes the content
@@ -33,7 +38,8 @@ export function readConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Content
   if (databaseUrl == null || databaseUrl.length === 0) {
     throw new Error("content server: DATABASE_URL is required");
   }
-  return { databaseUrl };
+  const dbOptions = env.DB_OPTIONS;
+  return { databaseUrl, ...(dbOptions != null && dbOptions.length > 0 ? { dbOptions } : {}) };
 }
 
 // Build the production content app: a node-postgres-backed PgContentDb handed to the existing factory.
@@ -118,7 +124,10 @@ export async function runServer(): Promise<void> {
     const cfg = readConfigFromEnv();
     const port = Number(process.env.PORT ?? 8080);
     const host = process.env.HOST ?? "0.0.0.0";
-    const pool = new pg.Pool({ connectionString: cfg.databaseUrl });
+    const pool = new pg.Pool({
+      connectionString: cfg.databaseUrl,
+      ...(cfg.dbOptions ? { options: cfg.dbOptions } : {}),
+    });
     const app = buildContentApp(pool);
     const { port: bound } = await startServer(app, port, host);
     // eslint-disable-next-line no-console

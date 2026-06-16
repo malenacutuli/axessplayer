@@ -44,6 +44,10 @@ import { InMemoryCohortSeeds } from "./features.js";
 export interface DecisionServerConfig {
   databaseUrl: string;
   nodeEnv: string | undefined;
+  // Optional Postgres startup options, passed verbatim as the connection `options` parameter. On the shared
+  // hosted project set DB_OPTIONS=-c search_path=mobile,public so unqualified names resolve to `mobile`.
+  // Unset for local dev (default `public`).
+  dbOptions?: string;
 }
 
 // Read config from the environment. Throws on a missing DATABASE_URL: the engine reads the content graph
@@ -53,7 +57,8 @@ export function readConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Decisio
   if (databaseUrl == null || databaseUrl.length === 0) {
     throw new Error("decision server: DATABASE_URL is required");
   }
-  return { databaseUrl, nodeEnv: env.NODE_ENV };
+  const dbOptions = env.DB_OPTIONS;
+  return { databaseUrl, nodeEnv: env.NODE_ENV, ...(dbOptions != null && dbOptions.length > 0 ? { dbOptions } : {}) };
 }
 
 // Choose the verifiers. In production a real JWKS-backed Verifiers MUST be injected; the test verifier is
@@ -227,7 +232,10 @@ export async function runServer(): Promise<void> {
     const cfg = readConfigFromEnv();
     const port = Number(process.env.PORT ?? 8080);
     const host = process.env.HOST ?? "0.0.0.0";
-    const pool = new pg.Pool({ connectionString: cfg.databaseUrl });
+    const pool = new pg.Pool({
+      connectionString: cfg.databaseUrl,
+      ...(cfg.dbOptions ? { options: cfg.dbOptions } : {}),
+    });
     const app = buildDecisionApp(pool, cfg);
     const { port: bound } = await startServer(app, port, host);
     // eslint-disable-next-line no-console
