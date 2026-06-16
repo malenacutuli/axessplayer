@@ -1,15 +1,14 @@
 // Media & variants panel: a drop zone (drag a 9:16 master, auto-encodes to HLS), the real variant list for
-// the selected beat with an encode/QA status, and an inspector (Cut, Language, Accessibility chips, Tier,
-// Provenance C2PA). "Upload a variant" creates a beat_variant via POST /variants with
-// language/intensity/tier/is_premium/coin_cost/playback_url, then refreshes.
-//
-// OUT OF SCOPE (flagged): real file upload and HLS encoding are the generation pipeline. Here we accept a
-// playback_url (or a placeholder) and create the row, exactly as the brief scopes it. No em dashes.
-import { useRef, useState, type DragEvent, type FormEvent } from "react";
+// the selected beat with a truthful encode/QA status, and an inspector (Cut, Language, Accessibility chips,
+// Tier, Provenance C2PA). A staged master is uploaded for real and HLS-encoded by the local media server; the
+// resulting master.m3u8 is registered as a beat_variant (qa_status passed) via POST /variants, then refreshes.
+// A pasted URL or a blank placeholder is registered as-is. Row status never lies: passed reads "encoded",
+// placeholder/demo rows read "placeholder (no media)", not a perpetual "encoding...". No em dashes.
+import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { useContentClient } from "../../api/useContentClient.js";
 import { ContentApiError } from "../../api/client.js";
 import { VARIANT_TIERS, type VariantTier } from "../../api/contractGap.js";
-import { isPlayableVideoUrl, uploadMaster } from "../../api/media.js";
+import { attachHls, deleteMedia, isPlayableVideoUrl, pingMediaServer, uploadAndEncode } from "../../api/media.js";
 import type { FlatGraph, FlatBeat, FlatVariant } from "../../api/flattenGraph.js";
 
 export interface MediaPanelProps {
@@ -18,6 +17,7 @@ export interface MediaPanelProps {
   onSelectBeat: (beatId: string) => void;
   onCreated: () => void;
   onGoToPricing: () => void;
+  onGoToPublish: () => void;
 }
 
 // Map intensity to a poster gradient class for the variant thumbnail, mirroring the prototype.
@@ -26,10 +26,23 @@ function thumbClass(v: FlatVariant): string {
   return v.intensity >= 4 ? "gtense" : v.intensity <= 2 ? "gcalm" : "gp";
 }
 
-function encodeLabel(v: FlatVariant): { detail: string; ready: boolean } {
-  if (v.qa_status === "passed") return { detail: "encoded", ready: true };
-  if (v.qa_status === "rejected") return { detail: "rejected", ready: false };
-  return { detail: "encoding...", ready: false };
+// A placeholder/demo URL (cdn.example or a /placeholder/ path) was never uploaded and never encoded, so it
+// must NOT read "encoding..." forever. Only a real media-server master that has not yet passed QA is pending.
+function isPlaceholderUrl(url: string | undefined): boolean {
+  if (!url) return true;
+  return /cdn\.example|\/placeholder\//i.test(url);
+}
+
+type VariantMediaState = "ready" | "pending" | "placeholder" | "rejected";
+
+// The TRUTHFUL row status. qa_status is the source of truth for the encode/QA outcome; a persisted pending row
+// is not actively encoding (live encode is shown on the upload form, not here), so pending real media reads
+// "uploaded, QA pending" and a placeholder reads "placeholder (no media)". Never a perpetual "encoding...".
+function variantMedia(v: FlatVariant): { detail: string; state: VariantMediaState } {
+  if (v.qa_status === "passed") return { detail: "encoded", state: "ready" };
+  if (v.qa_status === "rejected") return { detail: "rejected", state: "rejected" };
+  if (isPlaceholderUrl(v.playback_url)) return { detail: "placeholder (no media)", state: "placeholder" };
+  return { detail: "uploaded, QA pending", state: "pending" };
 }
 
 export function MediaPanel({
@@ -38,6 +51,7 @@ export function MediaPanel({
   onSelectBeat,
   onCreated,
   onGoToPricing,
+  onGoToPublish,
 }: MediaPanelProps): JSX.Element {
   const beat: FlatBeat | undefined =
     (selectedBeatId ? graph.beatById.get(selectedBeatId) : undefined) ?? graph.beats[0];
@@ -54,6 +68,47 @@ export function MediaPanel({
   // The most recently uploaded or selected playable variant, shown in the preview player so the author can
   // confirm the real video plays.
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // Media server reachability, so an upload that cannot work is flagged BEFORE the author tries.
+  const [mediaUp, setMediaUp] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void pingMediaServer().then((ok) => {
+      if (alive) setMediaUp(ok);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Remove a variant: delete the beat_variant row and best-effort prune the encoded video on the media server,
+  // then refresh the graph. Confirmed first because it is destructive and not undoable.
+  const client = useContentClient();
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const onRemove = async (v: FlatVariant) => {
+    const ok = window.confirm(
+      `Remove this ${v.is_premium ? "premium " : ""}variant and delete its uploaded video? This cannot be undone.`,
+    );
+    if (!ok) return;
+    setRemoving(v.id);
+    setRemoveError(null);
+    try {
+      await client.deleteVariant(v.id);
+      await deleteMedia(v.playback_url);
+      if (previewUrl === v.playback_url) setPreviewUrl(null);
+      onCreated();
+    } catch (err) {
+      setRemoveError(
+        err instanceof ContentApiError
+          ? (err.apiError ?? `error_${err.status}`)
+          : err instanceof Error
+            ? err.message
+            : "remove_failed",
+      );
+    } finally {
+      setRemoving(null);
+    }
+  };
 
   const acceptFile = (file: File | null | undefined) => {
     if (file) setPicked(file);
@@ -71,10 +126,21 @@ export function MediaPanel({
           <div className="ey rose">{beatLabel}</div>
           <h2 style={{ marginTop: 8 }}>Media &amp; variants</h2>
         </div>
-        <button type="button" className="btn" onClick={onGoToPricing} data-testid="goto-pricing">
-          Pricing →
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button type="button" className="btn" onClick={onGoToPricing} data-testid="goto-pricing">
+            Pricing →
+          </button>
+          <button type="button" className="btn pri" onClick={onGoToPublish} data-testid="goto-publish-from-media">
+            Publish →
+          </button>
+        </div>
       </div>
+
+      {mediaUp === false ? (
+        <p className="statusline err" role="alert" data-testid="media-server-down">
+          Media server not running, so uploads will fail. Start it: node tools/media-server/server.mjs
+        </p>
+      ) : null}
 
       <div className="insp">
         <div>
@@ -124,8 +190,8 @@ export function MediaPanel({
                 <strong data-testid="picked-name">{picked.name}</strong>
                 <br />
                 <span className="muted">
-                  {(picked.size / 1_000_000).toFixed(1)} MB selected. Set the fields and press Upload variant
-                  to register it (real encode is the generation pipeline).
+                  {(picked.size / 1_000_000).toFixed(1)} MB selected. Set the fields and press Upload and
+                  encode: it is uploaded and HLS-encoded for real, then plays back here.
                 </span>
               </>
             ) : (
@@ -144,50 +210,71 @@ export function MediaPanel({
               </p>
             ) : (
               beatVariants.map((v) => {
-                const enc = encodeLabel(v);
+                const m = variantMedia(v);
                 return (
-                  <button
+                  <div
                     key={v.id}
-                    type="button"
-                    className="vrow"
-                    data-testid={`variant-row-${v.id}`}
-                    onClick={() => {
-                      if (beat) onSelectBeat(beat.id);
-                      if (isPlayableVideoUrl(v.playback_url)) setPreviewUrl(v.playback_url);
-                    }}
+                    className="vrowwrap"
+                    style={{ display: "flex", alignItems: "stretch", gap: 6 }}
                   >
-                    <div className={`th ${thumbClass(v)}`} />
-                    <div className="meta">
-                      <div>
-                        {v.is_premium ? "Premium" : "Cut"} - {v.language.toUpperCase()} - intensity{" "}
-                        {v.intensity}
+                    <button
+                      type="button"
+                      className="vrow"
+                      style={{ flex: 1 }}
+                      data-testid={`variant-row-${v.id}`}
+                      onClick={() => {
+                        if (beat) onSelectBeat(beat.id);
+                        if (isPlayableVideoUrl(v.playback_url)) setPreviewUrl(v.playback_url);
+                      }}
+                    >
+                      <div className={`th ${thumbClass(v)}`} />
+                      <div className="meta">
+                        <div>
+                          {v.is_premium ? "Premium" : "Cut"} - {v.language.toUpperCase()} - intensity{" "}
+                          {v.intensity}
+                        </div>
+                        <div className="muted" data-testid={`variant-status-${v.id}`}>
+                          {v.tier} - {m.detail}
+                          {v.is_premium ? ` - ${v.coin_cost} coins` : ""}
+                        </div>
                       </div>
-                      <div className="muted">
-                        {v.tier} - {enc.detail}
-                        {v.is_premium ? ` - ${v.coin_cost} coins` : ""}
-                      </div>
-                    </div>
-                    {enc.ready ? (
-                      <span className="ok">✓ READY</span>
-                    ) : (
-                      <span className="muted">⏳</span>
-                    )}
-                  </button>
+                      {m.state === "ready" ? (
+                        <span className="ok">✓ READY</span>
+                      ) : m.state === "rejected" ? (
+                        <span className="muted">✕ rejected</span>
+                      ) : m.state === "placeholder" ? (
+                        <span className="muted">demo</span>
+                      ) : (
+                        <span className="muted">⏳ QA</span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      data-testid={`variant-remove-${v.id}`}
+                      aria-label="Remove variant"
+                      title="Remove this variant and delete its uploaded video"
+                      disabled={removing === v.id}
+                      onClick={() => void onRemove(v)}
+                    >
+                      {removing === v.id ? "Removing..." : "Remove"}
+                    </button>
+                  </div>
                 );
               })
             )}
           </div>
 
+          {removeError ? (
+            <p className="statusline err" role="alert" data-testid="variant-remove-error">
+              Remove failed: {removeError}
+            </p>
+          ) : null}
+
           {previewUrl ? (
             <div className="preview" data-testid="variant-preview">
               <div className="scaption" style={{ marginTop: 14 }}>Preview</div>
-              <video
-                src={previewUrl}
-                controls
-                playsInline
-                data-testid="preview-video"
-                style={{ width: "100%", maxHeight: 340, borderRadius: 12, background: "#000" }}
-              />
+              <PreviewVideo url={previewUrl} />
             </div>
           ) : null}
         </div>
@@ -205,10 +292,10 @@ export function MediaPanel({
 
       <div className="note">
         <span className="notetag">PIPELINE</span>
-        Choose a master and press Upload: the file is uploaded for real to the local media server, registered
-        as a beat_variant, and plays in the preview above and in the consumer app. HLS transcode + CDN are the
-        production path (Path A points this at the S3 presigner). These fields are what the manifest and
-        decision services consume.
+        Choose a master and press Upload and encode: the file is uploaded for real to the local media server,
+        HLS-encoded (ffmpeg to master.m3u8), registered as a beat_variant with qa_status passed, and plays in
+        the preview above and in the consumer app via hls.js. Production swaps the local server for sovereign
+        object storage and a CDN (Path A). These fields are what the manifest and decision services consume.
       </div>
     </div>
   );
@@ -217,6 +304,7 @@ export function MediaPanel({
 type Status =
   | { state: "idle" }
   | { state: "uploading" }
+  | { state: "encoding" }
   | { state: "submitting" }
   | { state: "ok"; message: string }
   | { state: "error"; message: string };
@@ -246,13 +334,15 @@ function UploadVariantInspector({
     e.preventDefault();
     if (!beat) return;
     try {
-      // Resolve the playback URL. If a master file is staged, upload it FOR REAL to the media server and
-      // use the served URL; otherwise use a pasted URL, else a beat-scoped placeholder. This is the real
-      // upload path locally; under Path A it points at the S3 presigner instead (same client shape).
+      // The REAL ingest lifecycle. A staged master is uploaded and HLS-ENCODED by the media server; we wait
+      // for the encode to be READY and register the resulting master.m3u8 with qa_status passed (so the row
+      // shows encoded, truthfully). A pasted URL or a blank placeholder is registered as-is (still pending).
       let url = playbackUrl.trim();
+      let encoded = false;
       if (picked) {
-        setStatus({ state: "uploading" });
-        url = (await uploadMaster(picked)).url;
+        const result = await uploadAndEncode(picked, { onState: (s) => setStatus({ state: s }) });
+        url = result.url;
+        encoded = true;
       } else if (!url) {
         url = `https://cdn.example/placeholder/${beat.id}.m3u8`;
       }
@@ -266,6 +356,7 @@ function UploadVariantInspector({
         coin_cost: Number.parseInt(coinCost, 10) || 0,
         playback_url: url,
         accessibility: { captions, audio_description: audioDesc, sign },
+        qa_status: encoded ? "passed" : undefined,
       });
       setStatus({ state: "ok", message: row.id });
       onCreated(url);
@@ -379,27 +470,72 @@ function UploadVariantInspector({
         <button
           type="submit"
           className="btn pri"
-          disabled={status.state === "submitting" || status.state === "uploading" || !beat}
+          disabled={
+            status.state === "submitting" ||
+            status.state === "uploading" ||
+            status.state === "encoding" ||
+            !beat
+          }
         >
           {status.state === "uploading"
             ? "Uploading..."
-            : status.state === "submitting"
-              ? "Registering..."
-              : picked
-                ? "Upload and register"
-                : "Upload variant"}
+            : status.state === "encoding"
+              ? "Encoding to HLS..."
+              : status.state === "submitting"
+                ? "Registering..."
+                : picked
+                  ? "Upload and encode"
+                  : "Upload variant"}
         </button>
       </div>
+      {status.state === "uploading" || status.state === "encoding" || status.state === "submitting" ? (
+        <p className="statusline" role="status" data-testid="form-variant-progress">
+          {status.state === "uploading"
+            ? "Uploading master..."
+            : status.state === "encoding"
+              ? "Encoding to HLS (ffmpeg). The row turns ready on its own."
+              : "Registering variant..."}
+        </p>
+      ) : null}
       {status.state === "ok" ? (
         <p className="statusline ok" role="status" data-testid="form-variant-ok">
-          Created {status.message}
+          Ready: {status.message}
         </p>
       ) : null}
       {status.state === "error" ? (
         <p className="statusline err" role="alert" data-testid="form-variant-error">
-          Error: {status.message}
+          Failed: {status.message}
         </p>
       ) : null}
     </form>
+  );
+}
+
+// Plays a variant URL, using hls.js for the encoded master.m3u8 (and native src for plain video).
+function PreviewVideo({ url }: { url: string }): JSX.Element {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    let alive = true;
+    let cleanup = () => {};
+    void attachHls(v, url).then((c) => {
+      if (alive) cleanup = c;
+      else c();
+    });
+    return () => {
+      alive = false;
+      cleanup();
+    };
+  }, [url]);
+  return (
+    <video
+      ref={ref}
+      controls
+      playsInline
+      data-testid="preview-video"
+      data-src={url}
+      style={{ width: "100%", maxHeight: 340, borderRadius: 12, background: "#000" }}
+    />
   );
 }

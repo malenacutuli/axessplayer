@@ -1,13 +1,16 @@
 // Publish panel: a validity checklist (derived from the real flattened graph) plus a "Publish to feed" bar.
 //
-// OUT OF SCOPE (flagged): there is no publish endpoint in the content service. "Publish to feed" is a
-// FLAGGED NO-OP here; it surfaces a confirmation but does not call the backend. Wiring it needs a content
-// (or feed) contract addition. No em dashes.
+// 0009b: "Publish to feed" is REAL. It calls POST /series/{id}/publish, which sets published_at, and the
+// consumer feed (GET /feed) then shows the series. Unpublish clears it. No em dashes.
 import { useState } from "react";
 import type { FlatGraph } from "../../api/flattenGraph.js";
+import { useContentClient } from "../../api/useContentClient.js";
+import { ContentApiError } from "../../api/client.js";
 
 export interface PublishPanelProps {
   graph: FlatGraph;
+  // Refresh the graph after a publish/unpublish so the panel reflects the new published_at.
+  onPublished: () => void;
 }
 
 interface Check {
@@ -61,9 +64,32 @@ function buildChecks(graph: FlatGraph): Check[] {
   ];
 }
 
-export function PublishPanel({ graph }: PublishPanelProps): JSX.Element {
-  const [published, setPublished] = useState(false);
+export function PublishPanel({ graph, onPublished }: PublishPanelProps): JSX.Element {
+  const client = useContentClient();
   const checks = buildChecks(graph);
+  const isPublished = Boolean(graph.publishedAt);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onPublish = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (isPublished) await client.unpublishSeries(graph.seriesId);
+      else await client.publishSeries(graph.seriesId);
+      onPublished();
+    } catch (err) {
+      setError(
+        err instanceof ContentApiError
+          ? (err.apiError ?? `error_${err.status}`)
+          : err instanceof Error
+            ? err.message
+            : "publish_failed",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="spanel" data-testid="panel-publish">
@@ -84,30 +110,41 @@ export function PublishPanel({ graph }: PublishPanelProps): JSX.Element {
 
       <div className="pubbar">
         <div>
-          <div style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}>Ready to publish English</div>
-          <div className="muted">Other languages roll out as they finish encoding</div>
+          <div style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}>
+            {isPublished ? "Live on the feed" : "Ready to publish English"}
+          </div>
+          <div className="muted">
+            {isPublished
+              ? `Published ${new Date(graph.publishedAt as string).toLocaleString()}`
+              : "Other languages roll out as they finish encoding"}
+          </div>
         </div>
         <button
           type="button"
           className="btn pri"
-          onClick={() => setPublished(true)}
+          onClick={() => void onPublish()}
+          disabled={busy}
           data-testid="publish-to-feed"
         >
-          Publish to feed
+          {busy ? "Working..." : isPublished ? "Unpublish" : "Publish to feed"}
         </button>
       </div>
 
-      {published ? (
+      {isPublished ? (
         <p className="statusline ok" role="status" data-testid="publish-confirmation">
-          Published (flagged no-op). Wiring this to the feed needs a publish endpoint in the content
-          contract; nothing was sent to the backend.
+          Live on the consumer feed. Unpublish to remove it.
+        </p>
+      ) : null}
+      {error ? (
+        <p className="statusline err" role="alert" data-testid="publish-error">
+          Publish failed: {error}
         </p>
       ) : null}
 
       <div className="note">
-        <span className="notetag">OUT OF SCOPE</span>
-        Publish is a flagged no-op: the content service exposes no publish route. The checklist is derived
-        live from the real graph.
+        <span className="notetag">FEED</span>
+        Publish sets the series live: the consumer "For you" feed (GET /feed) shows only published series.
+        The checklist is derived live from the real graph.
       </div>
     </div>
   );

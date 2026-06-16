@@ -85,6 +85,8 @@ export interface SeriesRow {
   base_language: string;
   available_languages: string[];
   cover_url: string | null;
+  published_at?: string | null;
+  poster_url?: string | null;
 }
 export interface EpisodeRow {
   id: string;

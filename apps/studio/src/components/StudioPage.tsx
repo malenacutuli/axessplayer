@@ -8,6 +8,7 @@ import { SideRail, type PanelId } from "./studio/SideRail.js";
 import { LibraryPanel } from "./studio/LibraryPanel.js";
 import { BranchEditorPanel } from "./studio/BranchEditorPanel.js";
 import { MediaPanel } from "./studio/MediaPanel.js";
+import { PosterPanel } from "./studio/PosterPanel.js";
 import { PricingPanel } from "./studio/PricingPanel.js";
 import { PublishPanel } from "./studio/PublishPanel.js";
 import { useFlatGraph } from "../api/useFlatGraph.js";
@@ -78,7 +79,11 @@ export function StudioPage(): JSX.Element {
                 onSelectBeat={selectBeat}
                 onCreated={reload}
                 onGoToPricing={() => setPanel("pricing")}
+                onGoToPublish={() => setPanel("publish")}
               />
+            )}
+            {panel === "poster" && graphState.status === "loaded" && (
+              <PosterPanel graph={graphState.graph} onPosterSet={reload} />
             )}
             {panel === "pricing" && graphState.status === "loaded" && (
               <PricingPanel
@@ -88,7 +93,7 @@ export function StudioPage(): JSX.Element {
               />
             )}
             {panel === "publish" && graphState.status === "loaded" && (
-              <PublishPanel graph={graphState.graph} />
+              <PublishPanel graph={graphState.graph} onPublished={reload} />
             )}
           </div>
         </div>

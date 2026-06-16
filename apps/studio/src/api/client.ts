@@ -98,6 +98,44 @@ export class ContentClient {
   createEdge(body: CreateEdgeBody): Promise<EdgeRow> {
     return this.sendJson<EdgeRow>("/edges", body);
   }
+  // DELETE /variants/{id} : remove a beat_variant. Resolves on 200, throws ContentApiError on 4xx (e.g. a 404
+  // variant_not_found). No body, so F1 (no user_id) is not in play here.
+  async deleteVariant(id: string): Promise<{ id: string; deleted: true }> {
+    const res = await this.fetchImpl(joinUrl(this.baseUrl, `/variants/${encodeURIComponent(id)}`), {
+      method: "DELETE",
+      headers: { accept: "application/json" },
+    });
+    return this.parse<{ id: string; deleted: true }>(res);
+  }
+
+  // POST /series/{id}/publish | /unpublish (0009b) : flip publish state. No body.
+  async publishSeries(id: string): Promise<{ id: string; published_at: string | null }> {
+    const res = await this.fetchImpl(joinUrl(this.baseUrl, `/series/${encodeURIComponent(id)}/publish`), {
+      method: "POST",
+      headers: { accept: "application/json" },
+    });
+    return this.parse(res);
+  }
+  async unpublishSeries(id: string): Promise<{ id: string; published_at: string | null }> {
+    const res = await this.fetchImpl(joinUrl(this.baseUrl, `/series/${encodeURIComponent(id)}/unpublish`), {
+      method: "POST",
+      headers: { accept: "application/json" },
+    });
+    return this.parse(res);
+  }
+
+  // PATCH /series/{id}/poster (0009c) : store the chosen generated poster URL + C2PA provenance.
+  async setSeriesPoster(
+    id: string,
+    body: { poster_url: string; provenance?: Record<string, unknown> },
+  ): Promise<{ id: string; poster_url: string }> {
+    const res = await this.fetchImpl(joinUrl(this.baseUrl, `/series/${encodeURIComponent(id)}/poster`), {
+      method: "PATCH",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify(stripUserId(body)),
+    });
+    return this.parse(res);
+  }
 
   // Post a JSON body and parse the 201/4xx. F1: strip any stray user_id before it can be sent.
   private async sendJson<T>(path: string, body: unknown): Promise<T> {

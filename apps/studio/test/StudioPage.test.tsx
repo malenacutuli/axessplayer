@@ -10,16 +10,24 @@ import { ContentClientContext } from "../src/api/useContentClient.js";
 import { StudioPage } from "../src/components/StudioPage.js";
 import { createFakeContentServer, type FakeServer } from "./fakeContentServer.js";
 
-// The Media panel uploads the staged master to the media server. Mock that network call so the test stays
-// hermetic; the mock returns a served /media URL exactly as the real media server would.
+// The Media panel uploads + HLS-encodes the staged master via the media server. Mock that network call so
+// the test stays hermetic; the mock walks the lifecycle (uploading -> encoding) and returns a master.m3u8
+// exactly as the real media server would after a successful encode.
 vi.mock("../src/api/media.js", () => ({
-  uploadMaster: vi.fn(async (file: File) => ({
-    url: `http://127.0.0.1:8095/media/${file.name.replace(/\s+/g, "-")}`,
-    name: file.name,
-    size: file.size,
-  })),
+  uploadAndEncode: vi.fn(async (file: File, opts?: { onState?: (s: "uploading" | "encoding") => void }) => {
+    opts?.onState?.("uploading");
+    opts?.onState?.("encoding");
+    return { url: `http://127.0.0.1:8095/media/${file.name.replace(/\s+/g, "-")}/master.m3u8`, jobId: "job-1" };
+  }),
   isPlayableVideoUrl: (u: string | undefined) =>
-    !!u && (/\.(mp4|m4v|mov|webm|ogv|ogg)(\?|$)/i.test(u) || u.includes("/media/")),
+    !!u && (/\.(m3u8|mp4|m4v|mov|webm|ogv|ogg)(\?|$)/i.test(u) || u.includes("/media/")),
+  pingMediaServer: vi.fn(async () => true),
+  attachHls: vi.fn(async () => () => {}),
+  deleteMedia: vi.fn(async () => true),
+  mediaIdFromUrl: (u: string | undefined) => {
+    const m = u?.match(/\/media\/([^/]+)\//);
+    return m ? m[1] : null;
+  },
   mediaBaseUrl: () => "http://127.0.0.1:8095",
 }));
 
@@ -117,6 +125,38 @@ describe("StudioPage", () => {
     }
   });
 
+  it("removes a variant (DELETE /variants/{id}) and the list shrinks by one", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const user = userEvent.setup();
+    renderStudio(server);
+    await user.click(screen.getByTestId("library-card-live"));
+    await waitFor(() => expect(screen.getByTestId("panel-branch")).toBeInTheDocument());
+
+    await user.click(screen.getByTestId("gnode-bbbbbbbb-0000-0000-0000-000000000001"));
+    await user.click(screen.getByTestId("goto-media"));
+    const mediaPanel = await screen.findByTestId("panel-media");
+    const rows = within(mediaPanel)
+      .getByTestId("variant-list")
+      .querySelectorAll('[data-testid^="variant-row-"]');
+    const before = rows.length;
+    expect(before).toBeGreaterThan(0);
+    // The first row's id is encoded in its remove button testid.
+    const firstId = rows[0].getAttribute("data-testid")!.replace("variant-row-", "");
+
+    await user.click(within(mediaPanel).getByTestId(`variant-remove-${firstId}`));
+
+    await waitFor(() => {
+      const after = screen
+        .getByTestId("variant-list")
+        .querySelectorAll('[data-testid^="variant-row-"]').length;
+      expect(after).toBe(before - 1);
+    });
+    // The removed row is gone and no remove error surfaced.
+    expect(screen.queryByTestId(`variant-row-${firstId}`)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("variant-remove-error")).not.toBeInTheDocument();
+    confirmSpy.mockRestore();
+  });
+
   it("stages a chosen master in the drop zone and registers it with a derived URL", async () => {
     const user = userEvent.setup();
     renderStudio(server);
@@ -133,19 +173,20 @@ describe("StudioPage", () => {
     await user.upload(input, file);
     expect(within(mediaPanel).getByTestId("picked-name")).toHaveTextContent("Rooftop Master.mov");
 
-    // Register with NO playback URL typed: the staged master is uploaded for real and the served URL is
-    // registered as the beat_variant playback_url.
-    await user.click(within(mediaPanel).getByRole("button", { name: "Upload and register" }));
+    // Register with NO playback URL typed: the staged master is uploaded + HLS-encoded and the resulting
+    // master.m3u8 is registered as the beat_variant playback_url, with qa_status passed (encode succeeded).
+    await user.click(within(mediaPanel).getByRole("button", { name: "Upload and encode" }));
     await screen.findByTestId("form-variant-ok");
     const lastVariantPost = server.lastBodies.filter((b) => b.path === "/variants").at(-1);
     expect(lastVariantPost?.body).toMatchObject({
       beat_id: "bbbbbbbb-0000-0000-0000-000000000001",
-      playback_url: "http://127.0.0.1:8095/media/Rooftop-Master.mov",
+      playback_url: "http://127.0.0.1:8095/media/Rooftop-Master.mov/master.m3u8",
+      qa_status: "passed",
     });
-    // The uploaded variant plays back in the preview.
+    // The encoded variant is shown in the preview player.
     expect(await screen.findByTestId("preview-video")).toHaveAttribute(
-      "src",
-      "http://127.0.0.1:8095/media/Rooftop-Master.mov",
+      "data-src",
+      "http://127.0.0.1:8095/media/Rooftop-Master.mov/master.m3u8",
     );
   });
 
@@ -168,7 +209,7 @@ describe("StudioPage", () => {
     expect(lastPost?.body).toMatchObject({ is_premium: true, coin_cost: 7 });
   });
 
-  it("renders the Publish checklist derived from the real graph (publish is a flagged no-op)", async () => {
+  it("publishes the series for real (POST /series/{id}/publish) and reflects the live state", async () => {
     const user = userEvent.setup();
     renderStudio(server);
     await user.click(screen.getByTestId("library-card-live"));
@@ -181,8 +222,11 @@ describe("StudioPage", () => {
     expect(within(publish).getByTestId("publish-checklist")).toBeInTheDocument();
     expect(within(publish).getByText(/Premium ending priced \(5 coins\)/)).toBeInTheDocument();
 
-    await user.click(within(publish).getByTestId("publish-to-feed"));
-    expect(await screen.findByTestId("publish-confirmation")).toHaveTextContent("flagged no-op");
+    // Publish: the button calls the real route; after the graph reloads the panel shows the live state and
+    // the button flips to Unpublish.
+    await user.click(within(publish).getByRole("button", { name: "Publish to feed" }));
+    expect(await screen.findByTestId("publish-confirmation")).toHaveTextContent(/Live on the consumer feed/);
+    expect(await screen.findByRole("button", { name: "Unpublish" })).toBeInTheDocument();
   });
 
   it("shows a load error when the series graph is missing", async () => {

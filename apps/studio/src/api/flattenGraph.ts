@@ -47,6 +47,9 @@ export interface FlatGraph {
   seriesId: string;
   seriesTitle: string;
   baseLanguage: string;
+  // 0009b/0009c: publish state (null = draft) and the chosen poster URL, for the Publish panel and library card.
+  publishedAt: string | null;
+  posterUrl: string | null;
   episodeCount: number;
   beats: FlatBeat[];
   variants: FlatVariant[];
@@ -106,6 +109,8 @@ export function flattenGraph(graph: SeriesGraph): FlatGraph {
     seriesId: graph.series.id,
     seriesTitle: graph.series.title,
     baseLanguage: graph.series.base_language,
+    publishedAt: graph.series.published_at ?? null,
+    posterUrl: graph.series.poster_url ?? null,
     episodeCount: graph.episodes.length,
     beats,
     variants,

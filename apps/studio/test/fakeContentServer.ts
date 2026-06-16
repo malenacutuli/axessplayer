@@ -106,6 +106,21 @@ export function createFakeContentServer(): FakeServer {
     const method = (init?.method ?? "GET").toUpperCase();
 
     if (method === "GET") {
+      if (path === "/feed") {
+        const list = [...series.values()]
+          .filter((s) => s.published_at)
+          .map((s) => ({
+            id: s.id,
+            title: s.title,
+            genre: s.genre,
+            cover_url: s.cover_url,
+            poster_url: s.poster_url ?? null,
+            base_language: s.base_language,
+            available_languages: s.available_languages,
+            published_at: s.published_at,
+          }));
+        return json(200, { series: list });
+      }
       const m = path.match(/^\/series\/([^/]+)\/graph$/);
       if (m) {
         const id = decodeURIComponent(m[1]);
@@ -117,7 +132,51 @@ export function createFakeContentServer(): FakeServer {
       return json(404, { error: "not_found" });
     }
 
+    if (method === "PATCH") {
+      let pbody: unknown;
+      try {
+        pbody = init?.body ? JSON.parse(init.body as string) : undefined;
+      } catch {
+        return json(400, { error: "invalid_json" });
+      }
+      const posterM = path.match(/^\/series\/([^/]+)\/poster$/);
+      if (posterM) {
+        const s = series.get(decodeURIComponent(posterM[1]));
+        if (!s) return json(404, { error: "series_not_found" });
+        if (!isObject(pbody) || typeof pbody.poster_url !== "string") return json(400, { error: "invalid_poster_url" });
+        s.poster_url = pbody.poster_url;
+        return json(200, { id: s.id, poster_url: s.poster_url });
+      }
+      const tracksM = path.match(/^\/variants\/([^/]+)\/tracks$/);
+      if (tracksM) {
+        const v = variants.get(decodeURIComponent(tracksM[1]));
+        if (!v) return json(404, { error: "variant_not_found" });
+        return json(200, v);
+      }
+      return json(404, { error: "not_found" });
+    }
+
+    if (method === "DELETE") {
+      const mv = path.match(/^\/variants\/([^/]+)$/);
+      if (mv) {
+        const id = decodeURIComponent(mv[1]);
+        if (!UUID_RE.test(id)) return json(400, { error: "invalid_variant_id" });
+        const existed = variants.delete(id);
+        if (!existed) return json(404, { error: "variant_not_found" });
+        return json(200, { id, deleted: true });
+      }
+      return json(404, { error: "not_found" });
+    }
+
     if (method !== "POST") return json(404, { error: "not_found" });
+    // Publish / unpublish carry no body (0009b).
+    const pubM = path.match(/^\/series\/([^/]+)\/(publish|unpublish)$/);
+    if (pubM) {
+      const s = series.get(decodeURIComponent(pubM[1]));
+      if (!s) return json(404, { error: "series_not_found" });
+      s.published_at = pubM[2] === "publish" ? "2026-06-15T00:00:00.000Z" : null;
+      return json(200, { id: s.id, published_at: s.published_at });
+    }
     let body: unknown;
     try {
       body = init?.body ? JSON.parse(init.body as string) : undefined;
