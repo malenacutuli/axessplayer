@@ -61,13 +61,33 @@ and grow text-to-gloss-to-pose-to-video automation on data we own, with a Deaf r
 per language is gated on owning enough lexicon for that language. The honest scale: the demo is weeks; one
 production-quality language lexicon with Deaf signers and community QA is months; ten is quarters to years.
 
+## Extracted dictionaries (open sources)
+
+The pipeline now extracts real per-word dictionaries from open repositories, normalized to a uniform vertical
+clip the sign builder concatenates. Two are wired into the sample:
+
+- ASL: `download-asl-dict.mjs` reads the WLASL v0.3 gloss index and pulls genuine clips from reachable direct
+  hosts (signstock/SignSchool, files.startasl.com, aslbricks). 89 sample words. Mixed signers (one per word).
+- PSL (Pakistan Sign Language): `download-psl-dict.mjs` reads sign-language-translator/sign-language-datasets
+  (label->release-video URLs plus a label->English/Urdu/Hindi token map) and builds an English-keyed PSL
+  dictionary. 66 sample words, single academy source (Hamza Foundation), so signer and framing are consistent.
+
+More sources researched, extractable next (download-everything backlog):
+
+- MS-ASL (Microsoft, 1000 words / 25k clips) and the WLASL YouTube-hosted glosses: need yt-dlp to fetch.
+- ASL Citizen (Microsoft, 2.7k signs / 83k clips): large bulk download, commercial use needs Microsoft contact.
+- How2Sign: continuous ASL (80h), for sentence-level alignment rather than a word dictionary.
+- sltAI engine (Apache-2.0, pip): a real text-to-gloss-to-video engine for a larger lexicon; pulls torch.
+
+All source clips are research/non-commercial; the operator handles licensing separately.
+
 ## Status
 
-- Phase 1 demo: sign PiP + automated text-to-gloss ASL track on the sample clip (build-sign.mjs + gloss
-  manifest), repositionable, SL-named, graceful absence. DONE.
-- Richer text-to-sign: sltAI sign-language-translator (Apache-2.0, pip) gives a larger lexicon and a real
-  text-to-gloss-to-video engine; it pulls torch plus a downloadable dictionary, so it is a gated heavier
-  install to wire on request (the current generator needs no extra dependencies).
-- Multi-language sign selection: UI panel in place (ASL); a `sign_video_urls` map (per sign language) is the
-  small 0009a extension to add when a second sign language is produced (raise as a proposal, like dubs).
+- Phase 1 demo: sign PiP + automated text-to-gloss tracks on the sample clip (build-sign.mjs + gloss manifest),
+  repositionable, SL-named, graceful absence. DONE.
+- Two sign languages produced and selectable: ASL and PSL. The selection panel switches the inset between them.
+  Wiring note: 0009a still carries a single `sign_video_url` (the ASL track); the other sign tracks live next to
+  it in the same media dir as `<sl>_sign.webm`, and the player derives the sibling URL client-side. The proper
+  fix is the `sign_video_urls` map (per sign language) drafted in `docs/proposals/0009d_sign_video_urls.md`,
+  to ratify like the dub map before this ships.
 - Phase 2: Deaf-led lexicons + automation. Roadmap, gated on hiring + data ownership.

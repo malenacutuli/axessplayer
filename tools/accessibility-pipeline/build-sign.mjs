@@ -9,14 +9,15 @@ import { execFileSync } from "node:child_process";
 import { join, resolve } from "node:path";
 
 const whisperJson = process.argv[2];
-const dictDir = process.argv[3]; // real per-word dictionary (asl-<word>.webm)
+const dictDir = process.argv[3]; // real per-word dictionary (<prefix>-<word>.webm)
 const mediaDir = process.argv[4]; // output media dir
-const tmp = "/tmp/sign";
+const lang = (process.argv[5] || "asl").toLowerCase(); // sign language short name: asl, psl, ...
+const tmp = `/tmp/sign-${lang}`;
 
 const lemma = (w) => w.toLowerCase().replace(/[^a-z]/g, "");
 const clipFor = (w) => {
   // absolute path: ffmpeg's concat demuxer resolves list entries relative to the list file, not cwd.
-  const p = resolve(dictDir, `asl-${w}.webm`);
+  const p = resolve(dictDir, `${lang}-${w}.webm`);
   return existsSync(p) ? p : null;
 };
 
@@ -58,17 +59,18 @@ const list = [holdClip];
 for (const e of dedup) list.push(clipFor(e.word), holdClip);
 
 const listFile = join(tmp, "list.txt");
+const outName = `${lang}_sign.webm`;
 writeFileSync(listFile, list.map((p) => `file '${p}'`).join("\n"));
 execFileSync("ffmpeg", ["-hide_banner", "-y", "-f", "concat", "-safe", "0", "-i", listFile,
-  "-c:v", "libvpx-vp9", "-b:v", "600k", "-deadline", "good", "-cpu-used", "3", join(mediaDir, "asl_sign.webm")], { stdio: "ignore" });
-writeFileSync(join(mediaDir, "asl_gloss.json"), JSON.stringify({
-  language: "ASL",
-  method: "text-to-gloss over a real extracted per-word ASL dictionary (WLASL sources), concatenative",
+  "-c:v", "libvpx-vp9", "-b:v", "600k", "-deadline", "good", "-cpu-used", "3", join(mediaDir, outName)], { stdio: "ignore" });
+writeFileSync(join(mediaDir, `${lang}_gloss.json`), JSON.stringify({
+  language: lang.toUpperCase(),
+  method: `text-to-gloss over a real extracted per-word ${lang.toUpperCase()} dictionary, concatenative`,
   signCount: dedup.length,
   gloss,
 }, null, 2));
 
-const totalDur = parseFloat(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", join(mediaDir, "asl_sign.webm")]).toString().trim());
-console.log(`asl_sign.webm: ${totalDur.toFixed(1)}s, ${dedup.length} real signs from ${gloss.length} matched dialogue words`);
+const totalDur = parseFloat(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", join(mediaDir, outName)]).toString().trim());
+console.log(`${outName}: ${totalDur.toFixed(1)}s, ${dedup.length} real signs from ${gloss.length} matched dialogue words`);
 console.log("signs:", dedup.map((e) => e.word.toUpperCase()).join(" "));
 rmSync(tmp, { recursive: true, force: true });

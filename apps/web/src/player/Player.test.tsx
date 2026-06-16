@@ -61,6 +61,21 @@ describe("Player", () => {
     expect(screen.getByTestId("track-language")).toHaveTextContent("en");
   });
 
+  it("offers ASL and PSL in the sign-language panel and switches the inset track", async () => {
+    const user = userEvent.setup();
+    const { economy, transport } = setup();
+    renderPlayer(transport, economy);
+    await user.click(screen.getByTestId("player-a11y-open"));
+    // both produced sign languages are selectable
+    expect(screen.getByTestId("a11y-sign-lang-ASL")).toBeInTheDocument();
+    expect(screen.getByTestId("a11y-sign-lang-PSL")).toBeInTheDocument();
+    // default is the ASL track
+    expect(screen.getByTestId("sign-video")).toHaveAttribute("src", expect.stringContaining("asl_sign.webm"));
+    // selecting PSL swaps the inset to the sibling PSL track
+    await user.click(screen.getByTestId("a11y-sign-lang-PSL"));
+    expect(screen.getByTestId("sign-video")).toHaveAttribute("src", expect.stringContaining("psl_sign.webm"));
+  });
+
   it("renders the adaptive badge and the branch picker pills", () => {
     const { economy, transport } = setup();
     renderPlayer(transport, economy);

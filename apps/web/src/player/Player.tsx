@@ -255,9 +255,17 @@ export function Player({
   // captions (to the same-dir <lang>_captions.json), together.
   const baseLang = playable?.language ?? "en";
   const dubLangs = useMemo(() => Object.keys(playable?.dub_audio_urls ?? {}), [playable?.dub_audio_urls]);
-  // Available SIGN languages for this title. The schema carries one sign_video_url today (ASL, what we have
-  // produced); as more are produced (BSL, etc.) this becomes the sign-language selection panel.
-  const signLanguages = useMemo(() => (playable?.sign_video_url ? ["ASL"] : []), [playable?.sign_video_url]);
+  // Available SIGN languages for this title. 0009a carries one sign_video_url (the ASL track); sibling tracks
+  // for the other sign languages we have produced live next to it in the same media dir (<sl>_sign.webm), so
+  // the selection panel can switch between them client-side until the sign_video_urls map proposal lands.
+  const signLanguages = useMemo(() => (playable?.sign_video_url ? ["ASL", "PSL"] : []), [playable?.sign_video_url]);
+  const selectedSign = signLanguages.includes(prefs.signLanguage) ? prefs.signLanguage : signLanguages[0];
+  const signVideoUrl = useMemo(() => {
+    const base = playable?.sign_video_url ?? undefined;
+    if (!base || !selectedSign || selectedSign === "ASL") return base;
+    // derive the sibling track for the selected sign language: .../asl_sign.webm -> .../<sl>_sign.webm
+    return `${base.split("?")[0].replace(/[a-z]+_sign\.webm$/i, `${selectedSign.toLowerCase()}_sign.webm`)}?v=${selectedSign}`;
+  }, [playable?.sign_video_url, selectedSign]);
   const dubAudioUrl =
     active.language !== baseLang ? playable?.dub_audio_urls?.[active.language] : undefined;
   const captionDocUrl = useMemo(() => {
@@ -643,8 +651,8 @@ export function Player({
 
       <SignPip
         active={prefs.sign && trackAvail.sign}
-        videoUrl={playable?.sign_video_url ?? undefined}
-        signLanguage={trackAvail.sign ? signLanguages[0] : undefined}
+        videoUrl={signVideoUrl}
+        signLanguage={trackAvail.sign ? selectedSign : undefined}
         side={signSide}
         size={signSize}
         onToggleSide={toggleSignSide}

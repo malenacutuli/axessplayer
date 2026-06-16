@@ -110,20 +110,24 @@ export function A11ySheet({ prefs, active, availableLanguages, availability, sel
         </button>
       </div>
 
-      {/* Sign-language selection panel: pick which sign language to show (ASL now, more as we produce them). */}
-      {present("sign") && (signLanguages?.length ?? 0) > 0 && (
+      {/* Sign-language selection panel: pick which sign language to show (ASL, PSL, more as we produce them). */}
+      {present("sign") && prefs.sign && (signLanguages?.length ?? 0) > 0 && (
         <div className="langrow" role="group" aria-label="Sign language" data-testid="sign-language-panel" style={{ marginTop: 4, marginBottom: 8 }}>
-          {(signLanguages ?? []).map((sl, i) => (
-            <button
-              type="button"
-              key={sl}
-              className={i === 0 ? "chip on" : "chip"}
-              aria-pressed={i === 0}
-              data-testid={`a11y-sign-lang-${sl}`}
-            >
-              {sl}
-            </button>
-          ))}
+          {(signLanguages ?? []).map((sl) => {
+            const selected = (signLanguages?.includes(prefs.signLanguage) ? prefs.signLanguage : signLanguages?.[0]) === sl;
+            return (
+              <button
+                type="button"
+                key={sl}
+                className={selected ? "chip on" : "chip"}
+                aria-pressed={selected}
+                onClick={() => set({ signLanguage: sl })}
+                data-testid={`a11y-sign-lang-${sl}`}
+              >
+                {sl}
+              </button>
+            );
+          })}
         </div>
       )}
 

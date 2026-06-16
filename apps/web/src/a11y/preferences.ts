@@ -11,6 +11,8 @@ export interface A11yPreferences {
   sign: boolean;
   // Preferred language code, for example "en". Falls back to the variant language when unavailable.
   language: string;
+  // Preferred sign language short name (ASL, PSL, ...). Falls back to the first one the title provides.
+  signLanguage: string;
 }
 
 // Accessibility-first: everything the viewer might need is on by default.
@@ -19,6 +21,7 @@ export const DEFAULT_A11Y: A11yPreferences = {
   audioDescription: true,
   sign: true,
   language: "en",
+  signLanguage: "ASL",
 };
 
 // What is actually active for a given variant: the viewer's preference AND the variant's offering.
