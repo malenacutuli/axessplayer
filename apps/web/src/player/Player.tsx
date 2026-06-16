@@ -35,7 +35,8 @@ import { attachHls } from "./hls.js";
 import { SignPip, type SignSide, type SignSize } from "./SignPip.js";
 import { useSwipeNavigation, prefetchMedia } from "./useSwipeNavigation.js";
 import { CaptionsWithIntention } from "./a11y/CaptionsWithIntention.js";
-import type { CaptionSegment } from "./a11y/captionsModel.js";
+import type { CaptionSegment, CaptionMeta } from "./a11y/captionsModel.js";
+import type { AudioDescriptionSegment } from "./a11y/audioDescription.js";
 
 export interface PlayerProps {
   graph: SeriesGraph;
@@ -107,11 +108,29 @@ export function Player({
   // 0009a captions: the video clock (ms) plus the fetched CaptionSegment[] document for the on-screen cut.
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [captionSegments, setCaptionSegments] = useState<CaptionSegment[]>([]);
-  // Timeline: duration + play state + a handle to the video element's controls (seek/toggle) so the scrubber
-  // can seek and the viewer can go back.
-  const [durationMs, setDurationMs] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const videoControls = useRef<VideoControls | null>(null);
+  const [captionMeta, setCaptionMeta] = useState<CaptionMeta | undefined>(undefined);
+  const [adSegments, setAdSegments] = useState<AudioDescriptionSegment[]>([]);
+
+  // Auto-hiding chrome: the progress bar, top badge, rail, branch picker, beat info, and controls fade out
+  // after a few seconds of inactivity and return on pointer move / tap. Captions are content, never hidden.
+  const [chromeVisible, setChromeVisible] = useState(true);
+  const chromeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pokeChrome = useCallback(() => {
+    setChromeVisible(true);
+    if (chromeTimer.current) clearTimeout(chromeTimer.current);
+    chromeTimer.current = setTimeout(() => setChromeVisible(false), 2800);
+  }, []);
+  useEffect(() => {
+    chromeTimer.current = setTimeout(() => setChromeVisible(false), 2800);
+    return () => {
+      if (chromeTimer.current) clearTimeout(chromeTimer.current);
+    };
+  }, []);
+  const chromeStyle: CSSProperties = {
+    opacity: chromeVisible ? 1 : 0,
+    pointerEvents: chromeVisible ? "auto" : "none",
+    transition: "opacity 0.35s ease",
+  };
 
   // Vertical layout of the sign-language PiP: viewport-relative, repositionable (left/right) and resizable.
   // Held in player state so it carries across beats in a session without re-prompting (swipe-feed requirement).
@@ -220,6 +239,17 @@ export function Player({
     return sibling ?? onScreen;
   }, [graph, onScreen]);
 
+  // Real per-variant accessibility track availability (0009a). Drives the graceful-absence pattern: a toggle
+  // is enabled only when its track exists, and absent tracks render no empty element.
+  const trackAvail = useMemo(
+    () => ({
+      captions: !!playable?.caption_doc_url,
+      audioDescription: !!playable?.audio_description_url,
+      sign: !!playable?.sign_video_url,
+    }),
+    [playable?.caption_doc_url, playable?.audio_description_url, playable?.sign_video_url],
+  );
+
   // Log the variant URL the player actually received, so a dark frame is diagnosable from the console.
   useEffect(() => {
     if (playable) {
@@ -247,6 +277,7 @@ export function Player({
           ? (doc as CaptionSegment[])
           : ((doc as { segments?: CaptionSegment[] })?.segments ?? []);
         setCaptionSegments(segs);
+        setCaptionMeta(Array.isArray(doc) ? undefined : (doc as { meta?: CaptionMeta })?.meta);
       })
       .catch((err) => {
         if (alive) {
@@ -258,6 +289,31 @@ export function Player({
       alive = false;
     };
   }, [playable?.caption_doc_url]);
+
+  // 0009a: fetch the audio description doc (AudioDescriptionSegment[]) for the on-screen cut.
+  useEffect(() => {
+    const adUrl = playable?.audio_description_url;
+    if (!adUrl) {
+      setAdSegments([]);
+      return;
+    }
+    let alive = true;
+    void fetch(adUrl)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((doc: unknown) => {
+        if (!alive) return;
+        const segs = Array.isArray(doc)
+          ? (doc as AudioDescriptionSegment[])
+          : ((doc as { segments?: AudioDescriptionSegment[] })?.segments ?? []);
+        setAdSegments(segs);
+      })
+      .catch(() => {
+        if (alive) setAdSegments([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [playable?.audio_description_url]);
 
   // ---------- Phase 0: beat-level capture + REAL /decide signals (was empty {}) ----------
   const currentBeatId = onScreen?.beat_id;
@@ -403,42 +459,21 @@ export function Player({
       data-testid="player"
       data-orientation={landscape ? "landscape" : "portrait"}
       tabIndex={0}
+      onPointerMove={pokeChrome}
+      onPointerDown={pokeChrome}
     >
       <PosterSurface
         posterClass={posterClass}
-        variantId={playable?.id}
         playbackUrl={playable?.playback_url}
         onTimeMs={setCurrentTimeMs}
-        onDurationMs={setDurationMs}
-        onPlayingChange={setPlaying}
-        controlsRef={videoControls}
+        controlsVisible={chromeVisible}
+        adSegments={adSegments}
+        adEnabled={active.audioDescription && trackAvail.audioDescription}
       />
       <div className="pgrad" />
 
-      {/* Build marker so a stale bundle is obvious: if you do NOT see this pill, the browser is on old code. */}
-      <div
-        data-testid="player-build"
-        style={{
-          position: "absolute",
-          top: 6,
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 50,
-          background: "var(--rose, #FF2E6E)",
-          color: "#fff",
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: "0.04em",
-          padding: "2px 8px",
-          borderRadius: 999,
-          pointerEvents: "none",
-        }}
-      >
-        build PLAYER-TIMELINE
-      </div>
-
       {/* top bar */}
-      <div className="ptop">
+      <div className="ptop" style={chromeStyle}>
         <button type="button" className="icbtn" onClick={onBackToFeed} aria-label="Back to feed" data-testid="player-back">
           <BackIcon />
         </button>
@@ -482,7 +517,7 @@ export function Player({
       </div>
 
       {/* right rail */}
-      <div className="prail">
+      <div className="prail" style={chromeStyle}>
         <div className="rail">
           <span className="c"><HeartIcon /></span>
           12k
@@ -505,18 +540,10 @@ export function Player({
         </button>
       </div>
 
-      {/* real timeline: play/pause, seekable scrubber (go back), and the time readout */}
-      <Scrubber
-        currentMs={currentTimeMs}
-        durationMs={durationMs}
-        playing={playing}
-        onSeek={(ms) => videoControls.current?.seek(ms)}
-        onToggle={() => videoControls.current?.toggle()}
-      />
 
       {/* branch picker pills: feel the per-viewer re-cut */}
       {!unlocked && (
-        <div className="branchpick" role="group" aria-label="Pick the cut">
+        <div className="branchpick" role="group" aria-label="Pick the cut" style={chromeStyle}>
           <button
             type="button"
             className={(branch === "auto" ? (onScreen?.intensity ?? 5) <= 2 : branch === "calm") ? "sel" : undefined}
@@ -537,7 +564,7 @@ export function Player({
       )}
 
       {/* beat info + invisible advance affordance (the engine drive) */}
-      <div className="pbody">
+      <div className="pbody" style={chromeStyle}>
         <div className="cut">
           <span className="dot" aria-hidden="true" />
           {cutLabel}
@@ -588,7 +615,7 @@ export function Player({
       {active.captions && (
         <div className="cap-safe" data-testid="track-captions" style={CAP_SAFE_STYLE}>
           {captionSegments.length > 0 ? (
-            <CaptionsWithIntention segments={captionSegments} currentTimeMs={currentTimeMs} enabled />
+            <CaptionsWithIntention segments={captionSegments} meta={captionMeta} currentTimeMs={currentTimeMs} enabled />
           ) : (
             // No caption document on this cut yet (0009a not wired for it): keep the honest indicator.
             <span style={{ opacity: 0.7, fontSize: 13 }}>Captions on (no caption track for this cut)</span>
@@ -597,7 +624,8 @@ export function Player({
       )}
 
       <SignPip
-        active={active.sign}
+        active={active.sign && trackAvail.sign}
+        videoUrl={playable?.sign_video_url ?? undefined}
         side={signSide}
         size={signSize}
         onToggleSide={toggleSignSide}
@@ -609,6 +637,7 @@ export function Player({
           prefs={prefs}
           active={active}
           availableLanguages={availableLanguages}
+          availability={trackAvail}
           onChange={onPrefsChange}
           onClose={() => setShowA11y(false)}
         />
@@ -634,16 +663,21 @@ export function Player({
 // Caption safe area for the 9:16 frame: sit above the control bar and branch picker (bottom), inset on the
 // right to clear the action rail, and cap the line length so captions stay legible at vertical width.
 const CAP_SAFE_STYLE: CSSProperties = {
+  // CWI work area for 9:16: a lower band that sits ABOVE the control bar (10vh) and the swipe affordance, inset
+  // on the right to clear the action rail and on the left away from the title. Captions never take the
+  // majority of the frame; the box itself is sized to its 2-line content.
   position: "absolute",
-  bottom: "22vh",
-  left: "5vw",
-  right: "18vw",
-  maxWidth: 560,
+  bottom: "14vh",
+  left: "4vw",
+  right: "20vw",
+  maxWidth: 520,
   margin: "0 auto",
+  display: "flex",
+  justifyContent: "center",
   textAlign: "center",
   color: "#fff",
   lineHeight: 1.3,
-  zIndex: 5,
+  zIndex: 6,
   pointerEvents: "none",
 };
 
@@ -656,11 +690,23 @@ function isPlayableVideoUrl(url: string | undefined): boolean {
   return url.includes("/media/");
 }
 
-// Imperative handle to the video element so the chrome (scrubber) can seek and toggle playback.
-interface VideoControls {
-  seek: (ms: number) => void;
-  toggle: () => void;
-}
+// Plain SVG control glyphs (no emoji, no symbol fonts), inheriting currentColor.
+const PlayGlyph = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+);
+const PauseGlyph = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
+);
+const SoundOnGlyph = () => (
+  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 9v6h4l5 4V5L8 9H4z" /><path d="M16 8a4 4 0 0 1 0 8" />
+  </svg>
+);
+const SoundOffGlyph = () => (
+  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 9v6h4l5 4V5L8 9H4z" /><path d="M17 9l5 6M22 9l-5 6" />
+  </svg>
+);
 
 function fmtTime(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -669,69 +715,43 @@ function fmtTime(ms: number): string {
 
 // A real, seekable timeline for the vertical player: play/pause, a draggable progress track (tap or drag to
 // go back/forward), and the time readout. No em dashes.
-function Scrubber({
-  currentMs,
-  durationMs,
-  playing,
-  onSeek,
-  onToggle,
-}: {
-  currentMs: number;
-  durationMs: number;
-  playing: boolean;
-  onSeek: (ms: number) => void;
-  onToggle: () => void;
-}) {
+// The seekable progress track (tap or drag to go back/forward). Operates via the onSeek callback the control
+// bar provides, which writes directly to the video element.
+function ScrubTrack({ curMs, durMs, onSeek }: { curMs: number; durMs: number; onSeek: (ms: number) => void }) {
   const trackRef = useRef<HTMLDivElement>(null);
-  const pct = durationMs > 0 ? Math.min(100, (currentMs / durationMs) * 100) : 0;
+  const pct = durMs > 0 ? Math.min(100, (curMs / durMs) * 100) : 0;
   const seekAtClientX = (clientX: number) => {
     const el = trackRef.current;
-    if (!el || durationMs <= 0) return;
+    if (!el || durMs <= 0) return;
     const r = el.getBoundingClientRect();
-    const frac = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
-    onSeek(frac * durationMs);
+    onSeek(Math.min(1, Math.max(0, (clientX - r.left) / r.width)) * durMs);
   };
   return (
-    <div className="scrubrow" data-testid="scrubrow" style={{ position: "absolute", left: 14, right: 14, bottom: "9vh", zIndex: 6, display: "flex", alignItems: "center", gap: 10 }}>
-      <button
-        type="button"
-        className="icbtn"
-        data-testid="player-playpause"
-        aria-label={playing ? "Pause" : "Play"}
-        onClick={onToggle}
-        style={{ flex: "0 0 auto", fontSize: 16, lineHeight: 1 }}
-      >
-        {playing ? "❚❚" : "▶"}
-      </button>
-      <div
-        ref={trackRef}
-        className="scrub"
-        data-testid="scrubber"
-        role="slider"
-        aria-label="Seek"
-        aria-valuemin={0}
-        aria-valuemax={Math.round(durationMs / 1000)}
-        aria-valuenow={Math.round(currentMs / 1000)}
-        tabIndex={0}
-        style={{ flex: 1, cursor: "pointer" }}
-        onClick={(e) => seekAtClientX(e.clientX)}
-        onPointerDown={(e) => {
-          (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-          seekAtClientX(e.clientX);
-        }}
-        onPointerMove={(e) => {
-          if (e.buttons === 1) seekAtClientX(e.clientX);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowLeft") onSeek(Math.max(0, currentMs - 5000));
-          else if (e.key === "ArrowRight") onSeek(Math.min(durationMs, currentMs + 5000));
-        }}
-      >
-        <i style={{ width: `${pct}%` }} />
-      </div>
-      <span className="time" data-testid="player-time" style={{ flex: "0 0 auto", fontSize: 11, fontVariantNumeric: "tabular-nums", opacity: 0.85 }}>
-        {fmtTime(currentMs)} / {fmtTime(durationMs)}
-      </span>
+    <div
+      ref={trackRef}
+      className="scrub"
+      data-testid="scrubber"
+      role="slider"
+      aria-label="Seek"
+      aria-valuemin={0}
+      aria-valuemax={Math.round(durMs / 1000)}
+      aria-valuenow={Math.round(curMs / 1000)}
+      tabIndex={0}
+      style={{ flex: 1, cursor: "pointer" }}
+      onClick={(e) => seekAtClientX(e.clientX)}
+      onPointerDown={(e) => {
+        (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+        seekAtClientX(e.clientX);
+      }}
+      onPointerMove={(e) => {
+        if (e.buttons === 1) seekAtClientX(e.clientX);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowLeft") onSeek(Math.max(0, curMs - 5000));
+        else if (e.key === "ArrowRight") onSeek(Math.min(durMs, curMs + 5000));
+      }}
+    >
+      <i style={{ width: `${pct}%` }} />
     </div>
   );
 }
@@ -742,34 +762,38 @@ function Scrubber({
 // top. No em dashes.
 function PosterSurface({
   posterClass,
-  variantId,
   playbackUrl,
   fit = "cover",
   onTimeMs,
-  onDurationMs,
-  onPlayingChange,
-  controlsRef,
+  controlsVisible = true,
+  adSegments,
+  adEnabled = false,
 }: {
   posterClass: string;
-  variantId?: string;
+  controlsVisible?: boolean;
+  adSegments?: AudioDescriptionSegment[];
+  adEnabled?: boolean;
   playbackUrl?: string;
   // Report the video clock (ms) so captions / AD / sign sync to playback.
   onTimeMs?: (ms: number) => void;
-  // Report duration (ms) and play state so the timeline can render, and expose seek/toggle controls.
-  onDurationMs?: (ms: number) => void;
-  onPlayingChange?: (playing: boolean) => void;
-  controlsRef?: { current: VideoControls | null };
   // Fit policy for the 9:16 frame. "cover" is correct for vertical-native content; "contain" letterboxes a
   // landscape source so faces are never silently cropped. This is a per-variant hint: the source is gated
   // behind 0009 (a variant fit column); until then the default is cover.
   fit?: "cover" | "contain";
 }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   // Visible playback status, so a black frame is diagnosable on screen (the user can read it back).
   const [status, setStatus] = useState<string>("idle");
   // Whether the video is actually painting frames. When paused (incl. blocked autoplay) we show a clear
   // "Tap to play" overlay so the player is NEVER a blank black screen that looks broken.
   const [paused, setPaused] = useState(true);
+  // Has the video ever started? The full "Tap to play" overlay is ONLY for the initial blocked-autoplay state;
+  // once started, a deliberate pause must NOT slam the overlay over the controls.
+  const [started, setStarted] = useState(false);
+  // Local clock + duration so the control bar (play/pause, scrubber) lives next to the video element and
+  // operates on it directly, with no cross-component ref indirection.
+  const [curMs, setCurMs] = useState(0);
+  const [durMs, setDurMs] = useState(0);
   // Sound: the clip autoplays MUTED (browsers block unmuted autoplay), then the viewer taps to enable sound.
   // soundOnRef lets the attach effect unmute a freshly switched cut without re-subscribing.
   const [soundOn, setSoundOn] = useState(false);
@@ -786,6 +810,12 @@ function PosterSurface({
     setSoundOn(true);
     el.muted = false;
     setStatus(`tap: play rs=${el.readyState} net=${el.networkState}`);
+    // After ~1.2s report the REAL state, in case play() neither resolved nor rejected (a hung promise on a
+    // video with no buffered data). currentTime advancing means it is actually playing.
+    setTimeout(() => {
+      const v = videoRef.current;
+      if (v) setStatus(`t+1.2: paused=${v.paused} rs=${v.readyState} ct=${v.currentTime.toFixed(1)} net=${v.networkState}`);
+    }, 1200);
     const p = el.play();
     if (p && typeof p.then === "function") {
       p.then(() => {
@@ -810,83 +840,116 @@ function PosterSurface({
       setPaused(false);
     }
   };
+  // Control-bar handlers, operating directly on the live video element (no cross-component ref).
+  const togglePlay = () => {
+    const el = videoRef.current;
+    if (!el) return;
+    if (el.paused) {
+      el.muted = false;
+      setSoundOn(true);
+      el.play()?.catch?.(() => {});
+    } else {
+      el.pause();
+    }
+  };
+  const seekTo = (ms: number) => {
+    const el = videoRef.current;
+    if (el && Number.isFinite(ms)) el.currentTime = Math.max(0, ms / 1000);
+  };
+  const toggleMute = () => {
+    const el = videoRef.current;
+    if (!el) return;
+    const nextSoundOn = !soundOn;
+    el.muted = !nextSoundOn;
+    setSoundOn(nextSoundOn);
+  };
+
+  // Audio description. CRITICAL: AD ADDS narration in the dialogue gaps; it must never replace the characters'
+  // own dialogue. So when AD is on the video is UNMUTED (a muted video would leave a blind viewer hearing only
+  // the description). At each AD segment start: on EAD (AD longer than the gap) PAUSE the video so no dialogue
+  // is missed, then resume; otherwise let the video keep playing and gently duck under the AD. Restore is
+  // bulletproof (a duration-based fallback in case the audio "ended" event never fires).
+  const adAudioRef = useRef<HTMLAudioElement | null>(null);
+  const adFired = useRef<Set<string>>(new Set());
+  const lastTimeRef = useRef(0);
+  // Keep the dialogue audible whenever AD is enabled.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (adEnabled && v) {
+      v.muted = false;
+      setSoundOn(true);
+    }
+  }, [adEnabled]);
+  const checkAd = (tSec: number) => {
+    if (tSec < lastTimeRef.current - 1) adFired.current.clear(); // seek back -> allow re-fire
+    lastTimeRef.current = tSec;
+    if (!adEnabled || !adSegments?.length) return;
+    const due = adSegments.find((s) => tSec >= s.startTime && tSec < s.startTime + 0.4 && !adFired.current.has(s.id));
+    if (!due) return;
+    adFired.current.add(due.id);
+    const a = adAudioRef.current;
+    const v = videoRef.current;
+    if (!a || !v) return;
+    v.muted = false; // dialogue must be audible alongside the AD
+    const wasPaused = v.paused;
+    a.src = due.audioUrl;
+    if (due.requiresExtension) {
+      v.pause(); // EAD: hold the picture so the AD finishes without overrunning into dialogue
+    } else {
+      v.volume = 0.4; // gentle duck; the gap is silent, this only protects a slight overrun
+    }
+    let done = false;
+    const restore = () => {
+      if (done) return;
+      done = true;
+      v.volume = 1;
+      if (due.requiresExtension && !wasPaused) v.play()?.catch?.(() => {});
+    };
+    a.onended = restore;
+    a.onerror = restore;
+    a.play()?.catch?.(() => restore());
+    // Always restore even if "ended" never fires.
+    setTimeout(restore, (due.audioDurationMs ?? 4000) + 500);
+  };
+
   // Prefer the per-variant playable video (a real uploaded master), else the global scene clip, else the
   // gradient poster. So a variant uploaded in the Studio actually plays here.
   const url = isPlayableVideoUrl(playbackUrl) ? playbackUrl : sceneVideoUrl();
 
-  // Attach the source through hls.js for an encoded master.m3u8 (or native src for a plain clip), and play.
-  useEffect(() => {
-    const el = videoRef.current;
-    if (!el || !url) return;
-    let alive = true;
-    let cleanup = () => {};
-    // CRITICAL: set the muted PROPERTY imperatively. React's `muted` JSX attribute does not reliably set the
-    // DOM property, so the browser sees an unmuted autoplay and BLOCKS it (the black-frame cause). Setting it
-    // here makes muted autoplay allowed; the viewer taps for sound.
-    el.muted = !soundOnRef.current;
-    // attachHls owns starting playback (on MANIFEST_PARSED) and logs any error; do not race it with our own
-    // play() here. A rejection (e.g. hls.js import failure) is logged, not swallowed.
-    setStatus("loading");
-    attachHls(el, url, (s) => setStatus(s))
-      .then((c) => {
-        if (!alive) {
-          c();
-          return;
-        }
-        cleanup = c;
-        // Carry the viewer's sound choice across cut switches.
-        if (soundOnRef.current && el) el.muted = false;
-      })
-      .catch((err) => {
-        setStatus(`attach-failed: ${err instanceof Error ? err.message : "unknown"}`);
-        console.error("[player] attachHls failed", err, url);
-      });
-    return () => {
-      alive = false;
-      cleanup();
-    };
-  }, [url]);
+  // Attach hls.js via a CALLBACK REF, so the source is wired whenever the <video> actually mounts. This is
+  // robust to remounts and React StrictMode; a useEffect keyed on [url] is NOT - it can leave a remounted
+  // element with no source at all (networkState 0), which is the "tap does nothing" black-frame bug.
+  const hlsCleanup = useRef<() => void>(() => {});
+  const attachToken = useRef(0);
+  const setVideoRef = useCallback(
+    (el: HTMLVideoElement | null) => {
+      // Detach the previous attachment first.
+      hlsCleanup.current?.();
+      hlsCleanup.current = () => {};
+      videoRef.current = el;
+      if (!el || !url) return;
+      const myToken = ++attachToken.current;
+      // CRITICAL: set the muted PROPERTY imperatively (React's `muted` attr does not reliably set it), so
+      // muted autoplay is allowed instead of blocked.
+      el.muted = !soundOnRef.current;
+      setStatus("loading");
+      attachHls(el, url, (s) => setStatus(s))
+        .then((c) => {
+          if (myToken !== attachToken.current) {
+            c();
+            return; // superseded by a newer attach
+          }
+          hlsCleanup.current = c;
+          if (soundOnRef.current) el.muted = false;
+        })
+        .catch((err) => {
+          setStatus(`attach-failed: ${err instanceof Error ? err.message : "unknown"}`);
+          console.error("[player] attachHls failed", err, url);
+        });
+    },
+    [url],
+  );
 
-  useEffect(() => {
-    const el = videoRef.current;
-    if (!el) return;
-    // New cut on the same clip: restart from the top so each cut reads as its own scene.
-    el.currentTime = 0;
-    el.play()?.catch?.(() => {});
-  }, [variantId]);
-
-  // Drive the caption / AD / sign clock from the video element.
-  useEffect(() => {
-    const el = videoRef.current;
-    if (!el || !onTimeMs) return;
-    const tick = () => onTimeMs(el.currentTime * 1000);
-    el.addEventListener("timeupdate", tick);
-    return () => el.removeEventListener("timeupdate", tick);
-  }, [onTimeMs, url]);
-
-  // Expose seek/toggle so the timeline scrubber can control the video (go back).
-  useEffect(() => {
-    if (!controlsRef) return;
-    controlsRef.current = {
-      seek: (ms: number) => {
-        const el = videoRef.current;
-        if (el && Number.isFinite(ms)) el.currentTime = Math.max(0, ms / 1000);
-      },
-      toggle: () => {
-        const el = videoRef.current;
-        if (!el) return;
-        if (el.paused) {
-          el.muted = false;
-          el.play()?.catch?.(() => {});
-        } else {
-          el.pause();
-        }
-      },
-    };
-    return () => {
-      if (controlsRef) controlsRef.current = null;
-    };
-  }, [controlsRef, url]);
 
 
   if (url) {
@@ -895,11 +958,12 @@ function PosterSurface({
         className={`poster ${posterClass}`}
         data-testid="poster"
         data-scene-video="true"
-        onClick={tapToPlay}
+        data-status={status}
+        onClick={() => (started ? togglePlay() : tapToPlay())}
         style={{ cursor: "pointer" }}
       >
         <video
-          ref={videoRef}
+          ref={setVideoRef}
           muted
           autoPlay
           loop
@@ -908,28 +972,24 @@ function PosterSurface({
           // "Tap to play" overlay always reflects whether the frame is actually playing.
           onPlaying={() => {
             setPaused(false);
-            onPlayingChange?.(true);
+            setStarted(true);
           }}
-          onPlay={() => {
-            setPaused(false);
-            onPlayingChange?.(true);
-          }}
-          onPause={() => {
-            setPaused(true);
-            onPlayingChange?.(false);
-          }}
-          onWaiting={() => setPaused(true)}
-          onEnded={() => {
-            setPaused(true);
-            onPlayingChange?.(false);
+          onPlay={() => setPaused(false)}
+          onPause={() => setPaused(true)}
+          onEnded={() => setPaused(true)}
+          onTimeUpdate={(e) => {
+            const ms = e.currentTarget.currentTime * 1000;
+            setCurMs(ms);
+            onTimeMs?.(ms);
+            checkAd(e.currentTarget.currentTime);
           }}
           onLoadedMetadata={(e) => {
             const d = e.currentTarget.duration;
-            if (Number.isFinite(d)) onDurationMs?.(d * 1000);
+            if (Number.isFinite(d)) setDurMs(d * 1000);
           }}
           onDurationChange={(e) => {
             const d = e.currentTarget.duration;
-            if (Number.isFinite(d)) onDurationMs?.(d * 1000);
+            if (Number.isFinite(d)) setDurMs(d * 1000);
           }}
           // Keep the gradient as the poster fallback before the clip paints.
           poster=""
@@ -938,31 +998,17 @@ function PosterSurface({
           data-fit={fit}
           style={{ objectFit: fit }}
         />
-        {/* On-screen playback diagnostic: read this back if the frame is black. */}
-        <div
-          data-testid="player-debug"
-          style={{
-            position: "absolute",
-            top: 28,
-            left: 8,
-            right: 8,
-            zIndex: 9,
-            textAlign: "center",
-            color: "#fff",
-            fontSize: 10,
-            fontFamily: "monospace",
-            background: "rgba(0,0,0,0.5)",
-            borderRadius: 6,
-            padding: "3px 6px",
-            pointerEvents: "none",
-            wordBreak: "break-all",
-          }}
-        >
-          {status} · {(url ?? "").split("/media/")[1] ?? url}
-        </div>
-        {/* Blocked autoplay / paused: a clear, full-surface "Tap to play" so the screen is never a blank black
-            frame that looks broken. A user tap is a guaranteed gesture, so playback always starts. */}
-        {paused && (
+        {/* Audio description audio element (hidden). Played by checkAd at each AD segment start. */}
+        <audio ref={adAudioRef} preload="auto" data-testid="ad-audio" />
+        {adEnabled && (
+          <div data-testid="ad-active-indicator" aria-hidden="true" style={{ position: "absolute", top: 50, left: 8, fontSize: 10, color: "#fff", opacity: 0.6, background: "rgba(0,0,0,0.4)", borderRadius: 4, padding: "2px 6px" }}>
+            AD
+          </div>
+        )}
+        {/* INITIAL blocked autoplay only (never started): a clear, full-surface "Tap to play" so the screen is
+            never a blank black frame. Once started, a deliberate pause shows the control-bar play icon instead,
+            not this overlay. */}
+        {paused && !started && (
           <button
             type="button"
             data-testid="tap-to-play"
@@ -992,42 +1038,49 @@ function PosterSurface({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 26,
-                paddingLeft: 4,
+                paddingLeft: 2,
               }}
               aria-hidden="true"
             >
-              ▶
+              <PlayGlyph size={30} />
             </span>
             <span style={{ fontSize: 15, fontWeight: 700 }}>Tap to play</span>
-            <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "monospace" }}>{status}</span>
           </button>
         )}
-        {/* Playing but muted: a small affordance to enable sound. */}
-        {!paused && !soundOn && (
-          <button
-            type="button"
-            data-testid="enable-sound"
-            onClick={tapToPlay}
-            style={{
-              position: "absolute",
-              bottom: "16vh",
-              left: "50%",
-              transform: "translateX(-50%)",
-              zIndex: 8,
-              background: "rgba(0,0,0,0.62)",
-              color: "#fff",
-              border: "1px solid rgba(255,255,255,0.32)",
-              borderRadius: 999,
-              padding: "9px 18px",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Tap for sound
+        {/* The real control bar: play/pause, a seekable timeline (go back), mute toggle, time. Auto-hides with
+            the rest of the chrome. Operates directly on the video element. */}
+        <div
+          data-testid="video-controls"
+          style={{
+            position: "absolute",
+            left: 12,
+            right: 12,
+            bottom: "10vh",
+            zIndex: 25,
+            opacity: controlsVisible ? 1 : 0,
+            pointerEvents: controlsVisible ? "auto" : "none",
+            transition: "opacity 0.35s ease",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            background: "rgba(0,0,0,0.42)",
+            borderRadius: 999,
+            padding: "6px 12px",
+            backdropFilter: "blur(4px)",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button type="button" className="icbtn" data-testid="player-playpause" aria-label={paused ? "Play" : "Pause"} onClick={togglePlay} style={{ flex: "0 0 auto" }}>
+            {paused ? <PlayGlyph /> : <PauseGlyph />}
           </button>
-        )}
+          <ScrubTrack curMs={curMs} durMs={durMs} onSeek={seekTo} />
+          <button type="button" className="icbtn" data-testid="player-mute" aria-label={soundOn ? "Mute" : "Unmute"} onClick={toggleMute} style={{ flex: "0 0 auto" }}>
+            {soundOn ? <SoundOnGlyph /> : <SoundOffGlyph />}
+          </button>
+          <span data-testid="player-time" style={{ flex: "0 0 auto", fontSize: 11, fontVariantNumeric: "tabular-nums", opacity: 0.85, minWidth: 74, textAlign: "right" }}>
+            {fmtTime(curMs)} / {fmtTime(durMs)}
+          </span>
+        </div>
       </div>
     );
   }

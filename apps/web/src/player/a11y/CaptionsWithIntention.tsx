@@ -1,37 +1,38 @@
-// Captions with Intention, rewritten for the 9:16 vertical player. The ENGINE (schema, CI_COLORS, the
-// intensity->typography mapping, the pixel-accurate pagination in captionsFit) is lifted verbatim from the
-// Axessible repo; only the presentation is vertical:
-//   - line length keyed to the measured narrow column (directive A.1), not the landscape 40 chars
-//   - font size keyed to the column width (vw-relative), never shrinking to 14px (A.2)
-//   - the width axis is clamped near 110 so emphasis never breaks the line box (A.3)
-//   - rendered inside the caption safe area, above the controls and clear of the right rail (A.4)
-// Word-by-word: spoken words are full character color, upcoming words read-ahead dim. No em dashes.
+// Captions with Intention, faithful to the CWI spec, recalibrated for the 9:16 vertical player.
+//
+// THREE INDEPENDENT SIGNALS -> THREE ROBOTO FLEX AXES (per word, from the producer's raw values):
+//   energy_rms     -> SIZE   (volume to size; 3 / 5 / 12 percent ratio, whisper / normal / scream)
+//   f0_hz          -> WEIGHT (pitch to weight; higher pitch lighter, 80..250 Hz -> 1000..100)
+//   harmonic_ratio -> WIDTH  (harmonics to width; fuller/lower harmonics wider, 25..151)
+// Character color from the CI palette; word states differ by OPACITY (read-ahead), never by hue. Captions sit
+// in a 90 percent black box in the vertical work area, above the controls and clear of the right rail; a loud
+// burst (toward 12 percent) breaks out of the box. Vertical recalibration: the size base is pegged to the
+// column width so a normal caption is readable, while the 3:5:12 ratio is preserved. No em dashes.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { paginateTwoLinesByWidth, type FontOpts } from "./captionsFit.js";
 import {
-  CI_COLORS,
-  calculateIntensity,
   characterColor,
-  fontVariation,
-  getFontSizeMultiplier,
-  shouldUseAllCaps,
+  sizePercentFromEnergy,
+  weightFromF0,
+  widthFromHarmonics,
+  type CaptionMeta,
   type CaptionSegment,
 } from "./captionsModel.js";
 
 export interface CaptionsWithIntentionProps {
   segments: CaptionSegment[];
+  meta?: CaptionMeta;
   currentTimeMs: number;
   enabled: boolean;
 }
 
-const FONT_FAMILY = "Inter, system-ui, sans-serif";
+const FONT_FAMILY = '"Roboto Flex", Inter, system-ui, sans-serif';
 
-export function CaptionsWithIntention({ segments, currentTimeMs, enabled }: CaptionsWithIntentionProps) {
+export function CaptionsWithIntention({ segments, meta, currentTimeMs, enabled }: CaptionsWithIntentionProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(320);
 
-  // Measure the real column width so pagination wraps to the 9:16 column (not a landscape constant).
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -44,68 +45,92 @@ export function CaptionsWithIntention({ segments, currentTimeMs, enabled }: Capt
     }
   }, []);
 
-  // Font size keyed to the column width (legible at phone width, never the landscape 14px floor).
-  const basePx = useMemo(() => Math.min(30, Math.max(17, Math.round(width * 0.07))), [width]);
+  // VERTICAL RECALIBRATION: peg the 5 percent (normal) caption to a readable fraction of the column width, so
+  // captions are proportionate in 9:16 rather than a literal 5 percent of the tall portrait height. The
+  // 3:5:12 ratio is preserved by scaling each word by sizePercent / 5.
+  const baseUnitPx = useMemo(() => Math.min(30, Math.max(18, width * 0.066)), [width]);
 
-  // The segment on screen now.
   const active = useMemo(
     () => segments.find((s) => currentTimeMs >= s.startTime * 1000 && currentTimeMs < s.endTime * 1000),
     [segments, currentTimeMs],
   );
 
-  // Paginate the active segment to the measured narrow column using the lifted pixel-accurate fit.
   const page = useMemo(() => {
     if (!active) return undefined;
-    const fontOpts: FontOpts = { fontFamily: FONT_FAMILY, fontSizePx: basePx, fontWeight: 600 };
-    // maxWidth keyed to the column with side padding; this is what makes ~24 chars/line on a phone.
-    const pages = paginateTwoLinesByWidth(active, fontOpts, Math.max(160, width - 24));
+    const fontOpts: FontOpts = { fontFamily: FONT_FAMILY, fontSizePx: baseUnitPx, fontWeight: 500 };
+    const pages = paginateTwoLinesByWidth(active, fontOpts, Math.max(160, width - 28));
     return pages.find((p) => currentTimeMs >= p.startTime * 1000 && currentTimeMs < p.endTime * 1000) ?? pages[0];
-  }, [active, basePx, width, currentTimeMs]);
+  }, [active, baseUnitPx, width, currentTimeMs]);
 
   if (!enabled || !active || !page) {
-    // Keep the measuring container mounted so width is known when a caption appears.
+    // Keep the measuring container mounted so the column width is known when a caption appears.
     return <div ref={ref} data-testid="captions-ci" style={{ width: "100%" }} aria-live="polite" />;
   }
 
   const color = characterColor(active);
+  const isSfx = active.type === "soundeffect";
+  const isMusic = active.type === "music";
+  // Sound effects and music are WHITE, not character-colored. Music is static (not animated).
+  const baseColor = isSfx || isMusic ? "#FFFFFF" : color;
 
   return (
-    <div
-      ref={ref}
-      data-testid="captions-ci"
-      data-speaker={active.speaker}
-      data-speaker-color={color}
-      aria-live="polite"
-      style={{ width: "100%", textAlign: "center", lineHeight: 1.25 }}
-    >
-      {page.words.map((word, i) => {
-        const intensity = calculateIntensity(word);
-        const spoken = currentTimeMs >= word.startTime * 1000;
-        const allCaps = shouldUseAllCaps(intensity);
-        const sizePx = Math.round(basePx * getFontSizeMultiplier(intensity));
-        return (
-          <span
-            key={`${word.startTime}-${i}`}
-            data-emphasis={intensity}
-            data-spoken={spoken ? "true" : "false"}
-            style={{
-              display: "inline-block",
-              margin: "0 0.18em",
-              fontFamily: FONT_FAMILY,
-              fontSize: sizePx,
-              fontVariationSettings: fontVariation(word, intensity, true),
-              fontStyle: word.emphasis === "whisper" || intensity === "whisper" ? "italic" : "normal",
-              textTransform: allCaps ? "uppercase" : "none",
-              color: spoken ? color : CI_COLORS.readahead,
-              opacity: spoken ? 1 : 0.55,
-              textShadow: "0 2px 8px rgba(0,0,0,0.85)",
-              transition: "opacity 0.12s linear, color 0.12s linear",
-            }}
-          >
-            {word.text}
-          </span>
-        );
-      })}
+    <div ref={ref} data-testid="captions-ci" data-speaker={active.speaker} data-emotion={active.emotion ?? ""} style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+      {/* 90 percent black captions box, sized to the column; overflow visible so a loud burst can break out. */}
+      <div
+        data-testid="captions-box"
+        aria-live="polite"
+        style={{
+          maxWidth: "100%",
+          background: "rgba(0,0,0,0.9)",
+          borderRadius: 12,
+          padding: "8px 14px",
+          textAlign: "center",
+          lineHeight: 1.18,
+          overflow: "visible",
+        }}
+      >
+        {isMusic && <span style={{ color: "#FFF", margin: "0 0.3em" }} aria-hidden="true">&#9834;</span>}
+        {page.words.map((word, i) => {
+          const w = word as typeof word & { energy_rms?: number; f0_hz?: number; harmonic_ratio?: number };
+          const sizePct = sizePercentFromEnergy(w.energy_rms, meta); // 3..12
+          const sizePx = Math.round(baseUnitPx * (sizePct / 5));
+          const weight = isMusic ? 400 : weightFromF0(w.f0_hz, meta);
+          const wdth = isMusic ? 100 : widthFromHarmonics(w.harmonic_ratio);
+          const burst = sizePct >= 11; // loud burst breaks the box
+          // CWI read-ahead: 3 states by the word clock, same hue, differ by opacity (music is static/full).
+          const startMs = word.startTime * 1000;
+          const endMs = word.endTime * 1000;
+          const state = isMusic ? "active" : currentTimeMs >= endMs ? "spoken" : currentTimeMs >= startMs ? "active" : "upcoming";
+          const opacity = state === "active" ? 1 : state === "spoken" ? 0.85 : 0.5;
+          const text = isSfx ? `[${word.text.replace(/[[\]]/g, "")}]` : word.text;
+          return (
+            <span
+              key={`${word.startTime}-${i}`}
+              data-state={state}
+              data-size-pct={sizePct.toFixed(1)}
+              data-weight={weight}
+              data-width={wdth}
+              style={{
+                display: "inline-block",
+                margin: "0 0.14em",
+                fontFamily: FONT_FAMILY,
+                fontSize: sizePx,
+                fontWeight: weight,
+                fontVariationSettings: `"wght" ${weight}, "wdth" ${wdth}, "opsz" 12`,
+                color: baseColor,
+                opacity,
+                position: burst ? "relative" : undefined,
+                zIndex: burst ? 1 : undefined,
+                textShadow: "0 2px 8px rgba(0,0,0,0.9)",
+                transition: "opacity 0.1s linear, font-size 0.1s linear",
+              }}
+            >
+              {text}
+            </span>
+          );
+        })}
+        {isMusic && <span style={{ color: "#FFF", margin: "0 0.3em" }} aria-hidden="true">&#9834;</span>}
+      </div>
     </div>
   );
 }

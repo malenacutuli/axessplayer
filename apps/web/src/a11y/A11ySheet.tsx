@@ -10,6 +10,9 @@ export interface A11ySheetProps {
   prefs: A11yPreferences;
   active: ActiveA11y;
   availableLanguages: string[];
+  // Real track availability from the served variant (0009a). A track with no URL is shown disabled with a
+  // "not available for this title" note, and its toggle does nothing (graceful absence, never an empty box).
+  availability?: { captions: boolean; audioDescription: boolean; sign: boolean };
   onChange: (next: A11yPreferences) => void;
   onClose: () => void;
 }
@@ -21,10 +24,11 @@ const LANG_LABEL: Record<string, string> = {
   fr: "Français",
 };
 
-export function A11ySheet({ prefs, active, availableLanguages, onChange, onClose }: A11ySheetProps) {
+export function A11ySheet({ prefs, active, availableLanguages, availability, onChange, onClose }: A11ySheetProps) {
   const set = (patch: Partial<A11yPreferences>) => onChange({ ...prefs, ...patch });
-  const unavailable = (track: "captions" | "audioDescription" | "sign") =>
-    active.unavailable.includes(track);
+  // A track is present when the served variant carries it (0009a). Defaults to true when availability is not
+  // provided (standalone rendering).
+  const present = (track: "captions" | "audioDescription" | "sign") => availability?.[track] ?? true;
 
   // The prototype shows a fixed set of language chips; offer those, marking the active one.
   const langs = availableLanguages.length ? availableLanguages : [active.language];
@@ -41,49 +45,55 @@ export function A11ySheet({ prefs, active, availableLanguages, onChange, onClose
       <div className="axp-eyebrow">Accessible by default</div>
       <h3>Accessibility &amp; language</h3>
 
-      <div className="opt">
-        <span>Captions{unavailable("captions") && <span className="muted"> (not in this cut)</span>}</span>
+      <div className="opt" data-available={present("captions")}>
+        <span>Captions{!present("captions") && <span className="muted"> (not available for this title)</span>}</span>
         <button
           type="button"
-          className={prefs.captions ? "toggle" : "toggle off"}
-          aria-pressed={prefs.captions}
+          className={prefs.captions && present("captions") ? "toggle" : "toggle off"}
+          aria-pressed={prefs.captions && present("captions")}
           aria-label="Captions"
-          onClick={() => set({ captions: !prefs.captions })}
+          disabled={!present("captions")}
+          onClick={() => present("captions") && set({ captions: !prefs.captions })}
           data-testid="a11y-captions"
+          style={present("captions") ? undefined : { opacity: 0.4, cursor: "not-allowed" }}
         >
           <i />
         </button>
       </div>
 
-      <div className="opt">
+      <div className="opt" data-available={present("audioDescription")}>
         <span>
           Audio description
-          {unavailable("audioDescription") && <span className="muted"> (not in this cut)</span>}
+          {!present("audioDescription") && <span className="muted"> (not available for this title)</span>}
         </span>
         <button
           type="button"
-          className={prefs.audioDescription ? "toggle" : "toggle off"}
-          aria-pressed={prefs.audioDescription}
+          className={prefs.audioDescription && present("audioDescription") ? "toggle" : "toggle off"}
+          aria-pressed={prefs.audioDescription && present("audioDescription")}
           aria-label="Audio description"
-          onClick={() => set({ audioDescription: !prefs.audioDescription })}
+          disabled={!present("audioDescription")}
+          onClick={() => present("audioDescription") && set({ audioDescription: !prefs.audioDescription })}
           data-testid="a11y-audio-description"
+          style={present("audioDescription") ? undefined : { opacity: 0.4, cursor: "not-allowed" }}
         >
           <i />
         </button>
       </div>
 
-      <div className="opt">
+      <div className="opt" data-available={present("sign")}>
         <span>
           Sign language inset
-          {unavailable("sign") && <span className="muted"> (not in this cut)</span>}
+          {!present("sign") && <span className="muted"> (not available for this title)</span>}
         </span>
         <button
           type="button"
-          className={prefs.sign ? "toggle" : "toggle off"}
-          aria-pressed={prefs.sign}
+          className={prefs.sign && present("sign") ? "toggle" : "toggle off"}
+          aria-pressed={prefs.sign && present("sign")}
           aria-label="Sign language inset"
-          onClick={() => set({ sign: !prefs.sign })}
+          disabled={!present("sign")}
+          onClick={() => present("sign") && set({ sign: !prefs.sign })}
           data-testid="a11y-sign"
+          style={present("sign") ? undefined : { opacity: 0.4, cursor: "not-allowed" }}
         >
           <i />
         </button>

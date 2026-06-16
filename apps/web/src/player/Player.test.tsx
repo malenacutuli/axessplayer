@@ -198,11 +198,11 @@ describe("Player", () => {
     const { economy, transport } = setup();
     renderPlayer(transport, economy);
     const pip = screen.getByTestId("track-sign");
-    // Vertical defaults: left side (clear of the right action rail), small, with a placeholder until a real
-    // sign clip is wired by proposal 0009a.
+    // Vertical defaults: left side (clear of the right action rail), small. The fixture carries a real sign
+    // clip (0009a sign_video_url), so the PiP renders the video, not the placeholder.
     expect(pip).toHaveAttribute("data-side", "left");
     expect(pip).toHaveAttribute("data-size", "small");
-    expect(screen.getByTestId("sign-placeholder")).toBeInTheDocument();
+    expect(screen.getByTestId("sign-video")).toBeInTheDocument();
     // One-tap reposition flips the side; the size toggle grows it. Both persist in player state across beats.
     await user.click(screen.getByTestId("sign-reposition"));
     expect(screen.getByTestId("track-sign")).toHaveAttribute("data-side", "right");
