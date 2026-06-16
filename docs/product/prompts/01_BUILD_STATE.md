@@ -8,12 +8,13 @@ No em dashes.
 
 ## Tickets (dependency-ordered; each has an acceptance gate)
 
-- [ ] T1 Content fixture. One hero series, one episode, ~6 high-leverage beats (hook, two mid
-  cliffhangers, one branch point, one pre-paywall, one ending), each with 2-3 real pre-rendered
-  variants differing on ONE axis (pace fast/slow). Real playback_url, qa_status=passed. One designated
-  Control variant per beat. Seeded into mobile.{series,episodes,beats,beat_variants,beat_edges}.
-  Accept: mobile has 1 series, 6 beats, >=12 variants, edges form a single playable spine; a query
-  shows exactly one is_control-equivalent designated variant per beat.
+- [x] T1 Content fixture. DONE 2026-06-16, verified. One hero series ("The Other Key (Hero Test)"),
+  one episode, 6 beats (hook, cliffhanger x2, branch_point, pre_paywall, ending), each with 2 real
+  pace variants (slow = designated Control tier=showrunner, fast = candidate), real playback_url at
+  the media-server /media/hero/*, qa_status=passed. Media: tools/fixtures/build-hero-fixture.sh
+  (ffmpeg pace cuts from existing footage). Seed: tools/fixtures/seed-mobile-hero.sql (applied to the
+  hosted mobile schema). VERIFIED: series_published=1, beats=6, variants=12, edges=5 (linear spine),
+  beats_with_exactly_one_control=6, passed_variants=12.
 
 - [ ] T2 Arm assignment. Stable 50/50 Control vs Treatment per viewer (hash of viewer_id), logged.
   Control = the designated fixed variant every beat. Treatment = epsilon-greedy per beat over that
@@ -66,3 +67,6 @@ No em dashes.
 ## Status log
 - 2026-06-16: build-state created. CI green (06de8fa). Hosted mobile schema wired + verified
   (services connect with search_path=mobile,public). Starting T1.
+- 2026-06-16: T1 DONE + verified in the hosted mobile schema (fixture + 12 pace variants seeded,
+  Control designated per beat). Next: T2 arm assignment (stable 50/50 control/treatment) and T3
+  epsilon-greedy + honest propensity.
