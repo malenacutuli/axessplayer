@@ -11,6 +11,7 @@ export default defineConfig({
   // set VITE_*_BASE_URL to "" (same origin) and the paths route by prefix. Ports match the local stack.
   server: {
     proxy: {
+      "/feed": "http://127.0.0.1:8093",
       "/series": "http://127.0.0.1:8093",
       "/wallet": "http://127.0.0.1:8091",
       "/spend": "http://127.0.0.1:8091",
