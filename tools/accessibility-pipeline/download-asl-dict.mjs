@@ -20,9 +20,14 @@ if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
 
 const wlasl = JSON.parse(readFileSync(wlaslJson, "utf8"));
 const gloss = new Map(wlasl.map((g) => [g.gloss.toLowerCase(), g.instances]));
-const seg = JSON.parse(readFileSync(whisperJson, "utf8")).segments;
 const lemma = (w) => w.toLowerCase().replace(/[^a-z]/g, "");
-const targets = [...new Set(seg.flatMap((s) => (s.words ?? []).map((w) => lemma(w.word))))].filter((w) => w.length > 1 && gloss.has(w));
+let targets;
+if (whisperJson === "ALL") {
+  targets = [...gloss.keys()].filter((w) => /^[a-z]+$/.test(w)); // whole WLASL vocabulary
+} else {
+  const seg = JSON.parse(readFileSync(whisperJson, "utf8")).segments;
+  targets = [...new Set(seg.flatMap((s) => (s.words ?? []).map((w) => lemma(w.word))))].filter((w) => w.length > 1 && gloss.has(w));
+}
 
 const probe = (f) => {
   try {
@@ -32,29 +37,43 @@ const probe = (f) => {
   } catch { return 0; }
 };
 
+const YT = process.env.ENABLE_YTDLP === "1"; // best-effort YouTube fallback (often 403s without cookies)
+const encode = (raw, out, inst) => {
+  const trim = [];
+  if (inst?.frame_end && inst.frame_end > 0) {
+    const fps = inst.fps || 25;
+    trim.push("-ss", Math.max(0, (inst.frame_start - 1) / fps).toFixed(2), "-to", (inst.frame_end / fps).toFixed(2));
+  }
+  try {
+    execFileSync("ffmpeg", ["-hide_banner", "-y", ...trim, "-i", raw, "-an",
+      "-vf", "scale=480:640:force_original_aspect_ratio=increase,crop=480:640,fps=24,setsar=1",
+      "-c:v", "libvpx-vp9", "-b:v", "600k", "-deadline", "good", "-cpu-used", "3", out],
+      { stdio: "ignore", timeout: 90000, killSignal: "SIGKILL" });
+  } catch { return false; }
+  return !!probe(out);
+};
+
 const tryWord = (word) => {
   const out = join(outDir, `asl-${word}.webm`);
   if (existsSync(out) && probe(out)) return "skip";
-  // every instance on a reachable host, ordered by host priority
+  const raw = join(tmp, `${word}.src`);
+  // 1) direct-download hosts, by priority
   const cands = [];
   for (const h of HOSTS) for (const i of gloss.get(word) ?? []) if (i.url.includes(h)) cands.push(i);
   for (const inst of cands) {
-    const raw = join(tmp, `${word}.src`);
-    try { execFileSync("curl", ["-sL", "--max-time", "40", "-A", UA, "-e", "https://www.google.com/", "-o", raw, inst.url], { stdio: "ignore" }); } catch { continue; }
+    try { execFileSync("curl", ["-sL", "--max-time", "40", "-A", UA, "-e", "https://www.google.com/", "-o", raw, inst.url], { stdio: "ignore", timeout: 50000 }); } catch { continue; }
     if (!probe(raw)) { rmSync(raw, { force: true }); continue; }
-    const trim = [];
-    if (inst.frame_end && inst.frame_end > 0) {
-      const fps = inst.fps || 25;
-      trim.push("-ss", Math.max(0, (inst.frame_start - 1) / fps).toFixed(2), "-to", (inst.frame_end / fps).toFixed(2));
+    if (encode(raw, out, inst)) { rmSync(raw, { force: true }); return "ok"; }
+    rmSync(raw, { force: true }); rmSync(out, { force: true });
+  }
+  // 2) optional YouTube fallback via yt-dlp (best-effort)
+  if (YT) {
+    for (const inst of (gloss.get(word) ?? []).filter((i) => /youtu/.test(i.url)).slice(0, 2)) {
+      try { execFileSync("python3", ["-m", "yt_dlp", "--no-warnings", "-q", "--extractor-args", "youtube:player_client=android", "-f", "mp4/best", "-o", raw, inst.url], { stdio: "ignore", timeout: 120000, killSignal: "SIGKILL" }); } catch { continue; }
+      if (!probe(raw)) { rmSync(raw, { force: true }); continue; }
+      if (encode(raw, out, inst)) { rmSync(raw, { force: true }); return "ok"; }
+      rmSync(raw, { force: true }); rmSync(out, { force: true });
     }
-    try {
-      execFileSync("ffmpeg", ["-hide_banner", "-y", ...trim, "-i", raw, "-an",
-        "-vf", "scale=480:640:force_original_aspect_ratio=increase,crop=480:640,fps=24,setsar=1",
-        "-c:v", "libvpx-vp9", "-b:v", "600k", "-deadline", "good", "-cpu-used", "3", out], { stdio: "ignore" });
-    } catch { rmSync(raw, { force: true }); continue; }
-    rmSync(raw, { force: true });
-    if (probe(out)) return "ok";
-    rmSync(out, { force: true });
   }
   return "fail";
 };

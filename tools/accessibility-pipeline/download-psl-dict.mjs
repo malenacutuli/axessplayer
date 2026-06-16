@@ -4,13 +4,13 @@
 // pipeline consumes. PSL clips come from one academy (Hamza Foundation), so the signer/framing is consistent.
 // Licensing of source clips is handled separately by the operator. No em dashes.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, readdirSync, copyFileSync } from "node:fs";
 import { execFileSync, execSync } from "node:child_process";
 import { join } from "node:path";
 
 const pkUrlsJson = process.argv[2];
 const pkMapJson = process.argv[3];
-const whisperJson = process.argv[4];
+const whisperJson = process.argv[4]; // path to transcript, or the literal "ALL" to extract the whole dictionary
 const outDir = process.argv[5];
 const tmp = "/tmp/psldl";
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36";
@@ -36,9 +36,16 @@ for (const k of Object.keys(map)) for (const m of map[k].mapping || []) {
   }
 }
 
-const seg = JSON.parse(readFileSync(whisperJson, "utf8")).segments;
 const lemma = (w) => w.toLowerCase().replace(/[^a-z]/g, "");
-const targets = [...new Set(seg.flatMap((s) => (s.words ?? []).map((w) => lemma(w.word))))].filter((w) => w.length > 1 && enLabel.has(w));
+let targets;
+if (whisperJson === "ALL") {
+  // whole dictionary: every English word that has a sign video. Downloads are deduped by label below, so
+  // synonyms that share one sign do not re-download.
+  targets = [...enLabel.keys()];
+} else {
+  const seg = JSON.parse(readFileSync(whisperJson, "utf8")).segments;
+  targets = [...new Set(seg.flatMap((s) => (s.words ?? []).map((w) => lemma(w.word))))].filter((w) => w.length > 1 && enLabel.has(w));
+}
 
 const probe = (f) => {
   try {
@@ -48,10 +55,13 @@ const probe = (f) => {
   } catch { return 0; }
 };
 
+const labelFile = new Map(); // label -> first encoded output path, so shared signs are copied not re-downloaded
 const tryWord = (word) => {
   const out = join(outDir, `psl-${word}.webm`);
   if (existsSync(out) && probe(out)) return "skip";
   for (const label of enLabel.get(word)) {
+    const cached = labelFile.get(label);
+    if (cached && existsSync(cached)) { copyFileSync(cached, out); return "ok"; }
     const raw = join(tmp, `${word}.src`);
     try { execFileSync("curl", ["-sL", "--max-time", "40", "-A", UA, "-o", raw, labelUrl.get(label)], { stdio: "ignore", timeout: 50000 }); } catch { continue; }
     if (!probe(raw)) { rmSync(raw, { force: true }); continue; }
@@ -61,7 +71,7 @@ const tryWord = (word) => {
         "-c:v", "libvpx-vp9", "-b:v", "600k", "-deadline", "good", "-cpu-used", "3", out], { stdio: "ignore", timeout: 90000, killSignal: "SIGKILL" });
     } catch { rmSync(raw, { force: true }); rmSync(out, { force: true }); continue; }
     rmSync(raw, { force: true });
-    if (probe(out)) return "ok";
+    if (probe(out)) { labelFile.set(label, out); return "ok"; }
     rmSync(out, { force: true });
   }
   return "fail";
