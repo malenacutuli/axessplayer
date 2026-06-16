@@ -8,7 +8,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo lint ok",
     "serve": "node --import tsx src/serve.ts",
-    "test": "node --import tsx --test \"test/*.test.ts\"",
+    "test": "node --import tsx --test $(find test -name '*.test.ts' 2>/dev/null)",
     "gen": "openapi-typescript ../../contracts/api/manifest.yaml -o src/generated/manifest.ts"
   },
   "devDependencies": {

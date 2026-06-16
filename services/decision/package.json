@@ -8,7 +8,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo lint ok",
     "serve": "node --import tsx src/serve.ts",
-    "test": "node --import tsx --test \"src/**/*.test.ts\""
+    "test": "node --import tsx --test $(find src -name '*.test.ts' 2>/dev/null)"
   },
   "dependencies": {
     "hono": "^4.12.25",

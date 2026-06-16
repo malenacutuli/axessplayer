@@ -248,7 +248,7 @@ export function Player({
   const trackAvail = useMemo(() => {
     const a = accessibilityFromVariant(playable);
     return { captions: !!a.captions, audioDescription: !!a.audio_description, sign: !!a.sign };
-  }, [playable?.caption_doc_url, playable?.audio_description_url, playable?.sign_video_url]);
+  }, [playable]);
 
   // Dubbing + per-language captions. The base language is the variant's own; other languages are available
   // only when present in dub_audio_urls. Switching language switches BOTH the audio (to the dub track) and the

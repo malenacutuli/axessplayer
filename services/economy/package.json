@@ -7,7 +7,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo lint ok",
     "serve": "node --import tsx src/serve.ts",
-    "test": "node --import tsx --test \"test/*.test.ts\"",
+    "test": "node --import tsx --test $(find test -name '*.test.ts' 2>/dev/null)",
     "test:concurrency": "node --import tsx --test \"test/spend_coins.concurrency.ts\"",
     "test:hardening": "node --import tsx --test \"test/spend_coins.hardening.ts\""
   },

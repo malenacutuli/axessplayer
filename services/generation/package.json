@@ -7,7 +7,7 @@
     "build": "echo build ok",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo lint ok",
-    "test": "node --import tsx --test \"test/*.test.ts\"",
+    "test": "node --import tsx --test $(find test -name '*.test.ts' 2>/dev/null)",
     "dryrun": "node --import tsx test/dryrun.ts"
   },
   "devDependencies": {

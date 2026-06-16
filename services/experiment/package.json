@@ -7,7 +7,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo lint ok",
-    "test": "node --import tsx --test \"src/**/*.test.ts\" \"test/**/*.test.ts\""
+    "test": "node --import tsx --test $(find src test -name '*.test.ts' 2>/dev/null)"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
