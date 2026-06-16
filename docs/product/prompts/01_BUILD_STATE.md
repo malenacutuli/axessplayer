@@ -68,5 +68,12 @@ No em dashes.
 - 2026-06-16: build-state created. CI green (06de8fa). Hosted mobile schema wired + verified
   (services connect with search_path=mobile,public). Starting T1.
 - 2026-06-16: T1 DONE + verified in the hosted mobile schema (fixture + 12 pace variants seeded,
-  Control designated per beat). Next: T2 arm assignment (stable 50/50 control/treatment) and T3
-  epsilon-greedy + honest propensity.
+  Control designated per beat).
+- 2026-06-16: T2/T3/T4/T5/T7 DONE as services/experiment/src/gatea/ (arm.ts, policy.ts, surrogate.ts,
+  log.ts, readout.ts, simulate.ts, run-readout.ts) with 27 passing node:test cases. Readout demo: LIFT
+  scenario gives Treatment D7 37.5% vs Control 29.7%, diff +7.8%, always-valid 95% CI [3.9%,11.7%],
+  guardrails ok -> GATE A GREEN; FLAT gives INCONCLUSIVE (correctly refuses a false green). Off-policy
+  SNIPS shown as a band (C6). All pure logic + node:test so CI stays green; no hosted/browser needed.
+  REMAINING: T6 minimal instrumented player (strip the existing vertical player, drive /decide with the
+  epsilon-greedy policy + arm, log every impression to mobile.decision_log), then T8 Gate A real-browser
+  run with the hero fixture (needs a mobile.users row for the FK on decision_log).
