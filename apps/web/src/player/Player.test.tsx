@@ -66,9 +66,10 @@ describe("Player", () => {
     const { economy, transport } = setup();
     renderPlayer(transport, economy);
     await user.click(screen.getByTestId("player-a11y-open"));
-    // both produced sign languages are selectable
+    // all produced sign languages are selectable
     expect(screen.getByTestId("a11y-sign-lang-ASL")).toBeInTheDocument();
     expect(screen.getByTestId("a11y-sign-lang-PSL")).toBeInTheDocument();
+    expect(screen.getByTestId("a11y-sign-lang-LSA")).toBeInTheDocument();
     // default is the ASL track
     expect(screen.getByTestId("sign-video")).toHaveAttribute("src", expect.stringContaining("asl_sign.webm"));
     // selecting PSL swaps the inset to the sibling PSL track

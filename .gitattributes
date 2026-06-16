@@ -1,3 +1,4 @@
 tools/accessibility-pipeline/asl-dict/*.webm filter=lfs diff=lfs merge=lfs -text
 tools/accessibility-pipeline/psl-dict/*.webm filter=lfs diff=lfs merge=lfs -text
 tools/accessibility-pipeline/*-dict-full/*.webm filter=lfs diff=lfs merge=lfs -text
+tools/accessibility-pipeline/lsa-dict/*.webm filter=lfs diff=lfs merge=lfs -text

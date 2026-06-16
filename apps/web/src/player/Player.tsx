@@ -258,7 +258,7 @@ export function Player({
   // Available SIGN languages for this title. 0009a carries one sign_video_url (the ASL track); sibling tracks
   // for the other sign languages we have produced live next to it in the same media dir (<sl>_sign.webm), so
   // the selection panel can switch between them client-side until the sign_video_urls map proposal lands.
-  const signLanguages = useMemo(() => (playable?.sign_video_url ? ["ASL", "PSL"] : []), [playable?.sign_video_url]);
+  const signLanguages = useMemo(() => (playable?.sign_video_url ? ["ASL", "PSL", "LSA"] : []), [playable?.sign_video_url]);
   const selectedSign = signLanguages.includes(prefs.signLanguage) ? prefs.signLanguage : signLanguages[0];
   const signVideoUrl = useMemo(() => {
     const base = playable?.sign_video_url ?? undefined;

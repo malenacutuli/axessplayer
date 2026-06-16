@@ -74,18 +74,24 @@ clip the sign builder concatenates. Two are wired into the sample:
   (label->release-video URLs plus a label->English/Urdu/Hindi token map) and builds an English-keyed PSL
   dictionary. Full dictionary: 1252 words, 0 download failures, single academy source (Hamza Foundation), so
   signer and framing are consistent.
+- LSA (Argentine Sign Language): `build-lsa64-dict.mjs` processes the open LSA64 dataset (facundoq, Google Drive,
+  3200 clips, 64 signs, official English glosses) into 64 dictionary clips. Real LSA signing; note the signer
+  wears colored tracking gloves (an artifact of the source dataset) and the 64-word vocabulary overlaps English
+  dialogue only lightly, so the demo track is short. It is a genuine third sign language and proves the panel
+  scales past two.
 
-Both extractors take a transcript (dialogue-only) or the literal `ALL` (whole vocabulary, deduped by sign).
-Clips are stored via git-lfs so the dictionaries do not bloat the repo.
+Extractors take a transcript (dialogue-only) or the literal `ALL` (whole vocabulary, deduped by sign). Clips
+are stored via git-lfs so the dictionaries do not bloat the repo. Three sign languages are now selectable in the
+player (ASL, PSL, LSA).
 
-More sources researched, extractable next (download-everything backlog):
+Sources attempted and their state:
 
-- BSL SignBank (UCL, 3688 public BSL signs): a target language; no open API, needs a data request or scraping
-  the Signbank app. V-Librasil (Libras, 4089 signs, IEEE DataPort) and MM-WLAuslan (Auslan, 3215 glosses, GitHub)
-  are the next two target-language dictionaries with real video.
-- MS-ASL (Microsoft, 1000 words / 25k clips): YouTube-hosted, now reachable with the yt-dlp android client.
+- MS-ASL (`download-msasl-dict.mjs`, Microsoft, 1000 words): script works and YouTube is reachable via the
+  yt-dlp android client, but the 2018 dataset has heavy link rot (videos now private/deleted), so yield is near
+  zero. Kept the extractor; not worth running until a fresher mirror exists.
+- BSL SignBank (UCL, 3688 signs): every gloss redirects to /accounts/login/ (auth-gated). Needs credentials.
+- V-Librasil (Libras, 4089 signs): IEEE DataPort login. MM-WLAuslan (Auslan, 3215 glosses): large, GitHub.
 - ASL Citizen (Microsoft, 2.7k signs / 83k clips): large bulk download, commercial use needs Microsoft contact.
-- How2Sign: continuous ASL (80h), for sentence-level alignment rather than a word dictionary.
 - sltAI engine (Apache-2.0, pip): a real text-to-gloss-to-video engine for a larger lexicon; pulls torch.
 
 All source clips are research/non-commercial; the operator handles licensing separately.
