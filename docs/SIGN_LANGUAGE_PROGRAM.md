@@ -67,14 +67,23 @@ The pipeline now extracts real per-word dictionaries from open repositories, nor
 clip the sign builder concatenates. Two are wired into the sample:
 
 - ASL: `download-asl-dict.mjs` reads the WLASL v0.3 gloss index and pulls genuine clips from reachable direct
-  hosts (signstock/SignSchool, files.startasl.com, aslbricks). 89 sample words. Mixed signers (one per word).
+  hosts (signstock/SignSchool, files.startasl.com, aslbricks) with a yt-dlp YouTube fallback
+  (player_client=android bypasses YouTube's 403). 760 words committed; resumable to the full ~2000 by re-running
+  in ALL mode (skip-existing). Mixed signers (one per word).
 - PSL (Pakistan Sign Language): `download-psl-dict.mjs` reads sign-language-translator/sign-language-datasets
   (label->release-video URLs plus a label->English/Urdu/Hindi token map) and builds an English-keyed PSL
-  dictionary. 66 sample words, single academy source (Hamza Foundation), so signer and framing are consistent.
+  dictionary. Full dictionary: 1252 words, 0 download failures, single academy source (Hamza Foundation), so
+  signer and framing are consistent.
+
+Both extractors take a transcript (dialogue-only) or the literal `ALL` (whole vocabulary, deduped by sign).
+Clips are stored via git-lfs so the dictionaries do not bloat the repo.
 
 More sources researched, extractable next (download-everything backlog):
 
-- MS-ASL (Microsoft, 1000 words / 25k clips) and the WLASL YouTube-hosted glosses: need yt-dlp to fetch.
+- BSL SignBank (UCL, 3688 public BSL signs): a target language; no open API, needs a data request or scraping
+  the Signbank app. V-Librasil (Libras, 4089 signs, IEEE DataPort) and MM-WLAuslan (Auslan, 3215 glosses, GitHub)
+  are the next two target-language dictionaries with real video.
+- MS-ASL (Microsoft, 1000 words / 25k clips): YouTube-hosted, now reachable with the yt-dlp android client.
 - ASL Citizen (Microsoft, 2.7k signs / 83k clips): large bulk download, commercial use needs Microsoft contact.
 - How2Sign: continuous ASL (80h), for sentence-level alignment rather than a word dictionary.
 - sltAI engine (Apache-2.0, pip): a real text-to-gloss-to-video engine for a larger lexicon; pulls torch.
