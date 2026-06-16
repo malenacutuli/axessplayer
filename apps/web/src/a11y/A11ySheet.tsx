@@ -13,6 +13,11 @@ export interface A11ySheetProps {
   // Real track availability from the served variant (0009a). A track with no URL is shown disabled with a
   // "not available for this title" note, and its toggle does nothing (graceful absence, never an empty box).
   availability?: { captions: boolean; audioDescription: boolean; sign: boolean };
+  // Languages that actually have audio + captions (base language + dubs present). Others render disabled.
+  selectableLanguages?: string[];
+  // Sign languages produced for this title (ASL, BSL, ...). Empty means no sign track. Shown as a selector
+  // under the Sign language toggle when present.
+  signLanguages?: string[];
   onChange: (next: A11yPreferences) => void;
   onClose: () => void;
 }
@@ -22,17 +27,23 @@ const LANG_LABEL: Record<string, string> = {
   es: "Español",
   ar: "العربية",
   fr: "Français",
+  de: "Deutsch",
+  it: "Italiano",
+  pt: "Português",
+  ja: "日本語",
 };
 
-export function A11ySheet({ prefs, active, availableLanguages, availability, onChange, onClose }: A11ySheetProps) {
+export function A11ySheet({ prefs, active, availableLanguages, availability, selectableLanguages, signLanguages, onChange, onClose }: A11ySheetProps) {
+  const canSelectLang = (lang: string) => !selectableLanguages || selectableLanguages.includes(lang);
   const set = (patch: Partial<A11yPreferences>) => onChange({ ...prefs, ...patch });
   // A track is present when the served variant carries it (0009a). Defaults to true when availability is not
   // provided (standalone rendering).
   const present = (track: "captions" | "audioDescription" | "sign") => availability?.[track] ?? true;
 
-  // The prototype shows a fixed set of language chips; offer those, marking the active one.
-  const langs = availableLanguages.length ? availableLanguages : [active.language];
-  const chips = Array.from(new Set([...langs, "en", "es", "ar", "fr"])).slice(0, 4);
+  // Show every language that actually has audio + captions (base + dubs), so all available languages appear.
+  const chips = Array.from(
+    new Set([...(selectableLanguages ?? []), ...availableLanguages, active.language].filter(Boolean)),
+  );
 
   return (
     <div
@@ -89,7 +100,7 @@ export function A11ySheet({ prefs, active, availableLanguages, availability, onC
           type="button"
           className={prefs.sign && present("sign") ? "toggle" : "toggle off"}
           aria-pressed={prefs.sign && present("sign")}
-          aria-label="Sign language inset"
+          aria-label="Sign language"
           disabled={!present("sign")}
           onClick={() => present("sign") && set({ sign: !prefs.sign })}
           data-testid="a11y-sign"
@@ -99,21 +110,44 @@ export function A11ySheet({ prefs, active, availableLanguages, availability, onC
         </button>
       </div>
 
+      {/* Sign-language selection panel: pick which sign language to show (ASL now, more as we produce them). */}
+      {present("sign") && (signLanguages?.length ?? 0) > 0 && (
+        <div className="langrow" role="group" aria-label="Sign language" data-testid="sign-language-panel" style={{ marginTop: 4, marginBottom: 8 }}>
+          {(signLanguages ?? []).map((sl, i) => (
+            <button
+              type="button"
+              key={sl}
+              className={i === 0 ? "chip on" : "chip"}
+              aria-pressed={i === 0}
+              data-testid={`a11y-sign-lang-${sl}`}
+            >
+              {sl}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="opt" style={{ display: "block", border: 0, paddingTop: 14 }}>
         <span>Language</span>
         <div className="langrow" role="group" aria-label="Language">
-          {chips.map((lang) => (
-            <button
-              type="button"
-              key={lang}
-              className={active.language === lang ? "chip on" : "chip"}
-              aria-pressed={active.language === lang}
-              onClick={() => set({ language: lang })}
-              data-testid={`a11y-lang-${lang}`}
-            >
-              {LANG_LABEL[lang] ?? lang}
-            </button>
-          ))}
+          {chips.map((lang) => {
+            const selectable = canSelectLang(lang);
+            return (
+              <button
+                type="button"
+                key={lang}
+                className={active.language === lang ? "chip on" : "chip"}
+                aria-pressed={active.language === lang}
+                disabled={!selectable}
+                onClick={() => selectable && set({ language: lang })}
+                data-testid={`a11y-lang-${lang}`}
+                title={selectable ? undefined : "Not available for this title"}
+                style={selectable ? undefined : { opacity: 0.4, cursor: "not-allowed" }}
+              >
+                {LANG_LABEL[lang] ?? lang}
+              </button>
+            );
+          })}
         </div>
       </div>
 

@@ -250,6 +250,23 @@ export function Player({
     [playable?.caption_doc_url, playable?.audio_description_url, playable?.sign_video_url],
   );
 
+  // Dubbing + per-language captions. The base language is the variant's own; other languages are available
+  // only when present in dub_audio_urls. Switching language switches BOTH the audio (to the dub track) and the
+  // captions (to the same-dir <lang>_captions.json), together.
+  const baseLang = playable?.language ?? "en";
+  const dubLangs = useMemo(() => Object.keys(playable?.dub_audio_urls ?? {}), [playable?.dub_audio_urls]);
+  // Available SIGN languages for this title. The schema carries one sign_video_url today (ASL, what we have
+  // produced); as more are produced (BSL, etc.) this becomes the sign-language selection panel.
+  const signLanguages = useMemo(() => (playable?.sign_video_url ? ["ASL"] : []), [playable?.sign_video_url]);
+  const dubAudioUrl =
+    active.language !== baseLang ? playable?.dub_audio_urls?.[active.language] : undefined;
+  const captionDocUrl = useMemo(() => {
+    const base = playable?.caption_doc_url;
+    if (!base) return undefined;
+    if (active.language === baseLang) return base;
+    return base.split("?")[0].replace(/[^/]+\.json$/, `${active.language}_captions.json`);
+  }, [playable?.caption_doc_url, baseLang, active.language]);
+
   // Log the variant URL the player actually received, so a dark frame is diagnosable from the console.
   useEffect(() => {
     if (playable) {
@@ -263,7 +280,7 @@ export function Player({
   // 0009a: fetch the caption document (CaptionSegment[]) for the on-screen cut. Tolerant of {segments:[...]}
   // or a bare array. Cleared when the cut has no caption_doc_url, so captions reflect the current variant.
   useEffect(() => {
-    const docUrl = playable?.caption_doc_url;
+    const docUrl = captionDocUrl;
     if (!docUrl) {
       setCaptionSegments([]);
       return;
@@ -288,7 +305,7 @@ export function Player({
     return () => {
       alive = false;
     };
-  }, [playable?.caption_doc_url]);
+  }, [captionDocUrl]);
 
   // 0009a: fetch the audio description doc (AudioDescriptionSegment[]) for the on-screen cut.
   useEffect(() => {
@@ -468,7 +485,8 @@ export function Player({
         onTimeMs={setCurrentTimeMs}
         controlsVisible={chromeVisible}
         adSegments={adSegments}
-        adEnabled={active.audioDescription && trackAvail.audioDescription}
+        adEnabled={prefs.audioDescription && trackAvail.audioDescription}
+        dubAudioUrl={dubAudioUrl}
       />
       <div className="pgrad" />
 
@@ -612,7 +630,7 @@ export function Player({
           legibility at vertical width. The captions-with-intention renderer lifted from Axessible draws the
           real word-level caption document here once 0009a wires caption_doc_url; today it shows the caption
           state so the vertical placement is provable (Work item A). */}
-      {active.captions && (
+      {prefs.captions && trackAvail.captions && (
         <div className="cap-safe" data-testid="track-captions" style={CAP_SAFE_STYLE}>
           {captionSegments.length > 0 ? (
             <CaptionsWithIntention segments={captionSegments} meta={captionMeta} currentTimeMs={currentTimeMs} enabled />
@@ -624,8 +642,9 @@ export function Player({
       )}
 
       <SignPip
-        active={active.sign && trackAvail.sign}
+        active={prefs.sign && trackAvail.sign}
         videoUrl={playable?.sign_video_url ?? undefined}
+        signLanguage={trackAvail.sign ? signLanguages[0] : undefined}
         side={signSide}
         size={signSize}
         onToggleSide={toggleSignSide}
@@ -637,6 +656,8 @@ export function Player({
           prefs={prefs}
           active={active}
           availableLanguages={availableLanguages}
+          selectableLanguages={[baseLang, ...dubLangs]}
+          signLanguages={signLanguages}
           availability={trackAvail}
           onChange={onPrefsChange}
           onClose={() => setShowA11y(false)}
@@ -768,11 +789,13 @@ function PosterSurface({
   controlsVisible = true,
   adSegments,
   adEnabled = false,
+  dubAudioUrl,
 }: {
   posterClass: string;
   controlsVisible?: boolean;
   adSegments?: AudioDescriptionSegment[];
   adEnabled?: boolean;
+  dubAudioUrl?: string;
   playbackUrl?: string;
   // Report the video clock (ms) so captions / AD / sign sync to playback.
   onTimeMs?: (ms: number) => void;
@@ -782,6 +805,10 @@ function PosterSurface({
   fit?: "cover" | "contain";
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  // Dubbing refs declared early so play/mute/attach all share one source of truth for whether a dub is active.
+  const dubAudioRef = useRef<HTMLAudioElement | null>(null);
+  const dubActiveRef = useRef(false);
+  dubActiveRef.current = !!dubAudioUrl;
   // Visible playback status, so a black frame is diagnosable on screen (the user can read it back).
   const [status, setStatus] = useState<string>("idle");
   // Whether the video is actually painting frames. When paused (incl. blocked autoplay) we show a clear
@@ -808,7 +835,7 @@ function PosterSurface({
       return;
     }
     setSoundOn(true);
-    el.muted = false;
+    el.muted = dubActiveRef.current; // dub active -> original stays muted; dub carries the sound
     setStatus(`tap: play rs=${el.readyState} net=${el.networkState}`);
     // After ~1.2s report the REAL state, in case play() neither resolved nor rejected (a hung promise on a
     // video with no buffered data). currentTime advancing means it is actually playing.
@@ -845,7 +872,7 @@ function PosterSurface({
     const el = videoRef.current;
     if (!el) return;
     if (el.paused) {
-      el.muted = false;
+      el.muted = dubActiveRef.current; // dub active -> keep original muted; dub carries the sound
       setSoundOn(true);
       el.play()?.catch?.(() => {});
     } else {
@@ -857,11 +884,8 @@ function PosterSurface({
     if (el && Number.isFinite(ms)) el.currentTime = Math.max(0, ms / 1000);
   };
   const toggleMute = () => {
-    const el = videoRef.current;
-    if (!el) return;
-    const nextSoundOn = !soundOn;
-    el.muted = !nextSoundOn;
-    setSoundOn(nextSoundOn);
+    // Toggle the desired sound; the muting effect applies it to the original or the dub as appropriate.
+    setSoundOn((s) => !s);
   };
 
   // Audio description. CRITICAL: AD ADDS narration in the dialogue gaps; it must never replace the characters'
@@ -872,13 +896,9 @@ function PosterSurface({
   const adAudioRef = useRef<HTMLAudioElement | null>(null);
   const adFired = useRef<Set<string>>(new Set());
   const lastTimeRef = useRef(0);
-  // Keep the dialogue audible whenever AD is enabled.
+  // Keep the dialogue audible whenever AD is enabled (the muting effect unmutes the original when no dub).
   useEffect(() => {
-    const v = videoRef.current;
-    if (adEnabled && v) {
-      v.muted = false;
-      setSoundOn(true);
-    }
+    if (adEnabled) setSoundOn(true);
   }, [adEnabled]);
   const checkAd = (tSec: number) => {
     if (tSec < lastTimeRef.current - 1) adFired.current.clear(); // seek back -> allow re-fire
@@ -890,7 +910,6 @@ function PosterSurface({
     const a = adAudioRef.current;
     const v = videoRef.current;
     if (!a || !v) return;
-    v.muted = false; // dialogue must be audible alongside the AD
     const wasPaused = v.paused;
     a.src = due.audioUrl;
     if (due.requiresExtension) {
@@ -912,6 +931,36 @@ function PosterSurface({
     setTimeout(restore, (due.audioDurationMs ?? 4000) + 500);
   };
 
+  // Single source of truth for what is audible: dub active -> original muted, dub follows soundOn; no dub ->
+  // original follows soundOn, dub muted.
+  useEffect(() => {
+    const v = videoRef.current;
+    const dub = dubAudioRef.current;
+    if (v) v.muted = dubAudioUrl ? true : !soundOn;
+    if (dub) dub.muted = dubAudioUrl ? !soundOn : true;
+  }, [dubAudioUrl, soundOn]);
+  // Load / unload the dub track when the language changes.
+  useEffect(() => {
+    const v = videoRef.current;
+    const dub = dubAudioRef.current;
+    if (!v || !dub) return;
+    if (dubAudioUrl) {
+      if (dub.src !== dubAudioUrl) dub.src = dubAudioUrl;
+      dub.currentTime = v.currentTime;
+      if (!v.paused) dub.play()?.catch?.(() => {});
+    } else {
+      dub.pause();
+      dub.removeAttribute("src");
+    }
+  }, [dubAudioUrl]);
+  const syncDub = (v: HTMLVideoElement) => {
+    const dub = dubAudioRef.current;
+    if (!dubAudioUrl || !dub) return;
+    v.muted = true; // keep the original muted under the dub, even after a remount
+    if (Math.abs(dub.currentTime - v.currentTime) > 0.3) dub.currentTime = v.currentTime;
+    if (!v.paused && dub.paused) dub.play()?.catch?.(() => {});
+  };
+
   // Prefer the per-variant playable video (a real uploaded master), else the global scene clip, else the
   // gradient poster. So a variant uploaded in the Studio actually plays here.
   const url = isPlayableVideoUrl(playbackUrl) ? playbackUrl : sceneVideoUrl();
@@ -931,7 +980,7 @@ function PosterSurface({
       const myToken = ++attachToken.current;
       // CRITICAL: set the muted PROPERTY imperatively (React's `muted` attr does not reliably set it), so
       // muted autoplay is allowed instead of blocked.
-      el.muted = !soundOnRef.current;
+      el.muted = dubActiveRef.current ? true : !soundOnRef.current;
       setStatus("loading");
       attachHls(el, url, (s) => setStatus(s))
         .then((c) => {
@@ -974,14 +1023,23 @@ function PosterSurface({
             setPaused(false);
             setStarted(true);
           }}
-          onPlay={() => setPaused(false)}
-          onPause={() => setPaused(true)}
+          onPlay={(e) => {
+            setPaused(false);
+            if (dubAudioUrl) dubAudioRef.current?.play()?.catch?.(() => {});
+            syncDub(e.currentTarget);
+          }}
+          onPause={() => {
+            setPaused(true);
+            dubAudioRef.current?.pause();
+          }}
+          onSeeked={(e) => syncDub(e.currentTarget)}
           onEnded={() => setPaused(true)}
           onTimeUpdate={(e) => {
             const ms = e.currentTarget.currentTime * 1000;
             setCurMs(ms);
             onTimeMs?.(ms);
             checkAd(e.currentTarget.currentTime);
+            syncDub(e.currentTarget);
           }}
           onLoadedMetadata={(e) => {
             const d = e.currentTarget.duration;
@@ -1000,6 +1058,8 @@ function PosterSurface({
         />
         {/* Audio description audio element (hidden). Played by checkAd at each AD segment start. */}
         <audio ref={adAudioRef} preload="auto" data-testid="ad-audio" />
+        {/* Dub audio element (hidden). Plays in sync with the video when a dub language is selected. */}
+        <audio ref={dubAudioRef} preload="auto" data-testid="dub-audio" />
         {adEnabled && (
           <div data-testid="ad-active-indicator" aria-hidden="true" style={{ position: "absolute", top: 50, left: 8, fontSize: 10, color: "#fff", opacity: 0.6, background: "rgba(0,0,0,0.4)", borderRadius: 4, padding: "2px 6px" }}>
             AD

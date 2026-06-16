@@ -17,8 +17,10 @@ export type SignSize = "small" | "large";
 export interface SignPipProps {
   // Sign track on (from the a11y preferences / variant flag).
   active: boolean;
-  // The real ASL clip URL. Gated behind 0009a; undefined today, so a placeholder renders in the slot.
+  // The sign clip URL (0009a sign_video_url) for the selected sign language.
   videoUrl?: string;
+  // The selected sign language short name (e.g. ASL, BSL), shown as the PiP badge.
+  signLanguage?: string;
   side: SignSide;
   size: SignSize;
   onToggleSide: () => void;
@@ -31,7 +33,7 @@ const SIZES: Record<SignSize, { width: string; maxWidth: number }> = {
   large: { width: "38vw", maxWidth: 220 },
 };
 
-export function SignPip({ active, videoUrl, side, size, onToggleSide, onToggleSize }: SignPipProps) {
+export function SignPip({ active, videoUrl, signLanguage, side, size, onToggleSide, onToggleSize }: SignPipProps) {
   if (!active) return null;
   const dims = SIZES[size];
   // Sit ABOVE the caption safe area and the control bar (bottom ~28vh), inset from the frame edge. The right
@@ -62,15 +64,36 @@ export function SignPip({ active, videoUrl, side, size, onToggleSide, onToggleSi
       aria-label="Sign language"
     >
       {videoUrl ? (
-        <video
-          data-testid="sign-video"
-          src={videoUrl}
-          muted
-          loop
-          playsInline
-          autoPlay
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-        />
+        <>
+          <video
+            data-testid="sign-video"
+            src={videoUrl}
+            muted
+            loop
+            playsInline
+            autoPlay
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          />
+          {signLanguage && (
+            <span
+              data-testid="sign-language-badge"
+              style={{
+                position: "absolute",
+                bottom: 6,
+                left: 6,
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                color: "#fff",
+                background: "rgba(0,0,0,0.55)",
+                borderRadius: 6,
+                padding: "2px 6px",
+              }}
+            >
+              {signLanguage}
+            </span>
+          )}
+        </>
       ) : (
         <div
           data-testid="sign-placeholder"
