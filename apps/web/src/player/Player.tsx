@@ -107,6 +107,11 @@ export function Player({
   // 0009a captions: the video clock (ms) plus the fetched CaptionSegment[] document for the on-screen cut.
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [captionSegments, setCaptionSegments] = useState<CaptionSegment[]>([]);
+  // Timeline: duration + play state + a handle to the video element's controls (seek/toggle) so the scrubber
+  // can seek and the viewer can go back.
+  const [durationMs, setDurationMs] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const videoControls = useRef<VideoControls | null>(null);
 
   // Vertical layout of the sign-language PiP: viewport-relative, repositionable (left/right) and resizable.
   // Held in player state so it carries across beats in a session without re-prompting (swipe-feed requirement).
@@ -404,6 +409,9 @@ export function Player({
         variantId={playable?.id}
         playbackUrl={playable?.playback_url}
         onTimeMs={setCurrentTimeMs}
+        onDurationMs={setDurationMs}
+        onPlayingChange={setPlaying}
+        controlsRef={videoControls}
       />
       <div className="pgrad" />
 
@@ -426,7 +434,7 @@ export function Player({
           pointerEvents: "none",
         }}
       >
-        build CAPTIONS-4 (tap-diag)
+        build PLAYER-TIMELINE
       </div>
 
       {/* top bar */}
@@ -497,8 +505,14 @@ export function Player({
         </button>
       </div>
 
-      {/* scrub bar (rose) */}
-      <div className="scrub" aria-hidden="true"><i style={{ width: "62%" }} /></div>
+      {/* real timeline: play/pause, seekable scrubber (go back), and the time readout */}
+      <Scrubber
+        currentMs={currentTimeMs}
+        durationMs={durationMs}
+        playing={playing}
+        onSeek={(ms) => videoControls.current?.seek(ms)}
+        onToggle={() => videoControls.current?.toggle()}
+      />
 
       {/* branch picker pills: feel the per-viewer re-cut */}
       {!unlocked && (
@@ -642,6 +656,86 @@ function isPlayableVideoUrl(url: string | undefined): boolean {
   return url.includes("/media/");
 }
 
+// Imperative handle to the video element so the chrome (scrubber) can seek and toggle playback.
+interface VideoControls {
+  seek: (ms: number) => void;
+  toggle: () => void;
+}
+
+function fmtTime(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+// A real, seekable timeline for the vertical player: play/pause, a draggable progress track (tap or drag to
+// go back/forward), and the time readout. No em dashes.
+function Scrubber({
+  currentMs,
+  durationMs,
+  playing,
+  onSeek,
+  onToggle,
+}: {
+  currentMs: number;
+  durationMs: number;
+  playing: boolean;
+  onSeek: (ms: number) => void;
+  onToggle: () => void;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const pct = durationMs > 0 ? Math.min(100, (currentMs / durationMs) * 100) : 0;
+  const seekAtClientX = (clientX: number) => {
+    const el = trackRef.current;
+    if (!el || durationMs <= 0) return;
+    const r = el.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+    onSeek(frac * durationMs);
+  };
+  return (
+    <div className="scrubrow" data-testid="scrubrow" style={{ position: "absolute", left: 14, right: 14, bottom: "9vh", zIndex: 6, display: "flex", alignItems: "center", gap: 10 }}>
+      <button
+        type="button"
+        className="icbtn"
+        data-testid="player-playpause"
+        aria-label={playing ? "Pause" : "Play"}
+        onClick={onToggle}
+        style={{ flex: "0 0 auto", fontSize: 16, lineHeight: 1 }}
+      >
+        {playing ? "❚❚" : "▶"}
+      </button>
+      <div
+        ref={trackRef}
+        className="scrub"
+        data-testid="scrubber"
+        role="slider"
+        aria-label="Seek"
+        aria-valuemin={0}
+        aria-valuemax={Math.round(durationMs / 1000)}
+        aria-valuenow={Math.round(currentMs / 1000)}
+        tabIndex={0}
+        style={{ flex: 1, cursor: "pointer" }}
+        onClick={(e) => seekAtClientX(e.clientX)}
+        onPointerDown={(e) => {
+          (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+          seekAtClientX(e.clientX);
+        }}
+        onPointerMove={(e) => {
+          if (e.buttons === 1) seekAtClientX(e.clientX);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowLeft") onSeek(Math.max(0, currentMs - 5000));
+          else if (e.key === "ArrowRight") onSeek(Math.min(durationMs, currentMs + 5000));
+        }}
+      >
+        <i style={{ width: `${pct}%` }} />
+      </div>
+      <span className="time" data-testid="player-time" style={{ flex: "0 0 auto", fontSize: 11, fontVariantNumeric: "tabular-nums", opacity: 0.85 }}>
+        {fmtTime(currentMs)} / {fmtTime(durationMs)}
+      </span>
+    </div>
+  );
+}
+
 // The full-bleed poster surface. When VITE_SCENE_VIDEO_URL is set, render a real muted autoplaying
 // looping <video> (captions/overlay sit on top via the scrim and pbody); otherwise the gradient
 // poster. The video is re-seeked to 0 whenever the on-screen cut changes so each cut plays from the
@@ -652,12 +746,19 @@ function PosterSurface({
   playbackUrl,
   fit = "cover",
   onTimeMs,
+  onDurationMs,
+  onPlayingChange,
+  controlsRef,
 }: {
   posterClass: string;
   variantId?: string;
   playbackUrl?: string;
   // Report the video clock (ms) so captions / AD / sign sync to playback.
   onTimeMs?: (ms: number) => void;
+  // Report duration (ms) and play state so the timeline can render, and expose seek/toggle controls.
+  onDurationMs?: (ms: number) => void;
+  onPlayingChange?: (playing: boolean) => void;
+  controlsRef?: { current: VideoControls | null };
   // Fit policy for the 9:16 frame. "cover" is correct for vertical-native content; "contain" letterboxes a
   // landscape source so faces are never silently cropped. This is a per-variant hint: the source is gated
   // behind 0009 (a variant fit column); until then the default is cover.
@@ -763,6 +864,30 @@ function PosterSurface({
     return () => el.removeEventListener("timeupdate", tick);
   }, [onTimeMs, url]);
 
+  // Expose seek/toggle so the timeline scrubber can control the video (go back).
+  useEffect(() => {
+    if (!controlsRef) return;
+    controlsRef.current = {
+      seek: (ms: number) => {
+        const el = videoRef.current;
+        if (el && Number.isFinite(ms)) el.currentTime = Math.max(0, ms / 1000);
+      },
+      toggle: () => {
+        const el = videoRef.current;
+        if (!el) return;
+        if (el.paused) {
+          el.muted = false;
+          el.play()?.catch?.(() => {});
+        } else {
+          el.pause();
+        }
+      },
+    };
+    return () => {
+      if (controlsRef) controlsRef.current = null;
+    };
+  }, [controlsRef, url]);
+
 
   if (url) {
     return (
@@ -781,11 +906,31 @@ function PosterSurface({
           playsInline
           // React video events are more reliable than addEventListener for tracking real play state, so the
           // "Tap to play" overlay always reflects whether the frame is actually playing.
-          onPlaying={() => setPaused(false)}
-          onPlay={() => setPaused(false)}
-          onPause={() => setPaused(true)}
+          onPlaying={() => {
+            setPaused(false);
+            onPlayingChange?.(true);
+          }}
+          onPlay={() => {
+            setPaused(false);
+            onPlayingChange?.(true);
+          }}
+          onPause={() => {
+            setPaused(true);
+            onPlayingChange?.(false);
+          }}
           onWaiting={() => setPaused(true)}
-          onEnded={() => setPaused(true)}
+          onEnded={() => {
+            setPaused(true);
+            onPlayingChange?.(false);
+          }}
+          onLoadedMetadata={(e) => {
+            const d = e.currentTarget.duration;
+            if (Number.isFinite(d)) onDurationMs?.(d * 1000);
+          }}
+          onDurationChange={(e) => {
+            const d = e.currentTarget.duration;
+            if (Number.isFinite(d)) onDurationMs?.(d * 1000);
+          }}
           // Keep the gradient as the poster fallback before the clip paints.
           poster=""
           data-playback-url={playbackUrl ?? ""}
