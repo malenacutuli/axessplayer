@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Clients } from "./clients.js";
 import { createCaptureClient, noopCapture } from "./capture/capture.js";
-import type { SeriesGraph } from "./api/content.js";
+import type { SeriesGraph, FeedItem } from "./api/content.js";
 import { coldOpenBeat } from "./api/content.js";
 import type { Wallet as WalletData } from "./api/economy.js";
 import { Feed } from "./feed/Feed.js";
@@ -35,9 +35,20 @@ type Screen = "feed" | "player" | "wallet" | "profile";
 
 export function App({ clients, seriesId, userId, viewerName = "Malena", consent }: AppProps) {
   const [graph, setGraph] = useState<SeriesGraph | null>(null);
+  const [feed, setFeed] = useState<FeedItem[]>([]);
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>("feed");
+
+  // Refresh the published feed (GET /feed). Called on mount and whenever returning to the feed, so a publish
+  // or unpublish in the Studio is reflected without a full reload.
+  const refreshFeed = useCallback(async () => {
+    try {
+      setFeed(await clients.content.getFeed());
+    } catch {
+      // A feed load failure leaves the last known feed; the per-series graph load surfaces hard errors.
+    }
+  }, [clients]);
 
   const refreshWallet = useCallback(async () => {
     try {
@@ -58,10 +69,27 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
       }
     })();
     void refreshWallet();
+    void refreshFeed();
     return () => {
       live = false;
     };
-  }, [clients, seriesId, refreshWallet]);
+  }, [clients, seriesId, refreshWallet, refreshFeed]);
+
+  // Open a published series in the player. The graph for the configured series is preloaded; opening a
+  // different published series loads its graph first.
+  const openSeries = useCallback(
+    async (id: string) => {
+      try {
+        if (!graph || graph.series.id !== id) {
+          setGraph(await clients.content.getSeriesGraph(id));
+        }
+        setScreen("player");
+      } catch (err) {
+        setLoadError(err instanceof Error ? err.message : "graph load failed");
+      }
+    },
+    [clients, graph],
+  );
 
   const coins = wallet?.balance ?? null;
 
@@ -73,9 +101,13 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
     [personalize, seriesId],
   );
 
-  const onNavigate = useCallback((tab: Tab) => {
-    setScreen(tab === "home" ? "feed" : tab === "you" ? "profile" : "wallet");
-  }, []);
+  const onNavigate = useCallback(
+    (tab: Tab) => {
+      setScreen(tab === "home" ? "feed" : tab === "you" ? "profile" : "wallet");
+      if (tab === "home") void refreshFeed();
+    },
+    [refreshFeed],
+  );
 
   const content = () => {
     if (loadError) {
@@ -85,15 +117,15 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
         </div>
       );
     }
-    if (!graph) {
-      return (
-        <div className="frame-state" role="status">
-          Loading.
-        </div>
-      );
-    }
 
     if (screen === "player") {
+      if (!graph) {
+        return (
+          <div className="frame-state" role="status">
+            Loading.
+          </div>
+        );
+      }
       const start = coldOpenBeat(graph);
       if (!start) {
         return (
@@ -149,7 +181,7 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
     return (
       <div className="scr" data-testid="screen-feed">
         <StatusBar />
-        <Feed graph={graph} coins={coins} onOpen={() => setScreen("player")} />
+        <Feed feed={feed} coins={coins} onOpen={(id) => void openSeries(id)} />
         <BottomNav active="home" onNavigate={onNavigate} />
       </div>
     );

@@ -45,13 +45,15 @@ export function seedGraph(): SeriesGraph {
       { id: BEAT_TENSE, episode_id: "22222222-2222-2222-2222-222222222222", beat_index: 2, role: "variant", is_branch_point: false },
       { id: BEAT_ENDING, episode_id: "22222222-2222-2222-2222-222222222222", beat_index: 3, role: "ending", is_branch_point: false },
     ],
+    // The fixture represents UPLOADED, ENCODED content: real /media URLs and qa_status passed, so the player's
+    // real-media guard accepts them (a seed cdn.example placeholder would be excluded, as in production).
     variants: [
-      { id: VAR_COLD_OPEN, beat_id: BEAT_COLD_OPEN, language: "en", intensity: 3, tier: "A_filmed", is_premium: false, coin_cost: 0, playback_url: "https://cdn.example/skel/coldopen.m3u8", accessibility: { captions: true, audio_description: true, sign: true, languages: ["en", "es"] } },
-      { id: VAR_BRANCHPOINT, beat_id: BEAT_BRANCH, language: "en", intensity: 3, tier: "A_filmed", is_premium: false, coin_cost: 0, playback_url: "https://cdn.example/skel/branchpoint.m3u8", accessibility: { captions: true, audio_description: false, sign: false, languages: ["en"] } },
-      { id: VAR_CALM, beat_id: BEAT_CALM, language: "en", intensity: 2, tier: "A_filmed", is_premium: false, coin_cost: 0, playback_url: "https://cdn.example/skel/calm.m3u8", accessibility: { captions: true, audio_description: true, sign: true, languages: ["en"] } },
-      { id: VAR_TENSE, beat_id: BEAT_TENSE, language: "en", intensity: 5, tier: "A_filmed", is_premium: false, coin_cost: 0, playback_url: "https://cdn.example/skel/tense.m3u8", accessibility: { captions: true, audio_description: true, sign: false, languages: ["en"] } },
-      { id: VAR_ENDING, beat_id: BEAT_ENDING, language: "en", intensity: 3, tier: "A_filmed", is_premium: false, coin_cost: 0, playback_url: "https://cdn.example/skel/ending.m3u8", accessibility: { captions: true, audio_description: true, sign: true, languages: ["en"] } },
-      { id: VAR_ENDING_PREMIUM, beat_id: BEAT_ENDING, language: "en", intensity: 4, tier: "A_filmed", is_premium: true, coin_cost: 5, playback_url: "https://cdn.example/skel/ending_premium.m3u8", accessibility: { captions: true, audio_description: true, sign: true, languages: ["en"] } },
+      { id: VAR_COLD_OPEN, beat_id: BEAT_COLD_OPEN, language: "en", intensity: 3, tier: "A_filmed", is_premium: false, coin_cost: 0, qa_status: "passed", playback_url: "http://media.test/media/coldopen/master.m3u8", accessibility: { captions: true, audio_description: true, sign: true, languages: ["en", "es"] } },
+      { id: VAR_BRANCHPOINT, beat_id: BEAT_BRANCH, language: "en", intensity: 3, tier: "A_filmed", is_premium: false, coin_cost: 0, qa_status: "passed", playback_url: "http://media.test/media/branchpoint/master.m3u8", accessibility: { captions: true, audio_description: false, sign: false, languages: ["en"] } },
+      { id: VAR_CALM, beat_id: BEAT_CALM, language: "en", intensity: 2, tier: "A_filmed", is_premium: false, coin_cost: 0, qa_status: "passed", playback_url: "http://media.test/media/calm/master.m3u8", accessibility: { captions: true, audio_description: true, sign: true, languages: ["en"] } },
+      { id: VAR_TENSE, beat_id: BEAT_TENSE, language: "en", intensity: 5, tier: "A_filmed", is_premium: false, coin_cost: 0, qa_status: "passed", playback_url: "http://media.test/media/tense/master.m3u8", accessibility: { captions: true, audio_description: true, sign: false, languages: ["en"] } },
+      { id: VAR_ENDING, beat_id: BEAT_ENDING, language: "en", intensity: 3, tier: "A_filmed", is_premium: false, coin_cost: 0, qa_status: "passed", playback_url: "http://media.test/media/ending/master.m3u8", accessibility: { captions: true, audio_description: true, sign: true, languages: ["en"] } },
+      { id: VAR_ENDING_PREMIUM, beat_id: BEAT_ENDING, language: "en", intensity: 4, tier: "A_filmed", is_premium: true, coin_cost: 5, qa_status: "passed", playback_url: "http://media.test/media/ending_premium/master.m3u8", accessibility: { captions: true, audio_description: true, sign: true, languages: ["en"] } },
     ],
     edges: [
       { from_beat_id: BEAT_COLD_OPEN, to_beat_id: BEAT_BRANCH, condition: {} },

@@ -84,6 +84,36 @@ describe("Player", () => {
     expect(machine.accessibility).toBeDefined();
   });
 
+  it("closes the why-this-cut sheet on Got it and on Escape (no modal trap)", async () => {
+    const user = userEvent.setup();
+    const { economy, transport } = setup();
+    renderPlayer(transport, economy);
+    const sheet = screen.getByTestId("why-this-cut");
+    // Opening adds the .up class (visible); Got it removes it (slid off-screen, click-through).
+    await user.click(screen.getByTestId("adaptive-badge"));
+    expect(sheet.className).toContain("up");
+    await user.click(screen.getByTestId("why-close"));
+    expect(sheet.className).not.toContain("up");
+    expect(sheet).toHaveAttribute("aria-hidden", "true");
+    // Escape is the always-available escape hatch.
+    await user.click(screen.getByTestId("adaptive-badge"));
+    expect(sheet.className).toContain("up");
+    await user.keyboard("{Escape}");
+    expect(sheet.className).not.toContain("up");
+  });
+
+  it("opening the a11y sheet closes the why-this-cut sheet (no stacked modals)", async () => {
+    const user = userEvent.setup();
+    const { economy, transport } = setup();
+    renderPlayer(transport, economy);
+    await user.click(screen.getByTestId("adaptive-badge"));
+    expect(screen.getByTestId("why-this-cut").className).toContain("up");
+    await user.click(screen.getByTestId("player-a11y-open"));
+    // Why-this-cut is dismissed; only the a11y sheet remains.
+    expect(screen.getByTestId("why-this-cut").className).not.toContain("up");
+    expect(screen.getByTestId("a11y-sheet")).toBeInTheDocument();
+  });
+
   it("emits beat-level capture events when personalizing (Phase 0)", async () => {
     const user = userEvent.setup();
     const { economy, transport } = setup();
@@ -144,6 +174,50 @@ describe("Player", () => {
     await waitFor(() => {
       expect(surface.getAttribute("data-variant-id")).not.toBe(VAR_COLD_OPEN);
     });
+  });
+
+  it("advances to the next beat on a wheel-down swipe gesture", async () => {
+    const { economy, transport } = setup();
+    renderPlayer(transport, economy);
+    const surface = screen.getByTestId("player-surface");
+    expect(surface).toHaveAttribute("data-variant-id", VAR_COLD_OPEN);
+    expect(screen.getByTestId("swipe-hint")).toBeInTheDocument();
+
+    // A large, deliberate wheel-down past the threshold pages to the next beat (a small nudge must not).
+    const player = screen.getByTestId("player");
+    player.dispatchEvent(new WheelEvent("wheel", { deltaY: 40, bubbles: true })); // small nudge: ignored
+    expect(surface).toHaveAttribute("data-variant-id", VAR_COLD_OPEN);
+    player.dispatchEvent(new WheelEvent("wheel", { deltaY: 700, bubbles: true })); // deliberate: advances
+    await waitFor(() => {
+      expect(surface.getAttribute("data-variant-id")).not.toBe(VAR_COLD_OPEN);
+    });
+  });
+
+  it("renders the sign-language PiP in the vertical safe area, repositionable and resizable", async () => {
+    const user = userEvent.setup();
+    const { economy, transport } = setup();
+    renderPlayer(transport, economy);
+    const pip = screen.getByTestId("track-sign");
+    // Vertical defaults: left side (clear of the right action rail), small, with a placeholder until a real
+    // sign clip is wired by proposal 0009a.
+    expect(pip).toHaveAttribute("data-side", "left");
+    expect(pip).toHaveAttribute("data-size", "small");
+    expect(screen.getByTestId("sign-placeholder")).toBeInTheDocument();
+    // One-tap reposition flips the side; the size toggle grows it. Both persist in player state across beats.
+    await user.click(screen.getByTestId("sign-reposition"));
+    expect(screen.getByTestId("track-sign")).toHaveAttribute("data-side", "right");
+    await user.click(screen.getByTestId("sign-size"));
+    expect(screen.getByTestId("track-sign")).toHaveAttribute("data-size", "large");
+  });
+
+  it("hides the sign PiP when the sign track is turned off", async () => {
+    const user = userEvent.setup();
+    const { economy, transport } = setup();
+    renderPlayer(transport, economy);
+    expect(screen.getByTestId("track-sign")).toBeInTheDocument();
+    await user.click(screen.getByTestId("player-a11y-open"));
+    await user.click(screen.getByTestId("a11y-sign"));
+    expect(screen.queryByTestId("track-sign")).not.toBeInTheDocument();
   });
 
   it("lets the viewer turn captions off in the a11y sheet", async () => {

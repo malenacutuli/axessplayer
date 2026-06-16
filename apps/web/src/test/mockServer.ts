@@ -86,6 +86,24 @@ export function createMockServer(opts: MockServerOptions = {}): MockServer {
       return json(200, nestedSeedGraph());
     }
 
+    // content: GET /feed (published series, 0009b)
+    if (url.endsWith("/feed")) {
+      return json(200, {
+        series: [
+          {
+            id: SERIES_ID,
+            title: "The Last Signal",
+            genre: "thriller",
+            cover_url: null,
+            poster_url: null,
+            base_language: "en",
+            available_languages: ["en"],
+            published_at: "2026-06-15T00:00:00.000Z",
+          },
+        ],
+      });
+    }
+
     // economy: GET /wallet
     if (url.endsWith("/wallet")) {
       return json(200, {

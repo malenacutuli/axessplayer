@@ -4,9 +4,15 @@
 
 import { useEffect, useState } from "react";
 
+// Auto-landscape only on a real rotated device, never on a wide DESKTOP window. A desktop browser is almost
+// always "(orientation: landscape)" (the window is wider than tall), which would wrongly force the vertical
+// player full-window. Gate on a coarse pointer (touch device) so desktop stays 9:16; the manual rotate button
+// still works everywhere.
 function readLandscape(): boolean {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
-  return window.matchMedia("(orientation: landscape)").matches;
+  const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+  const isTouch = window.matchMedia("(pointer: coarse)").matches;
+  return isLandscape && isTouch;
 }
 
 export function useIsLandscape(): boolean {

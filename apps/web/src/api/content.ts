@@ -50,6 +50,15 @@ export interface VariantNode {
   is_premium: boolean;
   coin_cost: number;
   playback_url: string;
+  // Encode/QA outcome from the content graph (pending|passed|rejected). Used to refuse to play a cut whose
+  // media is not ready, so the player never lands on a black frame.
+  qa_status?: string;
+  // 0009a real accessibility track URLs (Axessible pipeline output): caption document (CaptionSegment[] JSON),
+  // AD audio, sign video, and a per-language dub audio map.
+  caption_doc_url?: string | null;
+  audio_description_url?: string | null;
+  sign_video_url?: string | null;
+  dub_audio_urls?: Record<string, string>;
   accessibility?: VariantAccessibility;
 }
 
@@ -74,8 +83,22 @@ export interface SeriesGraph {
   edges: EdgeNode[];
 }
 
+// A published series as the consumer feed lists it (GET /feed, 0009b).
+export interface FeedItem {
+  id: string;
+  title: string;
+  genre: string | null;
+  cover_url: string | null;
+  poster_url: string | null;
+  base_language: string;
+  available_languages: string[];
+  published_at: string;
+}
+
 export interface ContentClient {
   getSeriesGraph(seriesId: string): Promise<SeriesGraph>;
+  // Published series only, newest first. Empty when nothing is live.
+  getFeed(): Promise<FeedItem[]>;
 }
 
 export interface ContentClientOptions {
@@ -93,6 +116,10 @@ export function createContentClient(opts: ContentClientOptions): ContentClient {
         fetch: opts.fetch,
       });
       return flattenGraph(raw);
+    },
+    async getFeed(): Promise<FeedItem[]> {
+      const raw = await apiFetch<{ series: FeedItem[] }>(baseUrl, "/feed", session, { fetch: opts.fetch });
+      return raw.series ?? [];
     },
   };
 }

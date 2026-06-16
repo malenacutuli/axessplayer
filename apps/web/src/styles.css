@@ -328,6 +328,15 @@ button { font-family: var(--font-body); cursor: pointer; }
   border-radius: 20px 20px 0 0;
   padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
   box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.18);
+  /* Closed by default: slid fully off-screen and click-through, so a dismissed sheet never traps the
+     player. The .up class (added when open) slides it in and re-enables interaction. */
+  transform: translateY(110%);
+  transition: transform 0.28s ease;
+  pointer-events: none;
+}
+.sheet.up {
+  transform: translateY(0);
+  pointer-events: auto;
 }
 .sheet h3 { font-size: 16px; margin: 0 0 14px; color: var(--ink); }
 .sheet .ey { margin-bottom: 10px; }

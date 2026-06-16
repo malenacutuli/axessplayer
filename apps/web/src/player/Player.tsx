@@ -11,7 +11,7 @@
 // that the engine normally decides. The media stack (hls.js) is integration-time behind the transport;
 // the optional real <video> renders a provided clip through the cuts. No em dashes.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { EconomyClient } from "../api/economy.js";
 import type { SeriesGraph, VariantNode } from "../api/content.js";
 import { variantForBeat, variantToBeatResolver } from "../api/content.js";
@@ -31,6 +31,11 @@ import { BackIcon, A11yIcon, HeartIcon, CommentIcon, RotateIcon } from "../ui/ic
 import { useIsLandscape, requestLandscape, exitLandscape } from "./useOrientation.js";
 import { noopCapture, type CaptureClient } from "../capture/capture.js";
 import { WhyThisCut, type Adaptation } from "./WhyThisCut.js";
+import { attachHls } from "./hls.js";
+import { SignPip, type SignSide, type SignSize } from "./SignPip.js";
+import { useSwipeNavigation, prefetchMedia } from "./useSwipeNavigation.js";
+import { CaptionsWithIntention } from "./a11y/CaptionsWithIntention.js";
+import type { CaptionSegment } from "./a11y/captionsModel.js";
 
 export interface PlayerProps {
   graph: SeriesGraph;
@@ -74,7 +79,13 @@ export function Player({
 
   // Orientation: vertical 9:16 by default; rotate the phone (or tap the rotate button) for full-bleed
   // landscape. deviceLandscape follows the real orientation; manualLandscape is the explicit toggle.
-  const playerRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<HTMLDivElement | null>(null);
+  // Track the player element in state too, so the swipe-navigation effect attaches once it mounts.
+  const [playerEl, setPlayerEl] = useState<HTMLDivElement | null>(null);
+  const setPlayerNode = useCallback((node: HTMLDivElement | null) => {
+    playerRef.current = node;
+    setPlayerEl(node);
+  }, []);
   const deviceLandscape = useIsLandscape();
   const [manualLandscape, setManualLandscape] = useState(false);
   const landscape = deviceLandscape || manualLandscape;
@@ -93,18 +104,60 @@ export function Player({
     saveA11yPreferences(next);
   }, []);
 
-  // The cut currently on screen for the engine's chosen path.
-  const engineCut: VariantNode | undefined = useMemo(() => {
-    return (
-      graph.variants.find((v) => v.id === state.currentVariantId) ??
-      variantForBeat(graph, state.currentVariantId)
-    );
+  // 0009a captions: the video clock (ms) plus the fetched CaptionSegment[] document for the on-screen cut.
+  const [currentTimeMs, setCurrentTimeMs] = useState(0);
+  const [captionSegments, setCaptionSegments] = useState<CaptionSegment[]>([]);
+
+  // Vertical layout of the sign-language PiP: viewport-relative, repositionable (left/right) and resizable.
+  // Held in player state so it carries across beats in a session without re-prompting (swipe-feed requirement).
+  const [signSide, setSignSide] = useState<SignSide>("left");
+  const [signSize, setSignSize] = useState<SignSize>("small");
+  const toggleSignSide = useCallback(() => setSignSide((s) => (s === "left" ? "right" : "left")), []);
+  const toggleSignSize = useCallback(() => setSignSize((s) => (s === "small" ? "large" : "small")), []);
+
+  // The beat the player is on (currentVariantId is a beat id at start, a variant id after advancing).
+  const activeBeatId = useMemo(() => {
+    const v = graph.variants.find((x) => x.id === state.currentVariantId);
+    return v?.beat_id ?? state.currentVariantId;
   }, [graph, state.currentVariantId]);
 
-  // The viewer's felt branch override. Picking a cut shows that variant for the current branch beat.
+  // The REAL, ready cuts for this beat: a /media URL and qa_status passed. Seed placeholders (cdn.example,
+  // qa pending) are excluded so they can NEVER be selected and blacken the player.
+  const realBeatVariants = useMemo(
+    () =>
+      graph.variants.filter(
+        (v) => v.beat_id === activeBeatId && v.qa_status === "passed" && isPlayableVideoUrl(v.playback_url),
+      ),
+    [graph, activeBeatId],
+  );
+
+  // The engine's chosen cut, constrained to real media: the engine-chosen variant if it has real media, else
+  // the first real variant for the beat, else the raw cut (so the UI shows an explicit "no media" state, not
+  // silent navy).
+  const engineCut: VariantNode | undefined = useMemo(() => {
+    const chosen = graph.variants.find((v) => v.id === state.currentVariantId);
+    if (chosen && chosen.qa_status === "passed" && isPlayableVideoUrl(chosen.playback_url)) return chosen;
+    return realBeatVariants[0] ?? chosen ?? variantForBeat(graph, activeBeatId);
+  }, [graph, state.currentVariantId, realBeatVariants, activeBeatId]);
+
+  // The viewer's felt branch override. Calm/tense are resolved to REAL, ready cuts only (passed + /media), so
+  // picking a cut can never land on a seed placeholder with no media. If no real calm/tense cut exists, the
+  // picker falls back to the engine's (real) cut rather than blackening the screen.
   const [branch, setBranch] = useState<Branch>("auto");
-  const calmVariant = useMemo(() => graph.variants.find((v) => v.intensity <= 2 && !v.is_premium), [graph]);
-  const tenseVariant = useMemo(() => graph.variants.find((v) => v.intensity >= 5 && !v.is_premium), [graph]);
+  const calmVariant = useMemo(
+    () =>
+      graph.variants.find(
+        (v) => v.intensity <= 2 && !v.is_premium && v.qa_status === "passed" && isPlayableVideoUrl(v.playback_url),
+      ),
+    [graph],
+  );
+  const tenseVariant = useMemo(
+    () =>
+      graph.variants.find(
+        (v) => v.intensity >= 5 && !v.is_premium && v.qa_status === "passed" && isPlayableVideoUrl(v.playback_url),
+      ),
+    [graph],
+  );
 
   // What is shown: the felt branch override if set, otherwise the engine's cut.
   const shown: VariantNode | undefined =
@@ -149,6 +202,57 @@ export function Player({
 
   // The cut shown after an unlock is the premium ending; otherwise whatever is on the branch path.
   const onScreen: VariantNode | undefined = unlocked && premiumGate ? premiumGate : shown;
+
+  // Never hand the surface a cut whose media does not exist (a black player). If the chosen cut has no
+  // playable URL, fall back to a sibling variant on the same beat that does (qa passed + real media). This is
+  // the guard against the engine picking a language/cut that was never uploaded.
+  const playable: VariantNode | undefined = useMemo(() => {
+    if (!onScreen) return onScreen;
+    if (isPlayableVideoUrl(onScreen.playback_url)) return onScreen;
+    const sibling = graph.variants.find(
+      (v) => v.beat_id === onScreen.beat_id && v.qa_status === "passed" && isPlayableVideoUrl(v.playback_url),
+    );
+    return sibling ?? onScreen;
+  }, [graph, onScreen]);
+
+  // Log the variant URL the player actually received, so a dark frame is diagnosable from the console.
+  useEffect(() => {
+    if (playable) {
+      // eslint-disable-next-line no-console
+      console.info(
+        `[player] beat=${playable.beat_id} variant=${playable.id} lang=${playable.language} url=${playable.playback_url}`,
+      );
+    }
+  }, [playable?.id, playable?.playback_url, playable?.beat_id, playable?.language, playable]);
+
+  // 0009a: fetch the caption document (CaptionSegment[]) for the on-screen cut. Tolerant of {segments:[...]}
+  // or a bare array. Cleared when the cut has no caption_doc_url, so captions reflect the current variant.
+  useEffect(() => {
+    const docUrl = playable?.caption_doc_url;
+    if (!docUrl) {
+      setCaptionSegments([]);
+      return;
+    }
+    let alive = true;
+    void fetch(docUrl)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((doc: unknown) => {
+        if (!alive) return;
+        const segs = Array.isArray(doc)
+          ? (doc as CaptionSegment[])
+          : ((doc as { segments?: CaptionSegment[] })?.segments ?? []);
+        setCaptionSegments(segs);
+      })
+      .catch((err) => {
+        if (alive) {
+          setCaptionSegments([]);
+          console.warn("[player] caption doc load failed", err, docUrl);
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, [playable?.caption_doc_url]);
 
   // ---------- Phase 0: beat-level capture + REAL /decide signals (was empty {}) ----------
   const currentBeatId = onScreen?.beat_id;
@@ -214,6 +318,30 @@ export function Player({
     void advance();
   }, [currentBeatId, decisionId, onScreen?.id, capture, personalize, recordSignals, advance]);
 
+  // Swipe-feed navigation: an upward swipe / wheel-down / ArrowDown advances to the next beat, inert while the
+  // paywall is open, a switch is in flight, or the graph ended.
+  useSwipeNavigation(playerEl, onContinue, {
+    enabled: !showPaywall && !state.advancing && !state.ended,
+  });
+
+  // Always-available escape: Esc closes any open sheet so the player can never be trapped behind a modal.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowWhy(false);
+        setShowA11y(false);
+        setShowPaywall(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Prefetch the immediate alternate cuts (calm/tense/premium) so switching or advancing has no buffering.
+  useEffect(() => {
+    prefetchMedia([calmVariant?.playback_url, tenseVariant?.playback_url, premiumGate?.playback_url]);
+  }, [currentBeatId, calmVariant?.playback_url, tenseVariant?.playback_url, premiumGate?.playback_url]);
+
   // Back to feed: close the session.
   const onBackToFeed = useCallback(() => {
     capture.emit({
@@ -226,9 +354,10 @@ export function Player({
   }, [capture, currentBeatId, onBack]);
 
   // The Article 50 disclosure facts: what drove this cut.
+  // Honest language: the cut actually on screen, not a preference guess that may not be offered.
   const adaptation: Adaptation = {
     isControl: isControl ?? false,
-    language: active.language,
+    language: playable?.language ?? active.language,
     intensity: onScreen?.intensity,
     captions: active.captions,
     audioDescription: active.audioDescription,
@@ -264,17 +393,41 @@ export function Player({
 
   return (
     <div
-      ref={playerRef}
+      ref={setPlayerNode}
       className={`player${landscape ? " landscape" : ""}`}
       data-testid="player"
       data-orientation={landscape ? "landscape" : "portrait"}
+      tabIndex={0}
     >
       <PosterSurface
         posterClass={posterClass}
-        variantId={onScreen?.id}
-        playbackUrl={onScreen?.playback_url}
+        variantId={playable?.id}
+        playbackUrl={playable?.playback_url}
+        onTimeMs={setCurrentTimeMs}
       />
       <div className="pgrad" />
+
+      {/* Build marker so a stale bundle is obvious: if you do NOT see this pill, the browser is on old code. */}
+      <div
+        data-testid="player-build"
+        style={{
+          position: "absolute",
+          top: 6,
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 50,
+          background: "var(--rose, #FF2E6E)",
+          color: "#fff",
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.04em",
+          padding: "2px 8px",
+          borderRadius: 999,
+          pointerEvents: "none",
+        }}
+      >
+        build CAPTIONS-2 (tap-to-play)
+      </div>
 
       {/* top bar */}
       <div className="ptop">
@@ -285,7 +438,10 @@ export function Player({
           type="button"
           className="adapt"
           data-testid="adaptive-badge"
-          onClick={() => setShowWhy(true)}
+          onClick={() => {
+            setShowA11y(false);
+            setShowWhy(true);
+          }}
           aria-label="Why this cut"
         >
           <span className="dot" aria-hidden="true" />
@@ -305,7 +461,10 @@ export function Player({
           <button
             type="button"
             className="icbtn"
-            onClick={() => setShowA11y(true)}
+            onClick={() => {
+              setShowWhy(false);
+              setShowA11y(true);
+            }}
             aria-label="Accessibility and language"
             data-testid="player-a11y-open"
           >
@@ -324,7 +483,15 @@ export function Player({
           <span className="c"><CommentIcon /></span>
           840
         </div>
-        <button type="button" className="rail" onClick={() => setShowA11y(true)} aria-label="Accessibility tracks">
+        <button
+          type="button"
+          className="rail"
+          onClick={() => {
+            setShowWhy(false);
+            setShowA11y(true);
+          }}
+          aria-label="Accessibility tracks"
+        >
           <span className="c"><A11yIcon /></span>
           A11Y
         </button>
@@ -370,11 +537,11 @@ export function Player({
           data-testid="player-surface"
           data-variant-id={onScreen?.id ?? ""}
         >
-          {active.captions && <p className="player-track" data-testid="track-captions">Captions on</p>}
+          {/* Audio description and language are non-visual indicators; captions render in the safe area
+              below and sign language in the vertical PiP, so they clear the controls and the action rail. */}
           {active.audioDescription && (
             <p className="player-track" data-testid="track-audio-description">Audio description on</p>
           )}
-          {active.sign && <p className="player-track" data-testid="track-sign">Sign language on</p>}
           <p className="player-track" data-testid="track-language">Language: {active.language}</p>
         </div>
 
@@ -388,12 +555,40 @@ export function Player({
         >
           {state.ended ? "Ended" : state.advancing ? "Loading" : "Continue"}
         </button>
+        {!state.ended && !showPaywall && (
+          <p className="player-track" data-testid="swipe-hint" style={{ opacity: 0.7, marginTop: 6 }}>
+            Swipe up for the next beat
+          </p>
+        )}
         {state.error && (
           <p role="alert" data-testid="player-error" className="player-track">
             {state.error}
           </p>
         )}
       </div>
+
+      {/* Caption safe area: above the control bar and clear of the right action rail, line length capped for
+          legibility at vertical width. The captions-with-intention renderer lifted from Axessible draws the
+          real word-level caption document here once 0009a wires caption_doc_url; today it shows the caption
+          state so the vertical placement is provable (Work item A). */}
+      {active.captions && (
+        <div className="cap-safe" data-testid="track-captions" style={CAP_SAFE_STYLE}>
+          {captionSegments.length > 0 ? (
+            <CaptionsWithIntention segments={captionSegments} currentTimeMs={currentTimeMs} enabled />
+          ) : (
+            // No caption document on this cut yet (0009a not wired for it): keep the honest indicator.
+            <span style={{ opacity: 0.7, fontSize: 13 }}>Captions on (no caption track for this cut)</span>
+          )}
+        </div>
+      )}
+
+      <SignPip
+        active={active.sign}
+        side={signSide}
+        size={signSize}
+        onToggleSide={toggleSignSide}
+        onToggleSize={toggleSignSize}
+      />
 
       {showA11y && (
         <A11ySheet
@@ -422,6 +617,22 @@ export function Player({
   );
 }
 
+// Caption safe area for the 9:16 frame: sit above the control bar and branch picker (bottom), inset on the
+// right to clear the action rail, and cap the line length so captions stay legible at vertical width.
+const CAP_SAFE_STYLE: CSSProperties = {
+  position: "absolute",
+  bottom: "22vh",
+  left: "5vw",
+  right: "18vw",
+  maxWidth: 560,
+  margin: "0 auto",
+  textAlign: "center",
+  color: "#fff",
+  lineHeight: 1.3,
+  zIndex: 5,
+  pointerEvents: "none",
+};
+
 // True when a variant playback_url points at a directly playable video (an uploaded master on the media
 // server, or a plain video file) rather than an HLS playlist or a cdn.example placeholder. Kept in sync
 // with apps/studio/src/api/media.ts isPlayableVideoUrl. No em dashes.
@@ -439,32 +650,124 @@ function PosterSurface({
   posterClass,
   variantId,
   playbackUrl,
+  fit = "cover",
+  onTimeMs,
 }: {
   posterClass: string;
   variantId?: string;
   playbackUrl?: string;
+  // Report the video clock (ms) so captions / AD / sign sync to playback.
+  onTimeMs?: (ms: number) => void;
+  // Fit policy for the 9:16 frame. "cover" is correct for vertical-native content; "contain" letterboxes a
+  // landscape source so faces are never silently cropped. This is a per-variant hint: the source is gated
+  // behind 0009 (a variant fit column); until then the default is cover.
+  fit?: "cover" | "contain";
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  // Visible playback status, so a black frame is diagnosable on screen (the user can read it back).
+  const [status, setStatus] = useState<string>("idle");
+  // Whether the video is actually painting frames. When paused (incl. blocked autoplay) we show a clear
+  // "Tap to play" overlay so the player is NEVER a blank black screen that looks broken.
+  const [paused, setPaused] = useState(true);
+  // Sound: the clip autoplays MUTED (browsers block unmuted autoplay), then the viewer taps to enable sound.
+  // soundOnRef lets the attach effect unmute a freshly switched cut without re-subscribing.
+  const [soundOn, setSoundOn] = useState(false);
+  const soundOnRef = useRef(false);
+  soundOnRef.current = soundOn;
+  // A user tap: start playback (a guaranteed user gesture, so it works even when autoplay was blocked) and
+  // turn on sound.
+  const tapToPlay = () => {
+    const el = videoRef.current;
+    if (el) {
+      el.muted = false;
+      setSoundOn(true);
+      el.play()?.catch?.(() => {});
+    }
+  };
   // Prefer the per-variant playable video (a real uploaded master), else the global scene clip, else the
   // gradient poster. So a variant uploaded in the Studio actually plays here.
   const url = isPlayableVideoUrl(playbackUrl) ? playbackUrl : sceneVideoUrl();
 
+  // Attach the source through hls.js for an encoded master.m3u8 (or native src for a plain clip), and play.
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !url) return;
+    let alive = true;
+    let cleanup = () => {};
+    // CRITICAL: set the muted PROPERTY imperatively. React's `muted` JSX attribute does not reliably set the
+    // DOM property, so the browser sees an unmuted autoplay and BLOCKS it (the black-frame cause). Setting it
+    // here makes muted autoplay allowed; the viewer taps for sound.
+    el.muted = !soundOnRef.current;
+    // attachHls owns starting playback (on MANIFEST_PARSED) and logs any error; do not race it with our own
+    // play() here. A rejection (e.g. hls.js import failure) is logged, not swallowed.
+    setStatus("loading");
+    attachHls(el, url, (s) => setStatus(s))
+      .then((c) => {
+        if (!alive) {
+          c();
+          return;
+        }
+        cleanup = c;
+        // Carry the viewer's sound choice across cut switches.
+        if (soundOnRef.current && el) el.muted = false;
+      })
+      .catch((err) => {
+        setStatus(`attach-failed: ${err instanceof Error ? err.message : "unknown"}`);
+        console.error("[player] attachHls failed", err, url);
+      });
+    return () => {
+      alive = false;
+      cleanup();
+    };
+  }, [url]);
+
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
-    // New cut: restart the clip from the top so each cut reads as its own scene.
+    // New cut on the same clip: restart from the top so each cut reads as its own scene.
     el.currentTime = 0;
-    void el.play().catch(() => {
-      // Autoplay can be blocked; the muted attribute makes this rare. Non-fatal.
-    });
+    el.play()?.catch?.(() => {});
   }, [variantId]);
+
+  // Drive the caption / AD / sign clock from the video element.
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !onTimeMs) return;
+    const tick = () => onTimeMs(el.currentTime * 1000);
+    el.addEventListener("timeupdate", tick);
+    return () => el.removeEventListener("timeupdate", tick);
+  }, [onTimeMs, url]);
+
+  // Track real play/pause so the "Tap to play" overlay shows whenever the frame is not actually playing
+  // (blocked autoplay, buffering, end). Never leave a black frame with no affordance.
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    const onPlaying = () => setPaused(false);
+    const onPause = () => setPaused(true);
+    el.addEventListener("playing", onPlaying);
+    el.addEventListener("pause", onPause);
+    el.addEventListener("waiting", onPause);
+    el.addEventListener("ended", onPause);
+    return () => {
+      el.removeEventListener("playing", onPlaying);
+      el.removeEventListener("pause", onPause);
+      el.removeEventListener("waiting", onPause);
+      el.removeEventListener("ended", onPause);
+    };
+  }, [url]);
 
   if (url) {
     return (
-      <div className={`poster ${posterClass}`} data-testid="poster" data-scene-video="true">
+      <div
+        className={`poster ${posterClass}`}
+        data-testid="poster"
+        data-scene-video="true"
+        onClick={tapToPlay}
+        style={{ cursor: "pointer" }}
+      >
         <video
           ref={videoRef}
-          src={url}
           muted
           autoPlay
           loop
@@ -472,16 +775,131 @@ function PosterSurface({
           // Keep the gradient as the poster fallback before the clip paints.
           poster=""
           data-playback-url={playbackUrl ?? ""}
+          data-src={url}
+          data-fit={fit}
+          style={{ objectFit: fit }}
         />
+        {/* On-screen playback diagnostic: read this back if the frame is black. */}
+        <div
+          data-testid="player-debug"
+          style={{
+            position: "absolute",
+            top: 28,
+            left: 8,
+            right: 8,
+            zIndex: 9,
+            textAlign: "center",
+            color: "#fff",
+            fontSize: 10,
+            fontFamily: "monospace",
+            background: "rgba(0,0,0,0.5)",
+            borderRadius: 6,
+            padding: "3px 6px",
+            pointerEvents: "none",
+            wordBreak: "break-all",
+          }}
+        >
+          {status} · {(url ?? "").split("/media/")[1] ?? url}
+        </div>
+        {/* Blocked autoplay / paused: a clear, full-surface "Tap to play" so the screen is never a blank black
+            frame that looks broken. A user tap is a guaranteed gesture, so playback always starts. */}
+        {paused && (
+          <button
+            type="button"
+            data-testid="tap-to-play"
+            onClick={tapToPlay}
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 10,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 12,
+              background: "rgba(0,0,0,0.42)",
+              border: "none",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            <span
+              style={{
+                width: 66,
+                height: 66,
+                borderRadius: 999,
+                background: "rgba(255,255,255,0.16)",
+                border: "2px solid #fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 26,
+                paddingLeft: 4,
+              }}
+              aria-hidden="true"
+            >
+              ▶
+            </span>
+            <span style={{ fontSize: 15, fontWeight: 700 }}>Tap to play</span>
+          </button>
+        )}
+        {/* Playing but muted: a small affordance to enable sound. */}
+        {!paused && !soundOn && (
+          <button
+            type="button"
+            data-testid="enable-sound"
+            onClick={tapToPlay}
+            style={{
+              position: "absolute",
+              bottom: "16vh",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 8,
+              background: "rgba(0,0,0,0.62)",
+              color: "#fff",
+              border: "1px solid rgba(255,255,255,0.32)",
+              borderRadius: 999,
+              padding: "9px 18px",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Tap for sound
+          </button>
+        )}
       </div>
     );
   }
 
+  // No playable media for this cut: show an explicit reason instead of a silent navy frame. A placeholder cut
+  // (a seed cdn.example URL, or a beat with no uploaded variant) lands here.
   return (
     <div
       className={`poster ${posterClass}`}
       data-testid="poster"
       data-playback-url={playbackUrl ?? ""}
-    />
+    >
+      <div
+        data-testid="no-media"
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          padding: "0 12vw",
+          color: "rgba(255,255,255,0.82)",
+          gap: 6,
+        }}
+      >
+        <strong style={{ fontSize: 15 }}>No video for this cut yet</strong>
+        <span style={{ fontSize: 12, opacity: 0.7 }}>
+          This beat has no uploaded, encoded variant. Upload one in the Studio to play it here.
+        </span>
+      </div>
+    </div>
   );
 }
