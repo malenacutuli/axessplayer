@@ -74,6 +74,21 @@ No em dashes.
   scenario gives Treatment D7 37.5% vs Control 29.7%, diff +7.8%, always-valid 95% CI [3.9%,11.7%],
   guardrails ok -> GATE A GREEN; FLAT gives INCONCLUSIVE (correctly refuses a false green). Off-policy
   SNIPS shown as a band (C6). All pure logic + node:test so CI stays green; no hosted/browser needed.
-  REMAINING: T6 minimal instrumented player (strip the existing vertical player, drive /decide with the
-  epsilon-greedy policy + arm, log every impression to mobile.decision_log), then T8 Gate A real-browser
-  run with the hero fixture (needs a mobile.users row for the FK on decision_log).
+  REMAINING: T6 minimal instrumented player, then T8 Gate A real-browser run.
+- 2026-06-16: T6 + T8 DONE. services/experiment/src/gatea/player-server.ts is a self-contained
+  instrumented test player (isolated from the production services/contracts): reads the hero spine from
+  the hosted mobile schema, assigns Control vs Treatment, selects per beat (Control = showrunner;
+  Treatment = epsilon-greedy), LOGS every impression with its propensity to mobile.decision_log, and
+  serves a two-video seamless-switch player. Verified in a real browser (Playwright, both arms):
+  6 beats each, seamGaps=0, real 1920px frames (no black, no seam), no console errors. Control played
+  the showrunner variants a1-a6 at propensity 1.0; Treatment played the candidate variants f1-f6 at
+  propensity 0.9 (= 1-eps+eps/k, eps=0.2, k=2). Acceptance query on mobile.decision_log:
+  total_impressions=12, unlogged_propensity=0 (ZERO unlogged), 6 control + 6 treatment, 12 distinct
+  variants, avg control propensity 1.000, avg treatment 0.900.
+  HONEST CAVEAT (C1/C15): the measurement harness is complete and demonstrated GREEN on a planted lift
+  and INCONCLUSIVE on flat (run-readout.ts), but the LIVE Gate A D7 verdict requires real viewers
+  accruing over days. Do not claim Gate A green on real data yet, and do not claim per-viewer
+  personalization (that is Gate B / prompt 03).
+- PROMPT 01 COMPLETE (buildable scope): T1-T8 done. Next per the program: prompt 03 (off-policy + the
+  heterogeneity test for Gate B) once real Gate A data accrues, OR the parallel accessibility track
+  (prompt 07) which is already largely built.
