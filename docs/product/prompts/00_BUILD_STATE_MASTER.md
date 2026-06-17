@@ -114,6 +114,13 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
   24 trust tests; full turbo 23/23. >>> FOUNDER SIGN-OFF NOW WAITING (2 of 3): biometric/consent
   architecture go-live. Continuing to P8 Studio gaps (accessibility editor, channel/monetization/wallet,
   analytics as bands not points) then P9 admin, P10 generation, P11 marketplace, P12 licensing.
+- 2026-06-17: P8-T3 DONE (C6 analytics). services/experiment/presentation.ts: counterfactualDisplay
+  (off-policy estimate -> relative uplift BAND or inconclusive, never a point), winRateLabel (coarse),
+  beatRetentionCurve (observed reached/completed per beat from engagement events). apps/studio
+  AnalyticsPanel.tsx renders observed retention as measured rates + the counterfactual as a band only.
+  4 experiment + 4 studio spec tests; full turbo 23/23. REMAINING P8: T1 accessibility editor surface and
+  T2 channel + monetization settings + wallet (Studio UI over existing APIs; the deriveTrackUrls mechanism
+  from P4-T2 and the economy/monetization APIs back them).
 - 2026-06-17: FOUNDER SIGNED OFF money/ledger + consent architecture. Wired the money go-live boundary:
   services/monetization/server.ts (createSettlementServer: POST /reward/ad, /reward/checkin,
   /stripe/webhook -> GrantSink) + serve.ts (real sink POSTs economy /grant with ECONOMY_SERVICE_SECRET).
