@@ -223,6 +223,9 @@ export interface ContentDB {
   // ledger, and decision tables in the active schema. Optional so the PGlite test harness need not
   // implement it; the route answers 501 when a DB does not provide it.
   adminOverview?(): Promise<AdminOverview>;
+  // Optional: count a user's rewarded_ad grants for a UTC day (YYYY-MM-DD) from the ledger. Backs the
+  // server-side daily rewarded-ad cap (the settlement service reads this before minting).
+  adminAdsToday?(userId: string, dayIso: string): Promise<number>;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -497,6 +500,18 @@ export async function handleAdminOverview(
 ): Promise<HandlerResult<AdminOverview | ApiError>> {
   if (typeof db.adminOverview !== "function") return err(501, "admin_overview_unavailable");
   return { status: 200, body: await db.adminOverview() };
+}
+
+// GET /admin/ads-today/{userId} : today's rewarded_ad grant count for a user (server-side cap input).
+export async function handleAdminAdsToday(
+  userId: string,
+  dayIso: string,
+  db: ContentDB
+): Promise<HandlerResult<{ userId: string; day: string; count: number } | ApiError>> {
+  if (typeof db.adminAdsToday !== "function") return err(501, "admin_ads_today_unavailable");
+  if (typeof userId !== "string" || !UUID_RE.test(userId)) return err(400, "invalid_user_id");
+  const count = await db.adminAdsToday(userId, dayIso);
+  return { status: 200, body: { userId, day: dayIso, count } };
 }
 
 // ---------- PATCH /series/{id}/poster (0009c) ----------

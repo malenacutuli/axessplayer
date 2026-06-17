@@ -241,6 +241,15 @@ export class PgContentDb implements ContentDB {
     };
   }
 
+  // Count a user's rewarded_ad grants for a UTC day (YYYY-MM-DD). Server-side daily-cap input.
+  async adminAdsToday(userId: string, dayIso: string): Promise<number> {
+    const r = await this.db.query(
+      "select count(*)::int as n from coin_transactions where user_id = $1 and type = 'rewarded_ad' and created_at >= ($2)::date and created_at < (($2)::date + interval '1 day')",
+      [userId, dayIso]
+    );
+    return r.rows[0] ? Number(r.rows[0].n) : 0;
+  }
+
   async getSeriesGraph(seriesId: string): Promise<SeriesGraph | null> {
     const s = await this.db.query(
       "select id, title, genre, base_language, available_languages, cover_url, published_at, poster_url, poster_provenance from series where id = $1",

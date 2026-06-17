@@ -6,7 +6,7 @@
 
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
 import { isGrant, type GrantRequest } from "./grant.js";
-import { settleCheckin, settleRewardedAd, type AdReward } from "./rewards.js";
+import { settleCheckin, settleRewardedAd, settleFollow, DAILY_AD_CAP, type AdReward } from "./rewards.js";
 import { grantFromCheckout, type CheckoutSession } from "./stripe.js";
 import { DEFAULT_OFFERS, type Offer } from "./paywall.js";
 
@@ -39,7 +39,18 @@ function utcDay(d = new Date()): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function createSettlementServer(sink: GrantSink, offers: Offer[] = DEFAULT_OFFERS): Server {
+// Optional server-side guards. adsGrantedToday counts a user's rewarded_ad grants for the given UTC day
+// from the ledger so the daily cap is enforced server-side (never trusted from the client). Injected so
+// tests stay pure; serve.ts wires a read-only ledger count.
+export interface SettlementOptions {
+  offers?: Offer[];
+  adsGrantedToday?: (userId: string, dayIso: string) => Promise<number>;
+  dailyAdCap?: number;
+}
+
+export function createSettlementServer(sink: GrantSink, opts: SettlementOptions = {}): Server {
+  const offers = opts.offers ?? DEFAULT_OFFERS;
+  const dailyAdCap = opts.dailyAdCap ?? DAILY_AD_CAP;
   const settle = async (res: ServerResponse, g: GrantRequest | { skip: string }) => {
     if (!isGrant(g)) return send(res, 200, { granted: false, skipped: g.skip });
     const out = await sink.grant(g);
@@ -57,12 +68,26 @@ export function createSettlementServer(sink: GrantSink, offers: Offer[] = DEFAUL
         if (path === "/healthz") return send(res, 200, { ok: true });
         if (method === "POST" && path === "/reward/ad") {
           const r = await readJson<AdReward>(req);
+          // Server-side daily cap: count today's rewarded_ad grants from the ledger and refuse over the cap
+          // BEFORE minting. The client cannot bypass it (it never holds the grant secret). A capped request
+          // is a clean 429, not a silent no-op, so the UI can show the cap.
+          if (r.userId && opts.adsGrantedToday) {
+            const today = await opts.adsGrantedToday(r.userId, utcDay());
+            if (today >= dailyAdCap) {
+              return send(res, 429, { error: "daily_cap_reached", cap: dailyAdCap, today });
+            }
+          }
           return settle(res, settleRewardedAd(r));
         }
         if (method === "POST" && path === "/reward/checkin") {
           const { userId } = await readJson<{ userId: string }>(req);
           if (!userId) return send(res, 400, { error: "userId required" });
           return settle(res, settleCheckin(userId, utcDay()));
+        }
+        if (method === "POST" && path === "/reward/follow") {
+          const { userId } = await readJson<{ userId: string }>(req);
+          if (!userId) return send(res, 400, { error: "userId required" });
+          return settle(res, settleFollow(userId));
         }
         if (method === "POST" && path === "/stripe/webhook") {
           const session = await readJson<CheckoutSession>(req);

@@ -24,9 +24,23 @@ const economySink: GrantSink = {
   },
 };
 
+// Server-side daily rewarded-ad cap input: read today's rewarded_ad count from the content service's
+// read-only ledger aggregate. The cap is checked before any mint, so the client cannot exceed it.
+const contentBase = (process.env.CONTENT_BASE_URL ?? "http://127.0.0.1:8093").replace(/\/$/, "");
+const adsGrantedToday = async (userId: string, dayIso: string): Promise<number> => {
+  try {
+    const res = await fetch(`${contentBase}/admin/ads-today/${encodeURIComponent(userId)}?day=${dayIso}`);
+    if (!res.ok) return 0; // fail-open on a flaky count read; never block a legitimate reward
+    const body = (await res.json()) as { count?: number };
+    return typeof body.count === "number" ? body.count : 0;
+  } catch {
+    return 0;
+  }
+};
+
 const port = Number(process.env.PORT ?? 8100);
 const host = process.env.HOST ?? "127.0.0.1";
-createSettlementServer(economySink).listen(port, host, () => {
+createSettlementServer(economySink, { adsGrantedToday }).listen(port, host, () => {
   // eslint-disable-next-line no-console
-  console.log(`grant settlement listening on ${host}:${port} (economy ${economyBase}, Stripe TEST mode only)`);
+  console.log(`grant settlement listening on ${host}:${port} (economy ${economyBase}, content ${contentBase}, Stripe TEST mode only)`);
 });
