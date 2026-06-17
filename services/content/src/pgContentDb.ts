@@ -21,6 +21,7 @@ import type {
   FeedItem,
   VariantTracks,
   AdminOverview,
+  PaywallEvent,
 } from "./content.js";
 
 type Q = Pick<pg.Pool, "query">;
@@ -239,6 +240,24 @@ export class PgContentDb implements ContentDB {
       },
       decisions: num(decisions?.n),
     };
+  }
+
+  // Append a paywall presentation to the append-only events stream (idempotent by session+event id). The
+  // bandit propensity rides in the payload so the paywall policy is off-policy evaluable.
+  async adminLogPaywall(e: PaywallEvent): Promise<void> {
+    await this.db.query(
+      `insert into engagement_events (id, event_id, user_id, series_id, session_id, type, variant_id, payload, ts, received_at)
+       values (gen_random_uuid(), $1, $2, $3, $4, 'paywall_presented', $5, $6, now(), now())
+       on conflict (session_id, event_id) do nothing`,
+      [
+        e.eventId,
+        e.userId,
+        e.seriesId ?? null,
+        e.sessionId,
+        e.beatVariantId ?? null,
+        JSON.stringify({ path: e.path, propensity: e.propensity, paths: e.paths, draft: e.draft, revenueOptimized: e.revenueOptimized }),
+      ]
+    );
   }
 
   // Count a user's rewarded_ad grants for a UTC day (YYYY-MM-DD). Server-side daily-cap input.

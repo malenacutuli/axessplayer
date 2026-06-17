@@ -5,10 +5,49 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { selectOffer, DEFAULT_OFFERS } from "./paywall.js";
+import {
+  selectOffer,
+  DEFAULT_OFFERS,
+  selectPaywallPath,
+  PAYWALL_PATHS,
+  DRAFT_PATH_WEIGHTS,
+  REVENUE_OPTIMIZATION_ENABLED,
+  withinSpendCooldown,
+  SPEND_COOLDOWN_MS,
+  SUBSCRIPTION_TIERS,
+} from "./paywall.js";
 import { settleCheckin, settleRewardedAd, checkinTxnId, REWARD_AMOUNTS } from "./rewards.js";
 import { grantFromCheckout, type CheckoutSession } from "./stripe.js";
 import { isGrant } from "./grant.js";
+
+describe("paywall PATH bandit hard rules (GOLD_STANDARD_04)", () => {
+  it("runs on DRAFT weights: revenue optimization is OFF until the reward-weights sign-off", () => {
+    assert.equal(REVENUE_OPTIMIZATION_ENABLED, false);
+  });
+  it("neutral mode never optimizes for revenue: uniform 1/k propensity, revenueOptimized false", () => {
+    // Even with a revenue-skewed weight map, the DRAFT gate forces a neutral uniform choice.
+    const skewed = { watch_ad: 0, buy: 100, subscribe: 50 };
+    for (const r of [0, 0.34, 0.67, 0.99]) {
+      const sel = selectPaywallPath(PAYWALL_PATHS, skewed, 0.2, () => r);
+      assert.equal(sel.revenueOptimized, false);
+      assert.ok(Math.abs(sel.propensity - 1 / PAYWALL_PATHS.length) < 1e-9);
+      assert.ok(PAYWALL_PATHS.includes(sel.path));
+    }
+  });
+  it("watch_ad leads the default path order (pro-viewer, no-spend first)", () => {
+    assert.equal(PAYWALL_PATHS[0], "watch_ad");
+    assert.equal(DRAFT_PATH_WEIGHTS.watch_ad, DRAFT_PATH_WEIGHTS.buy); // neutral, equal weights
+  });
+  it("anti-dark-pattern spend cool-down is enforced as a hard window", () => {
+    assert.equal(withinSpendCooldown(null, 1000), false);
+    assert.equal(withinSpendCooldown(1000, 1000 + SPEND_COOLDOWN_MS - 1), true);
+    assert.equal(withinSpendCooldown(1000, 1000 + SPEND_COOLDOWN_MS), false);
+  });
+  it("subscription tiers carry transparent prices", () => {
+    assert.ok(SUBSCRIPTION_TIERS.length >= 2);
+    for (const t of SUBSCRIPTION_TIERS) assert.ok(t.priceUsd > 0 && t.coinsPerMonth > 0);
+  });
+});
 
 describe("P6-T3 paywall bandit", () => {
   const conv = { pack_small: 0.2, pack_medium: 0.5, pack_large: 0.1 };

@@ -226,6 +226,9 @@ export interface ContentDB {
   // Optional: count a user's rewarded_ad grants for a UTC day (YYYY-MM-DD) from the ledger. Backs the
   // server-side daily rewarded-ad cap (the settlement service reads this before minting).
   adminAdsToday?(userId: string, dayIso: string): Promise<number>;
+  // Optional: append a paywall presentation (with its bandit propensity) to the events stream. Idempotent
+  // by (session_id, event_id). Backs propensity logging for off-policy evaluation of the paywall bandit.
+  adminLogPaywall?(e: PaywallEvent): Promise<void>;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -500,6 +503,49 @@ export async function handleAdminOverview(
 ): Promise<HandlerResult<AdminOverview | ApiError>> {
   if (typeof db.adminOverview !== "function") return err(501, "admin_overview_unavailable");
   return { status: 200, body: await db.adminOverview() };
+}
+
+// A paywall presentation event for the events stream (propensity logging).
+export interface PaywallEvent {
+  eventId: string;
+  userId: string;
+  seriesId?: string;
+  beatVariantId?: string;
+  sessionId: string;
+  path: string;
+  propensity: number;
+  paths: string[];
+  draft: boolean;
+  revenueOptimized: boolean;
+}
+
+// POST /admin/paywall-event : append a paywall presentation (idempotent by session_id+event_id).
+export async function handleAdminPaywallEvent(
+  body: unknown,
+  db: ContentDB
+): Promise<HandlerResult<{ logged: boolean } | ApiError>> {
+  if (typeof db.adminLogPaywall !== "function") return err(501, "paywall_log_unavailable");
+  if (!isObject(body)) return err(400, "invalid_body");
+  const b = body as Partial<PaywallEvent>;
+  if (typeof b.eventId !== "string" || typeof b.userId !== "string" || !UUID_RE.test(b.userId)) {
+    return err(400, "invalid_event");
+  }
+  if (typeof b.sessionId !== "string" || typeof b.path !== "string" || typeof b.propensity !== "number") {
+    return err(400, "invalid_event");
+  }
+  await db.adminLogPaywall({
+    eventId: b.eventId,
+    userId: b.userId,
+    ...(b.seriesId ? { seriesId: b.seriesId } : {}),
+    ...(b.beatVariantId ? { beatVariantId: b.beatVariantId } : {}),
+    sessionId: b.sessionId,
+    path: b.path,
+    propensity: b.propensity,
+    paths: Array.isArray(b.paths) ? b.paths : [],
+    draft: Boolean(b.draft),
+    revenueOptimized: Boolean(b.revenueOptimized),
+  });
+  return { status: 200, body: { logged: true } };
 }
 
 // GET /admin/ads-today/{userId} : today's rewarded_ad grant count for a user (server-side cap input).

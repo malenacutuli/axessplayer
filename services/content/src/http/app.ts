@@ -26,6 +26,7 @@ import {
   handleGetFeed,
   handleAdminOverview,
   handleAdminAdsToday,
+  handleAdminPaywallEvent,
   handleSetSeriesPoster,
   handleCreateEdge,
   type ContentDB,
@@ -144,6 +145,14 @@ export function createContentApp(deps: AppDeps): Hono {
   app.get("/admin/overview", async (c) => {
     const result = await handleAdminOverview(db);
     return c.json(result.body, result.status as 200 | 501);
+  });
+
+  // POST /admin/paywall-event : append a paywall presentation (bandit propensity) to the events stream.
+  app.post("/admin/paywall-event", async (c) => {
+    const raw = await readJson(c);
+    if (raw == null) return c.json({ error: "invalid_json" }, 400);
+    const result = await handleAdminPaywallEvent(raw, db);
+    return c.json(result.body, result.status as 200 | 400 | 501);
   });
 
   // GET /admin/ads-today/{userId}?day=YYYY-MM-DD : today's rewarded_ad count (server-side cap input).

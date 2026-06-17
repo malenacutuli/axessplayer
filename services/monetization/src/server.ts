@@ -8,7 +8,15 @@ import { createServer, type IncomingMessage, type ServerResponse, type Server } 
 import { isGrant, type GrantRequest } from "./grant.js";
 import { settleCheckin, settleRewardedAd, settleFollow, DAILY_AD_CAP, type AdReward } from "./rewards.js";
 import { grantFromCheckout, type CheckoutSession } from "./stripe.js";
-import { DEFAULT_OFFERS, type Offer } from "./paywall.js";
+import {
+  DEFAULT_OFFERS,
+  selectPaywallPath,
+  PAYWALL_PATHS,
+  DRAFT_PATH_WEIGHTS,
+  SUBSCRIPTION_TIERS,
+  REVENUE_OPTIMIZATION_ENABLED,
+  type Offer,
+} from "./paywall.js";
 
 // The ledger sink. The real implementation POSTs economy /grant with the service secret; the contract
 // dedupes by (user_id, client_txn_id) so a replayed settlement is a server-side no-op.
@@ -42,15 +50,36 @@ function utcDay(d = new Date()): string {
 // Optional server-side guards. adsGrantedToday counts a user's rewarded_ad grants for the given UTC day
 // from the ledger so the daily cap is enforced server-side (never trusted from the client). Injected so
 // tests stay pure; serve.ts wires a read-only ledger count.
+// A paywall presentation event: the bandit's choice + its logged propensity, for off-policy evaluation.
+// No price is mutated here; the offers/tiers carry transparent prices to the client.
+export interface PaywallPresentation {
+  eventId: string;
+  userId: string;
+  seriesId?: string;
+  beatVariantId?: string;
+  sessionId: string;
+  path: string;
+  propensity: number;
+  paths: string[];
+  draft: boolean;
+  revenueOptimized: boolean;
+}
+
 export interface SettlementOptions {
   offers?: Offer[];
   adsGrantedToday?: (userId: string, dayIso: string) => Promise<number>;
   dailyAdCap?: number;
+  // Logs a paywall presentation (propensity) to the events store. Injected so tests stay pure; serve.ts
+  // wires it to the content service's append-only engagement_events.
+  logPaywall?: (e: PaywallPresentation) => Promise<void>;
+  // Deterministic rng for the path bandit in tests. Defaults to Math.random in production.
+  rng?: () => number;
 }
 
 export function createSettlementServer(sink: GrantSink, opts: SettlementOptions = {}): Server {
   const offers = opts.offers ?? DEFAULT_OFFERS;
   const dailyAdCap = opts.dailyAdCap ?? DAILY_AD_CAP;
+  const rng = opts.rng ?? Math.random;
   const settle = async (res: ServerResponse, g: GrantRequest | { skip: string }) => {
     if (!isGrant(g)) return send(res, 200, { granted: false, skipped: g.skip });
     const out = await sink.grant(g);
@@ -88,6 +117,42 @@ export function createSettlementServer(sink: GrantSink, opts: SettlementOptions 
           const { userId } = await readJson<{ userId: string }>(req);
           if (!userId) return send(res, 400, { error: "userId required" });
           return settle(res, settleFollow(userId));
+        }
+        if (method === "POST" && path === "/paywall/present") {
+          const body = await readJson<{ userId?: string; seriesId?: string; beatVariantId?: string; sessionId?: string }>(req);
+          if (!body.userId) return send(res, 400, { error: "userId required" });
+          // DRAFT bandit: neutral weights, no revenue optimization until the reward-weights sign-off.
+          const sel = selectPaywallPath(PAYWALL_PATHS, DRAFT_PATH_WEIGHTS, 0.2, rng);
+          const sessionId = body.sessionId || `sess-${body.userId}`;
+          const eventId = `pw-${Date.now()}-${Math.floor(rng() * 1e9)}`;
+          if (opts.logPaywall) {
+            // Best effort: a log failure must not block the viewer's paywall.
+            await opts
+              .logPaywall({
+                eventId,
+                userId: body.userId,
+                ...(body.seriesId ? { seriesId: body.seriesId } : {}),
+                ...(body.beatVariantId ? { beatVariantId: body.beatVariantId } : {}),
+                sessionId,
+                path: sel.path,
+                propensity: sel.propensity,
+                paths: PAYWALL_PATHS,
+                draft: !REVENUE_OPTIMIZATION_ENABLED,
+                revenueOptimized: sel.revenueOptimized,
+              })
+              .catch(() => {});
+          }
+          return send(res, 200, {
+            path: sel.path,
+            propensity: sel.propensity,
+            explored: sel.explored,
+            paths: PAYWALL_PATHS,
+            offers,
+            tiers: SUBSCRIPTION_TIERS,
+            draft: !REVENUE_OPTIMIZATION_ENABLED,
+            revenueOptimized: sel.revenueOptimized,
+            eventId,
+          });
         }
         if (method === "POST" && path === "/stripe/webhook") {
           const session = await readJson<CheckoutSession>(req);

@@ -2,7 +2,7 @@
 // service with ECONOMY_SERVICE_SECRET (the contract dedupes by client_txn_id). Coins are the in-app
 // currency; this does not touch a live card rail. Stripe stays TEST MODE. No em dashes.
 
-import { createSettlementServer, type GrantSink } from "./server.js";
+import { createSettlementServer, type GrantSink, type PaywallPresentation } from "./server.js";
 import type { GrantRequest } from "./grant.js";
 
 const economyBase = (process.env.ECONOMY_BASE_URL ?? "http://127.0.0.1:8091").replace(/\/$/, "");
@@ -38,9 +38,21 @@ const adsGrantedToday = async (userId: string, dayIso: string): Promise<number> 
   }
 };
 
+// Propensity logging: write each paywall presentation to the content service's append-only events stream.
+const logPaywall = async (e: PaywallPresentation): Promise<void> => {
+  await fetch(`${contentBase}/admin/paywall-event`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(e),
+  }).catch(() => {});
+};
+
+// Daily rewarded-ad cap is configurable (GOLD_STANDARD_04: 5 to 7); defaults to the rewards module value.
+const dailyAdCap = process.env.DAILY_AD_CAP ? Number(process.env.DAILY_AD_CAP) : undefined;
+
 const port = Number(process.env.PORT ?? 8100);
 const host = process.env.HOST ?? "127.0.0.1";
-createSettlementServer(economySink, { adsGrantedToday }).listen(port, host, () => {
+createSettlementServer(economySink, { adsGrantedToday, logPaywall, ...(dailyAdCap ? { dailyAdCap } : {}) }).listen(port, host, () => {
   // eslint-disable-next-line no-console
   console.log(`grant settlement listening on ${host}:${port} (economy ${economyBase}, content ${contentBase}, Stripe TEST mode only)`);
 });
