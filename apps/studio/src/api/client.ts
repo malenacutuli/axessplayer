@@ -156,6 +156,17 @@ export class ContentClient {
     return this.parse(res);
   }
 
+  // POST /series/{id}/poster/generate : server-side generate (stability-ai) -> upload -> persist
+  // series.poster_url with C2PA + Article 50 provenance. The generation key never reaches the browser.
+  async generateSeriesPoster(id: string, prompt: string): Promise<{ id: string; poster_url: string }> {
+    const res = await this.fetchImpl(joinUrl(this.baseUrl, `/series/${encodeURIComponent(id)}/poster/generate`), {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ prompt }),
+    });
+    return this.parse<{ id: string; poster_url: string }>(res);
+  }
+
   // PATCH /series/{id}/poster (0009c) : store the chosen generated poster URL + C2PA provenance.
   async setSeriesPoster(
     id: string,
