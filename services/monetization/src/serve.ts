@@ -51,7 +51,10 @@ const logPaywall = async (e: PaywallPresentation): Promise<void> => {
 const dailyAdCap = process.env.DAILY_AD_CAP ? Number(process.env.DAILY_AD_CAP) : undefined;
 
 const port = Number(process.env.PORT ?? 8100);
-const host = process.env.HOST ?? "127.0.0.1";
+// Default 0.0.0.0 (not 127.0.0.1) so a container port map / Render's port scan can reach the listener; a
+// process bound to localhost only answers inside the container and Render reports "No open ports detected".
+// Mirrors the other services (content/decision/economy/manifest). Override with HOST for local-only binds.
+const host = process.env.HOST ?? "0.0.0.0";
 createSettlementServer(economySink, { adsGrantedToday, logPaywall, ...(dailyAdCap ? { dailyAdCap } : {}) }).listen(port, host, () => {
   // eslint-disable-next-line no-console
   console.log(`grant settlement listening on ${host}:${port} (economy ${economyBase}, content ${contentBase}, Stripe TEST mode only)`);
