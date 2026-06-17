@@ -36,3 +36,30 @@ export function sceneVideoUrl(env: EnvBag = readEnv()): string | undefined {
   const u = env.VITE_SCENE_VIDEO_URL;
   return u && u.trim() ? u : undefined;
 }
+
+export interface SceneA11y {
+  caption_doc_url: string;
+  audio_description_url: string;
+  sign_video_url: string;
+  dub_audio_urls: Record<string, string>;
+  language: string;
+}
+
+// Matched accessibility tracks for the scene-video fallback. When a cut's own media is unreachable and the
+// player shows the scene clip instead, these tracks (shipped in the same directory as the scene clip, the
+// mqfkdb5y bundle: captions.json, ad.json, asl_sign.webm, <lang>_dub.m4a) provide the CWI / AD / sign / dub
+// layer so accessibility still works and stays synced to the scene clip. Derived by convention from the
+// scene URL's directory. No em dashes.
+export function sceneA11y(env: EnvBag = readEnv()): SceneA11y | undefined {
+  const u = sceneVideoUrl(env);
+  if (!u) return undefined;
+  const dir = u.split("?")[0].replace(/\/[^/]+$/, "");
+  const langs = ["de", "es", "fr", "it", "pt"];
+  return {
+    caption_doc_url: `${dir}/captions.json`,
+    audio_description_url: `${dir}/ad.json`,
+    sign_video_url: `${dir}/asl_sign.webm`,
+    dub_audio_urls: Object.fromEntries(langs.map((l) => [l, `${dir}/${l}_dub.m4a`])),
+    language: "en",
+  };
+}

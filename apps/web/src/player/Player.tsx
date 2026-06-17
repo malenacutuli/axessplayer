@@ -28,7 +28,7 @@ import {
 } from "../a11y/preferences.js";
 import { PaywallSheet, type PaywallChoice } from "../wallet/Paywall.js";
 import { useUnlock } from "../wallet/useUnlock.js";
-import { sceneVideoUrl } from "../config.js";
+import { sceneVideoUrl, sceneA11y } from "../config.js";
 import { BackIcon, A11yIcon, HeartIcon, CommentIcon, RotateIcon } from "../ui/icons.js";
 import { useIsLandscape, requestLandscape, exitLandscape } from "./useOrientation.js";
 import { noopCapture, type CaptureClient } from "../capture/capture.js";
@@ -195,12 +195,6 @@ export function Player({
   const shown: VariantNode | undefined =
     branch === "calm" ? calmVariant ?? engineCut : branch === "tense" ? tenseVariant ?? engineCut : engineCut;
 
-  // Availability is derived from the variant's real track URLs (single source of truth), so the resolved
-  // active tracks agree with what the player will actually render. See accessibilityFromVariant.
-  const shownAvail = accessibilityFromVariant(shown);
-  const active = resolveA11y(prefs, shownAvail);
-  const availableLanguages = shownAvail.languages ?? [shown?.language ?? prefs.language];
-
   // A premium cut at the current beat the viewer has not unlocked gates playback behind the paywall.
   const premiumGate: VariantNode | undefined = useMemo(() => {
     if (!engineCut) return undefined;
@@ -282,37 +276,59 @@ export function Player({
     return sibling ?? onScreen;
   }, [graph, onScreen]);
 
-  // Real per-variant accessibility track availability (0009a). Drives the graceful-absence pattern: a toggle
-  // is enabled only when its track exists, and absent tracks render no empty element.
-  const trackAvail = useMemo(() => {
-    const a = accessibilityFromVariant(playable);
-    return { captions: !!a.captions, audioDescription: !!a.audio_description, sign: !!a.sign };
+  // Effective accessibility tracks for the on-screen cut. When the cut's own video is not reachable and the
+  // player shows the scene-video fallback, the cut's OWN track URLs are usually unreachable too (same source),
+  // so use the scene clip's matched tracks (config.sceneA11y) instead, so CWI / AD / sign / dub still work and
+  // stay synced to the scene clip. Otherwise use the variant's own tracks.
+  const tracks: VariantNode | undefined = useMemo(() => {
+    if (!playable) return playable;
+    const usingScene = !isPlayableVideoUrl(playable.playback_url) && !!sceneVideoUrl();
+    const s = usingScene ? sceneA11y() : undefined;
+    if (!s) return playable;
+    return {
+      ...playable,
+      caption_doc_url: s.caption_doc_url,
+      audio_description_url: s.audio_description_url,
+      sign_video_url: s.sign_video_url,
+      dub_audio_urls: s.dub_audio_urls,
+      language: s.language,
+    };
   }, [playable]);
 
-  // Dubbing + per-language captions. The base language is the variant's own; other languages are available
-  // only when present in dub_audio_urls. Switching language switches BOTH the audio (to the dub track) and the
+  // Availability + active prefs derive from the EFFECTIVE tracks, so the toggles, language chips, and the
+  // rendered tracks all agree with what actually plays.
+  const shownAvail = accessibilityFromVariant(tracks);
+  const active = resolveA11y(prefs, shownAvail);
+  const availableLanguages = shownAvail.languages ?? [tracks?.language ?? prefs.language];
+
+  // Real accessibility track availability. Drives the graceful-absence pattern: a toggle is enabled only when
+  // its track exists, and absent tracks render no empty element.
+  const trackAvail = useMemo(() => {
+    const a = accessibilityFromVariant(tracks);
+    return { captions: !!a.captions, audioDescription: !!a.audio_description, sign: !!a.sign };
+  }, [tracks]);
+
+  // Dubbing + per-language captions. The base language is the cut's own; other languages are available only
+  // when present in dub_audio_urls. Switching language switches BOTH the audio (to the dub track) and the
   // captions (to the same-dir <lang>_captions.json), together.
-  const baseLang = playable?.language ?? "en";
-  const dubLangs = useMemo(() => Object.keys(playable?.dub_audio_urls ?? {}), [playable?.dub_audio_urls]);
-  // Available SIGN languages for this title. 0009a carries one sign_video_url (the ASL track); sibling tracks
-  // for the other sign languages we have produced live next to it in the same media dir (<sl>_sign.webm), so
-  // the selection panel can switch between them client-side until the sign_video_urls map proposal lands.
-  const signLanguages = useMemo(() => (playable?.sign_video_url ? ["ASL", "PSL", "LSA"] : []), [playable?.sign_video_url]);
+  const baseLang = tracks?.language ?? "en";
+  const dubLangs = useMemo(() => Object.keys(tracks?.dub_audio_urls ?? {}), [tracks?.dub_audio_urls]);
+  const signLanguages = useMemo(() => (tracks?.sign_video_url ? ["ASL", "PSL", "LSA"] : []), [tracks?.sign_video_url]);
   const selectedSign = signLanguages.includes(prefs.signLanguage) ? prefs.signLanguage : signLanguages[0];
   const signVideoUrl = useMemo(() => {
-    const base = playable?.sign_video_url ?? undefined;
+    const base = tracks?.sign_video_url ?? undefined;
     if (!base || !selectedSign || selectedSign === "ASL") return base;
     // derive the sibling track for the selected sign language: .../asl_sign.webm -> .../<sl>_sign.webm
     return `${base.split("?")[0].replace(/[a-z]+_sign\.webm$/i, `${selectedSign.toLowerCase()}_sign.webm`)}?v=${selectedSign}`;
-  }, [playable?.sign_video_url, selectedSign]);
+  }, [tracks?.sign_video_url, selectedSign]);
   const dubAudioUrl =
-    active.language !== baseLang ? playable?.dub_audio_urls?.[active.language] : undefined;
+    active.language !== baseLang ? tracks?.dub_audio_urls?.[active.language] : undefined;
   const captionDocUrl = useMemo(() => {
-    const base = playable?.caption_doc_url;
+    const base = tracks?.caption_doc_url;
     if (!base) return undefined;
     if (active.language === baseLang) return base;
     return base.split("?")[0].replace(/[^/]+\.json$/, `${active.language}_captions.json`);
-  }, [playable?.caption_doc_url, baseLang, active.language]);
+  }, [tracks?.caption_doc_url, baseLang, active.language]);
 
   // Log the variant URL the player actually received, so a dark frame is diagnosable from the console.
   useEffect(() => {
@@ -356,7 +372,7 @@ export function Player({
 
   // 0009a: fetch the audio description doc (AudioDescriptionSegment[]) for the on-screen cut.
   useEffect(() => {
-    const adUrl = playable?.audio_description_url;
+    const adUrl = tracks?.audio_description_url;
     if (!adUrl) {
       setAdSegments([]);
       return;
@@ -377,7 +393,7 @@ export function Player({
     return () => {
       alive = false;
     };
-  }, [playable?.audio_description_url]);
+  }, [tracks?.audio_description_url]);
 
   // ---------- Phase 0: beat-level capture + REAL /decide signals (was empty {}) ----------
   const currentBeatId = onScreen?.beat_id;
