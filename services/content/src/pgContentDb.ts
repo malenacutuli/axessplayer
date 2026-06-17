@@ -29,7 +29,7 @@ export class PgContentDb implements ContentDB {
 
   async insertSeries(row: Omit<SeriesRow, "id">): Promise<SeriesRow> {
     const r = await this.db.query(
-      `insert into public.series (title, genre, base_language, available_languages, cover_url)
+      `insert into series (title, genre, base_language, available_languages, cover_url)
        values ($1, $2, $3, $4, $5)
        returning id, title, genre, base_language, available_languages, cover_url`,
       [row.title, row.genre, row.base_language, row.available_languages, row.cover_url]
@@ -38,13 +38,13 @@ export class PgContentDb implements ContentDB {
   }
 
   async getEpisode(id: string): Promise<{ id: string; series_id: string } | null> {
-    const r = await this.db.query("select id, series_id from public.episodes where id = $1", [id]);
+    const r = await this.db.query("select id, series_id from episodes where id = $1", [id]);
     return r.rows[0] ? { id: r.rows[0].id, series_id: r.rows[0].series_id } : null;
   }
 
   async getBeat(id: string): Promise<{ id: string; series_id: string; episode_id: string } | null> {
     const r = await this.db.query(
-      "select id, series_id, episode_id from public.beats where id = $1",
+      "select id, series_id, episode_id from beats where id = $1",
       [id]
     );
     return r.rows[0]
@@ -53,13 +53,13 @@ export class PgContentDb implements ContentDB {
   }
 
   async seriesExists(id: string): Promise<boolean> {
-    const r = await this.db.query("select 1 from public.series where id = $1", [id]);
+    const r = await this.db.query("select 1 from series where id = $1", [id]);
     return r.rows.length > 0;
   }
 
   async insertEpisode(row: Omit<EpisodeRow, "id">): Promise<EpisodeRow> {
     const r = await this.db.query(
-      `insert into public.episodes (series_id, episode_number, title, is_free, coin_cost)
+      `insert into episodes (series_id, episode_number, title, is_free, coin_cost)
        values ($1, $2, $3, $4, $5)
        returning id, series_id, episode_number, title, is_free, coin_cost`,
       [row.series_id, row.episode_number, row.title, row.is_free, row.coin_cost]
@@ -69,7 +69,7 @@ export class PgContentDb implements ContentDB {
 
   async insertBeat(row: Omit<BeatRow, "id">): Promise<BeatRow> {
     const r = await this.db.query(
-      `insert into public.beats (series_id, episode_id, beat_index, role, canon_facts, is_branch_point)
+      `insert into beats (series_id, episode_id, beat_index, role, canon_facts, is_branch_point)
        values ($1, $2, $3, $4, $5, $6)
        returning id, series_id, episode_id, beat_index, role, canon_facts, is_branch_point`,
       [row.series_id, row.episode_id, row.beat_index, row.role, row.canon_facts, row.is_branch_point]
@@ -79,7 +79,7 @@ export class PgContentDb implements ContentDB {
 
   async insertVariant(row: Omit<VariantRow, "id">): Promise<VariantRow> {
     const r = await this.db.query(
-      `insert into public.beat_variants
+      `insert into beat_variants
          (beat_id, language, accessibility, intensity, pov, tier, is_premium, coin_cost,
           playback_url, duration_ms, provenance_id, qa_status, placement_slots)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
@@ -106,7 +106,7 @@ export class PgContentDb implements ContentDB {
 
   async deleteVariant(id: string): Promise<boolean> {
     const r = await this.db.query(
-      "delete from public.beat_variants where id = $1 returning id",
+      "delete from beat_variants where id = $1 returning id",
       [id]
     );
     return r.rows.length > 0;
@@ -115,7 +115,7 @@ export class PgContentDb implements ContentDB {
   async setVariantTracks(id: string, tracks: VariantTracks): Promise<VariantRow | null> {
     // coalesce leaves a column unchanged when its param is null, so only provided tracks are written.
     const r = await this.db.query(
-      `update public.beat_variants set
+      `update beat_variants set
          caption_doc_url       = coalesce($2, caption_doc_url),
          audio_description_url = coalesce($3, audio_description_url),
          sign_video_url        = coalesce($4, sign_video_url),
@@ -135,7 +135,7 @@ export class PgContentDb implements ContentDB {
 
   async setSeriesPublished(id: string, published: boolean): Promise<{ id: string; published_at: string | null } | null> {
     const r = await this.db.query(
-      "update public.series set published_at = case when $2 then now() else null end where id = $1 returning id, published_at",
+      "update series set published_at = case when $2 then now() else null end where id = $1 returning id, published_at",
       [id, published]
     );
     if (r.rows.length === 0) return null;
@@ -145,7 +145,7 @@ export class PgContentDb implements ContentDB {
   async listPublishedSeries(): Promise<FeedItem[]> {
     const r = await this.db.query(
       `select id, title, genre, cover_url, poster_url, base_language, available_languages, published_at
-       from public.series where published_at is not null order by published_at desc, id`
+       from series where published_at is not null order by published_at desc, id`
     );
     return r.rows.map((row) => ({
       id: row.id as string,
@@ -161,7 +161,7 @@ export class PgContentDb implements ContentDB {
 
   async setSeriesPoster(id: string, posterUrl: string, provenance: Record<string, unknown>): Promise<{ id: string; poster_url: string } | null> {
     const r = await this.db.query(
-      "update public.series set poster_url = $2, poster_provenance = $3 where id = $1 returning id, poster_url",
+      "update series set poster_url = $2, poster_provenance = $3 where id = $1 returning id, poster_url",
       [id, posterUrl, JSON.stringify(provenance)]
     );
     if (r.rows.length === 0) return null;
@@ -170,7 +170,7 @@ export class PgContentDb implements ContentDB {
 
   async insertEdge(row: EdgeRow): Promise<EdgeRow> {
     const r = await this.db.query(
-      `insert into public.beat_edges (from_beat_id, to_beat_id, condition)
+      `insert into beat_edges (from_beat_id, to_beat_id, condition)
        values ($1, $2, $3)
        returning from_beat_id, to_beat_id, condition`,
       [row.from_beat_id, row.to_beat_id, row.condition]
@@ -180,34 +180,34 @@ export class PgContentDb implements ContentDB {
 
   async getSeriesGraph(seriesId: string): Promise<SeriesGraph | null> {
     const s = await this.db.query(
-      "select id, title, genre, base_language, available_languages, cover_url, published_at, poster_url, poster_provenance from public.series where id = $1",
+      "select id, title, genre, base_language, available_languages, cover_url, published_at, poster_url, poster_provenance from series where id = $1",
       [seriesId]
     );
     if (s.rows.length === 0) return null;
 
     const eps = await this.db.query(
       `select id, episode_number, title, is_free, coin_cost
-       from public.episodes where series_id = $1 order by episode_number, id`,
+       from episodes where series_id = $1 order by episode_number, id`,
       [seriesId]
     );
     const beats = await this.db.query(
       `select id, episode_id, beat_index, role, is_branch_point, canon_facts
-       from public.beats where series_id = $1 order by beat_index, id`,
+       from beats where series_id = $1 order by beat_index, id`,
       [seriesId]
     );
     const variants = await this.db.query(
       `select v.id, v.beat_id, v.language, v.accessibility, v.intensity, v.pov, v.tier, v.is_premium,
               v.coin_cost, v.playback_url, v.duration_ms, v.qa_status,
               v.caption_doc_url, v.audio_description_url, v.sign_video_url, v.dub_audio_urls
-       from public.beat_variants v
-       join public.beats b on b.id = v.beat_id
+       from beat_variants v
+       join beats b on b.id = v.beat_id
        where b.series_id = $1 order by v.id`,
       [seriesId]
     );
     const edges = await this.db.query(
       `select e.from_beat_id, e.to_beat_id, e.condition
-       from public.beat_edges e
-       join public.beats b on b.id = e.from_beat_id
+       from beat_edges e
+       join beats b on b.id = e.from_beat_id
        where b.series_id = $1 order by e.from_beat_id, e.to_beat_id`,
       [seriesId]
     );

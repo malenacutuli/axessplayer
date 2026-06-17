@@ -80,7 +80,7 @@ export class PgDecisionDb implements DecisionDB {
   constructor(private readonly db: Pick<pg.Pool, "query">) {}
 
   async seriesOfBeat(beatId: string): Promise<string> {
-    const r = await this.db.query("select series_id from public.beats where id = $1", [beatId]);
+    const r = await this.db.query("select series_id from beats where id = $1", [beatId]);
     if (r.rows.length === 0) throw new Error("unknown_beat");
     return r.rows[0].series_id as string;
   }
@@ -88,8 +88,8 @@ export class PgDecisionDb implements DecisionDB {
   async candidatesOf(beatId: string): Promise<CanonCandidate[]> {
     const r = await this.db.query(
       `select e.to_beat_id, e.condition, v.id as variant_id
-         from public.beat_edges e
-         join public.beat_variants v on v.beat_id = e.to_beat_id
+         from beat_edges e
+         join beat_variants v on v.beat_id = e.to_beat_id
         where e.from_beat_id = $1
         order by v.id`,
       [beatId]
@@ -102,20 +102,20 @@ export class PgDecisionDb implements DecisionDB {
   }
 
   async canonFactsOf(beatId: string): Promise<CanonFacts> {
-    const r = await this.db.query("select canon_facts from public.beats where id = $1", [beatId]);
+    const r = await this.db.query("select canon_facts from beats where id = $1", [beatId]);
     return (r.rows[0]?.canon_facts ?? {}) as CanonFacts;
   }
 
   async cohortOf(userId: string, seriesId: string): Promise<string | null> {
     const r = await this.db.query(
-      "select cohort_id from public.viewer_state where user_id = $1 and series_id = $2",
+      "select cohort_id from viewer_state where user_id = $1 and series_id = $2",
       [userId, seriesId]
     );
     return (r.rows[0]?.cohort_id as string | null) ?? null;
   }
 
   async adaptiveOptIn(userId: string): Promise<boolean> {
-    const r = await this.db.query("select adaptive_opt_in from public.users where id = $1", [userId]);
+    const r = await this.db.query("select adaptive_opt_in from users where id = $1", [userId]);
     return r.rows[0]?.adaptive_opt_in !== false;
   }
 }
@@ -127,7 +127,7 @@ export class PgDecisionLogger implements DecisionLogger {
 
   async log(row: Omit<DecisionLogRow, "id">): Promise<string> {
     const r = await this.db.query(
-      `insert into public.decision_log
+      `insert into decision_log
          (user_id, beat_id, served_variant_id, is_control, policy_version, propensity)
        values ($1, $2, $3, $4, $5, $6)
        returning id`,

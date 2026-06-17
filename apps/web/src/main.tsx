@@ -12,12 +12,12 @@ import { staticSession } from "./api/session.js";
 import "./styles/brand-tokens.css";
 import "./styles.css";
 
-// The walking-skeleton series id (see supabase/seed.sql). Configurable per deployment in a later pass.
-const SERIES_ID = "11111111-1111-1111-1111-111111111111";
-// Demo viewing identity for the first-touch public surface. Production reads this from Supabase auth.
-const DEMO_USER = "aaaaaaaa-0000-0000-0000-000000000001";
-
 const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {};
+// Series id and viewing identity are per-deployment. They default to the local walking-skeleton seed
+// (supabase/seed.sql) but are overridable via env so the SAME build runs against the hosted mobile schema:
+// set VITE_SERIES_ID, VITE_DEMO_USER, and VITE_SESSION_TOKEN=session:<uuid> in apps/web/.env.local.
+const SERIES_ID = env.VITE_SERIES_ID ?? "11111111-1111-1111-1111-111111111111";
+const DEMO_USER = env.VITE_DEMO_USER ?? "aaaaaaaa-0000-0000-0000-000000000001";
 const session = staticSession(env.VITE_SESSION_TOKEN ?? "demo-session-token");
 
 const clients = buildClients({ session });

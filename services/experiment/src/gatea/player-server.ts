@@ -105,11 +105,11 @@ const PORT = Number(process.env.PORT ?? 8097);
 server.listen(PORT, "127.0.0.1", () => console.log(`gatea test player on http://127.0.0.1:${PORT}`));
 
 const PLAYER_HTML = `<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
-<title>Gate A test player</title><style>html,body{margin:0;background:#000;height:100%}#stage{position:fixed;inset:0}
+<title>Adaptive harness test player (synthetic)</title><style>html,body{margin:0;background:#000;height:100%}#stage{position:fixed;inset:0}
 video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .12s}
 video.on{opacity:1}#hud{position:fixed;left:8px;top:8px;color:#fff;font:12px ui-monospace,monospace;background:#0008;padding:6px 8px;border-radius:6px;z-index:9}</style></head>
 <body><div id=stage><video id=v0 muted playsinline></video><video id=v1 muted playsinline></video></div>
-<div id=hud>gate A test player</div><script>
+<div id=hud>adaptive harness test player - synthetic, not a Gate A verdict</div><script>
 const qs=new URLSearchParams(location.search); const arm=qs.get('arm')||'treatment'; const fast=qs.get('fast')==='1';
 const session='s-'+Math.floor(performance.now())+'-'+arm; const vids=[document.getElementById('v0'),document.getElementById('v1')];
 const hud=document.getElementById('hud'); window.__gatea={arm,session,played:[],done:false,seamGaps:0};

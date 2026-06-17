@@ -10,12 +10,12 @@ export class PgEconomyDb implements EconomyDB {
 
   async getWallet(userId: string): Promise<Wallet | null> {
     const w = await this.db.query(
-      "select balance, bonus_balance from public.coin_wallet where user_id = $1",
+      "select balance, bonus_balance from coin_wallet where user_id = $1",
       [userId]
     );
     if (w.rows.length === 0) return null;
     const ents = await this.db.query(
-      "select scope, scope_id from public.entitlements where user_id = $1 order by granted_at",
+      "select scope, scope_id from entitlements where user_id = $1 order by granted_at",
       [userId]
     );
     return {
