@@ -36,8 +36,13 @@ services:
     plan: starter
     region: oregon
     envVars:
+      # staging, NOT production: decision/economy hard-stop under NODE_ENV=production because real JWKS auth
+      # is a flagged cutover gate that is not implemented (services/decision/src/server.ts selectVerifiers).
+      # staging uses the session-token verifier the app actually sends (VITE_SESSION_TOKEN=session:<uuid>).
+      # This is a QA deployment with demo auth, not a production-secure launch. Flip to production only once a
+      # real JWKS verifier is wired and injected. No em dashes.
       - key: NODE_ENV
-        value: production
+        value: staging
       - key: DB_OPTIONS
         value: "-c search_path=mobile,public"
       - key: DATABASE_URL
@@ -51,8 +56,12 @@ services:
     plan: starter
     region: oregon
     envVars:
+      # staging, NOT production: same JWKS cutover gate as decision (services/economy/src/server.ts). staging
+      # uses the session-token verifier so the ledger is reachable for QA. The economy service guards the coin
+      # ledger; under the demo verifier any session:<uuid> is accepted, so this is QA-grade auth only. Stripe
+      # stays TEST and revenue extraction is off regardless. Flip to production only with a real JWKS verifier.
       - key: NODE_ENV
-        value: production
+        value: staging
       - key: DB_OPTIONS
         value: "-c search_path=mobile,public"
       - key: DATABASE_URL
