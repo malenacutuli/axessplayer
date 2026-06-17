@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "voice": "placeholder:say",
+  "segments": [
+    {
+      "id": "ad_0",
+      "text": "Strawberry turns and walks out, leaving Banana alone on the rumpled bed.",
+      "startTime": 11.9,
+      "endTime": 15.16,
+      "audioUrl": "http://127.0.0.1:8095/media/mqfkdb5y-9lzxgp/ad_0.m4a",
+      "audioDurationMs": 3258,
+      "requiresExtension": true,
+      "extensionType": "pause",
+      "gapMs": 2500
+    },
+    {
+      "id": "ad_1",
+      "text": "Banana grins, oblivious, as Grape slides her arm through his.",
+      "startTime": 22.9,
+      "endTime": 26,
+      "audioUrl": "http://127.0.0.1:8095/media/mqfkdb5y-9lzxgp/ad_1.m4a",
+      "audioDurationMs": 3099,
+      "requiresExtension": false,
+      "extensionType": "pause",
+      "gapMs": 4140
+    },
+    {
+      "id": "ad_2",
+      "text": "Strawberry straightens her blazer, her face hardening into resolve.",
+      "startTime": 42.3,
+      "endTime": 45.34,
+      "audioUrl": "http://127.0.0.1:8095/media/mqfkdb5y-9lzxgp/ad_2.m4a",
+      "audioDurationMs": 3037,
+      "requiresExtension": true,
+      "extensionType": "pause",
+      "gapMs": 2520
+    },
+    {
+      "id": "ad_3",
+      "text": "She slides the signed dismissal across the polished desk.",
+      "startTime": 78.6,
+      "endTime": 81.14,
+      "audioUrl": "http://127.0.0.1:8095/media/mqfkdb5y-9lzxgp/ad_3.m4a",
+      "audioDurationMs": 2535,
+      "requiresExtension": true,
+      "extensionType": "pause",
+      "gapMs": 2080
+    },
+    {
+      "id": "ad_4",
+      "text": "Grape claws through her purse, the useless cards trembling in her hands.",
+      "startTime": 84.2,
+      "endTime": 87.3,
+      "audioUrl": "http://127.0.0.1:8095/media/mqfkdb5y-9lzxgp/ad_4.m4a",
+      "audioDurationMs": 3096,
+      "requiresExtension": false,
+      "extensionType": "pause",
+      "gapMs": 3360
+    },
+    {
+      "id": "ad_5",
+      "text": "Apple the detective spreads a fan of documents across the table.",
+      "startTime": 101,
+      "endTime": 103.87,
+      "audioUrl": "http://127.0.0.1:8095/media/mqfkdb5y-9lzxgp/ad_5.m4a",
+      "audioDurationMs": 2868,
+      "requiresExtension": true,
+      "extensionType": "pause",
+      "gapMs": 2760
+    }
+  ]
+}
