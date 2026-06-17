@@ -62,8 +62,28 @@ when the cut carries no sign track. ASL/PSL/LSA selectable.
 | File | Restore path | Role |
 |---|---|---|
 | `studio/media.ts` | `apps/studio/src/api/media.ts` | `deriveTrackUrls` / `listTracks`: how Studio discovers a variant's track assets |
-| `backend/stages.ts` | `services/ingestion/src/stages.ts` | `accessibilityStages(langs, signLangs, baseLang)`: the per-track pipeline stages |
-| `backend/executors.ts` | `services/ingestion/src/executors.ts` | `stageTrackField` etc.: which DB column each produced track writes to |
+| `backend/ingestion/stages.ts` | `services/ingestion/src/stages.ts` | `accessibilityStages(langs, signLangs, baseLang)`: the per-track pipeline stages |
+| `backend/ingestion/executors.ts` | `services/ingestion/src/executors.ts` | `stageTrackField` etc.: which DB column each produced track writes to |
+
+## Backend track-registration + provenance path
+
+How a produced track lands on a variant and gets signed. The ingestion DAG produces each
+track, the registrar writes its URL through the content service and records C2PA provenance
++ a consent reference through the trust service, and only a provenanced, consented asset is
+servable. The real C2PA signer and the consent-ref writes stay behind the founder
+consent/provenance go-live gate (`consentProvenanceLive`).
+
+| File | Restore path | Role |
+|---|---|---|
+| `backend/content/content.ts` | `services/content/src/content.ts` | `setVariantTracks` handler (validates + writes the four track URLs) |
+| `backend/content/http-app.ts` | `services/content/src/http/app.ts` | The `PATCH` variant-tracks route |
+| `backend/content/pgContentDb.ts` | `services/content/src/pgContentDb.ts` | `setVariantTracks` SQL writer (caption/AD/sign/dub columns) |
+| `backend/ingestion/trustRegistrar.ts` | `services/ingestion/src/trustRegistrar.ts` | `registerOne` / `makeProductionRegistrar`: ties a produced track to provenance + consent; gated by `consentProvenanceLive` |
+| `backend/ingestion/orchestrator.ts` | `services/ingestion/src/orchestrator.ts` | The idempotent, resumable, cost-gated ingest DAG that drives stage production |
+| `backend/trust/trust.ts` | `services/trust/src/trust.ts` | Provenance + consent core; a variant is servable only when both exist |
+| `backend/trust/c2pa.ts` | `services/trust/src/c2pa.ts` | C2PA signing (TEST HMAC signer; real KMS cose-sign1 is the cutover) |
+| `backend/trust/hashChain.ts` | `services/trust/src/hashChain.ts` | The hash-chained consent ledger |
+| `backend/trust/server.ts` | `services/trust/src/server.ts` | Trust HTTP: `POST /provenance`, `POST /consent`, `GET /verify/<id>` |
 
 ## Data formats (the files the player fetches)
 
