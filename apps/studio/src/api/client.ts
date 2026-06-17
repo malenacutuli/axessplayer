@@ -45,6 +45,29 @@ export class ContentApiError extends Error {
 
 export type FetchLike = typeof fetch;
 
+// Operator dashboard aggregates returned by GET /admin/overview (mirrors the content service shape).
+export interface AdminOverview {
+  series: { published: number; total: number };
+  variants: {
+    total: number;
+    premium: number;
+    qaPassed: number;
+    withCaptions: number;
+    withAudioDescription: number;
+    withSign: number;
+    withDub: number;
+  };
+  ledger: {
+    transactions: number;
+    coinsGranted: number;
+    coinsSpent: number;
+    byType: Array<{ type: string; count: number; coins: number }>;
+    wallets: number;
+    walletBalance: number;
+  };
+  decisions: number;
+}
+
 export interface ContentClientOptions {
   baseUrl: string;
   fetchImpl?: FetchLike;
@@ -81,6 +104,15 @@ export class ContentClient {
   // consumes this flat shape, so the consumer-app nested-graph bug cannot recur here.
   async getFlatGraph(seriesId: GraphIdParam): Promise<FlatGraph> {
     return flattenGraph(await this.getSeriesGraph(seriesId));
+  }
+
+  // GET /admin/overview : read-only operator aggregates (content + ledger + decisions) from the live schema.
+  async getAdminOverview(): Promise<AdminOverview> {
+    const res = await this.fetchImpl(joinUrl(this.baseUrl, "/admin/overview"), {
+      method: "GET",
+      headers: { accept: "application/json" },
+    });
+    return this.parse<AdminOverview>(res);
   }
 
   createSeries(body: CreateSeriesBody): Promise<SeriesRow> {

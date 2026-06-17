@@ -11,6 +11,7 @@ import { MediaPanel } from "./studio/MediaPanel.js";
 import { PosterPanel } from "./studio/PosterPanel.js";
 import { PricingPanel } from "./studio/PricingPanel.js";
 import { PublishPanel } from "./studio/PublishPanel.js";
+import { OperatorPanel } from "./studio/OperatorPanel.js";
 import { useFlatGraph } from "../api/useFlatGraph.js";
 import { LAST_SIGNAL_SERIES_ID } from "../api/knownSeries.js";
 
@@ -46,17 +47,19 @@ export function StudioPage(): JSX.Element {
           <div className="smain">
             {panel === "library" && <LibraryPanel onOpenSeries={openSeries} />}
 
-            {panel !== "library" && graphState.status === "loading" && (
+            {panel === "operator" && <OperatorPanel />}
+
+            {panel !== "library" && panel !== "operator" && graphState.status === "loading" && (
               <p className="muted" data-testid="graph-loading">
                 Loading graph...
               </p>
             )}
-            {panel !== "library" && graphState.status === "error" && (
+            {panel !== "library" && panel !== "operator" && graphState.status === "error" && (
               <p role="alert" className="statusline err" data-testid="graph-error">
                 Could not load graph: {graphState.message}
               </p>
             )}
-            {panel !== "library" && graphState.status === "idle" && (
+            {panel !== "library" && panel !== "operator" && graphState.status === "idle" && (
               <p className="muted" data-testid="graph-idle">
                 Open a series from the Library to start.
               </p>

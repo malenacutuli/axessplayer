@@ -24,6 +24,7 @@ import {
   handleSetVariantTracks,
   handleSetSeriesPublished,
   handleGetFeed,
+  handleAdminOverview,
   handleSetSeriesPoster,
   handleCreateEdge,
   type ContentDB,
@@ -132,6 +133,12 @@ export function createContentApp(deps: AppDeps): Hono {
   app.get("/feed", async (c) => {
     const result = await handleGetFeed(db);
     return c.json(result.body, result.status as 200);
+  });
+
+  // GET /admin/overview : read-only operator dashboard aggregates (content + ledger + decisions).
+  app.get("/admin/overview", async (c) => {
+    const result = await handleAdminOverview(db);
+    return c.json(result.body, result.status as 200 | 501);
   });
 
   // PATCH /series/{id}/poster (0009c) : store the chosen generated poster URL + C2PA provenance.

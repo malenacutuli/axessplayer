@@ -1,7 +1,7 @@
 // The studio left rail: the "axess studio" wordmark and the panel nav, matching the prototype. The active
 // panel button gets the .on class (white pill, rose icon). No em dashes.
 
-export type PanelId = "library" | "branch" | "media" | "poster" | "pricing" | "publish";
+export type PanelId = "library" | "branch" | "media" | "poster" | "pricing" | "publish" | "operator";
 
 const ICONS: Record<PanelId, JSX.Element> = {
   library: (
@@ -44,6 +44,12 @@ const ICONS: Record<PanelId, JSX.Element> = {
       <path d="M12 19V5M5 12l7-7 7 7" />
     </svg>
   ),
+  operator: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <path d="M3 3v18h18" />
+      <path d="M7 14l3-4 3 3 4-6" />
+    </svg>
+  ),
 };
 
 const NAV: Array<{ id: PanelId; label: string }> = [
@@ -53,6 +59,7 @@ const NAV: Array<{ id: PanelId; label: string }> = [
   { id: "poster", label: "Poster" },
   { id: "pricing", label: "Pricing" },
   { id: "publish", label: "Publish" },
+  { id: "operator", label: "Operator" },
 ];
 
 export interface SideRailProps {

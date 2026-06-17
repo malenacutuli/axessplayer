@@ -29,6 +29,7 @@ export default defineConfig({
       "/beats": CONTENT_TARGET,
       "/variants": CONTENT_TARGET,
       "/edges": CONTENT_TARGET,
+      "/admin": CONTENT_TARGET,
     },
   },
   test: {

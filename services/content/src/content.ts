@@ -219,6 +219,10 @@ export interface ContentDB {
   setSeriesPublished(id: string, published: boolean): Promise<{ id: string; published_at: string | null } | null>;
   listPublishedSeries(): Promise<FeedItem[]>;
   setSeriesPoster(id: string, posterUrl: string, provenance: Record<string, unknown>): Promise<{ id: string; poster_url: string } | null>;
+  // Optional read-only aggregate for the operator dashboard. Returns live counts across the content,
+  // ledger, and decision tables in the active schema. Optional so the PGlite test harness need not
+  // implement it; the route answers 501 when a DB does not provide it.
+  adminOverview?(): Promise<AdminOverview>;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -461,6 +465,38 @@ export async function handleSetSeriesPublished(
 // ---------- GET /feed (0009b): published series only, newest first ----------
 export async function handleGetFeed(db: ContentDB): Promise<HandlerResult<Feed>> {
   return { status: 200, body: { series: await db.listPublishedSeries() } };
+}
+
+// ---------- GET /admin/overview : operator dashboard, live counts from the active schema ----------
+// Read-only aggregates across content (series/variants/track coverage/premium), the double-entry ledger
+// (transactions by type, grants vs spends, wallets), and the decision log. No PII: counts and sums only.
+export interface AdminOverview {
+  series: { published: number; total: number };
+  variants: {
+    total: number;
+    premium: number;
+    qaPassed: number;
+    withCaptions: number;
+    withAudioDescription: number;
+    withSign: number;
+    withDub: number;
+  };
+  ledger: {
+    transactions: number;
+    coinsGranted: number;
+    coinsSpent: number;
+    byType: Array<{ type: string; count: number; coins: number }>;
+    wallets: number;
+    walletBalance: number;
+  };
+  decisions: number;
+}
+
+export async function handleAdminOverview(
+  db: ContentDB
+): Promise<HandlerResult<AdminOverview | ApiError>> {
+  if (typeof db.adminOverview !== "function") return err(501, "admin_overview_unavailable");
+  return { status: 200, body: await db.adminOverview() };
 }
 
 // ---------- PATCH /series/{id}/poster (0009c) ----------

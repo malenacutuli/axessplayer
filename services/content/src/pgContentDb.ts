@@ -20,6 +20,7 @@ import type {
   QaStatus,
   FeedItem,
   VariantTracks,
+  AdminOverview,
 } from "./content.js";
 
 type Q = Pick<pg.Pool, "query">;
@@ -176,6 +177,68 @@ export class PgContentDb implements ContentDB {
       [row.from_beat_id, row.to_beat_id, row.condition]
     );
     return mapEdge(r.rows[0]);
+  }
+
+  // Operator dashboard aggregates. Read-only, counts and sums only (no PII). Names are unqualified so the
+  // connection search_path resolves them (mobile on hosted, public locally). The ledger sign convention:
+  // grants are positive amounts, spends negative, so coinsSpent is the negated sum of the negatives.
+  async adminOverview(): Promise<AdminOverview> {
+    const num = (v: unknown): number => (v == null ? 0 : Number(v));
+    const series = (
+      await this.db.query(
+        "select count(*)::int as total, count(*) filter (where published_at is not null)::int as published from series"
+      )
+    ).rows[0];
+    const variants = (
+      await this.db.query(
+        `select count(*)::int as total,
+                count(*) filter (where is_premium)::int as premium,
+                count(*) filter (where qa_status = 'passed')::int as qa_passed,
+                count(*) filter (where caption_doc_url is not null)::int as with_captions,
+                count(*) filter (where audio_description_url is not null)::int as with_ad,
+                count(*) filter (where sign_video_url is not null)::int as with_sign,
+                count(*) filter (where dub_audio_urls is not null and dub_audio_urls::text <> '{}')::int as with_dub
+         from beat_variants`
+      )
+    ).rows[0];
+    const txTotals = (
+      await this.db.query(
+        `select count(*)::int as transactions,
+                coalesce(sum(amount) filter (where amount > 0), 0)::int as granted,
+                coalesce(-sum(amount) filter (where amount < 0), 0)::int as spent
+         from coin_transactions`
+      )
+    ).rows[0];
+    const byType = (
+      await this.db.query(
+        "select type, count(*)::int as count, coalesce(sum(amount),0)::int as coins from coin_transactions group by type order by count desc"
+      )
+    ).rows;
+    const wallets = (
+      await this.db.query("select count(*)::int as wallets, coalesce(sum(balance),0)::int as balance from coin_wallet")
+    ).rows[0];
+    const decisions = (await this.db.query("select count(*)::int as n from decision_log")).rows[0];
+    return {
+      series: { published: num(series?.published), total: num(series?.total) },
+      variants: {
+        total: num(variants?.total),
+        premium: num(variants?.premium),
+        qaPassed: num(variants?.qa_passed),
+        withCaptions: num(variants?.with_captions),
+        withAudioDescription: num(variants?.with_ad),
+        withSign: num(variants?.with_sign),
+        withDub: num(variants?.with_dub),
+      },
+      ledger: {
+        transactions: num(txTotals?.transactions),
+        coinsGranted: num(txTotals?.granted),
+        coinsSpent: num(txTotals?.spent),
+        byType: byType.map((r) => ({ type: String(r.type), count: num(r.count), coins: num(r.coins) })),
+        wallets: num(wallets?.wallets),
+        walletBalance: num(wallets?.balance),
+      },
+      decisions: num(decisions?.n),
+    };
   }
 
   async getSeriesGraph(seriesId: string): Promise<SeriesGraph | null> {
