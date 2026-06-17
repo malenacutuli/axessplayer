@@ -33,12 +33,16 @@ describe("paywall PATH bandit hard rules (GOLD_STANDARD_04)", () => {
       assert.ok(PAYWALL_PATHS.includes(sel.path));
     }
   });
-  it("with neutral production reward weights, the pro-viewer watch_ad path is featured (no explore)", () => {
-    // rng above epsilon -> greedy; neutral weights -> greedy is the first path, watch_ad.
-    const sel = selectPaywallPath(PAYWALL_PATHS, PATH_REWARD_WEIGHTS, 0.2, () => 0.99);
-    assert.equal(sel.path, "watch_ad");
-    assert.equal(sel.optimized, REWARD_WEIGHTS_SIGNED_OFF); // optimizing on the reward post sign-off
+  it("reward-weights gate is OPEN by default (no silent founder sign-off)", () => {
+    assert.equal(REWARD_WEIGHTS_SIGNED_OFF, false);
+  });
+  it("DRAFT/neutral mode optimizes on NOTHING: uniform 1/k propensity, optimized false", () => {
+    // Gate open -> neutral -> uniform choice; rng 0 picks index 0 (watch_ad), propensity 1/k.
+    const sel = selectPaywallPath(PAYWALL_PATHS, PATH_REWARD_WEIGHTS, 0.2, () => 0);
+    assert.equal(sel.optimized, false);
     assert.equal(sel.revenueOptimized, false);
+    assert.ok(Math.abs(sel.propensity - 1 / PAYWALL_PATHS.length) < 1e-9);
+    assert.equal(sel.path, "watch_ad");
   });
   it("watch_ad leads the default path order, and reward weights are non-revenue (neutral)", () => {
     assert.equal(PAYWALL_PATHS[0], "watch_ad");

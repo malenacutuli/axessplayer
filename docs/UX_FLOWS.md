@@ -216,4 +216,7 @@ sign-model training set.
 
 - Money/ledger: signed off. Stripe stays TEST until a separate live-rail decision.
 - Biometric/consent + provenance: signed off (consent-ledger + C2PA writes may go live).
-- Reward-weights: signed off (bandit may optimize on viewer continuation; extraction stays off).
+- Reward-weights: OPEN / DRAFT. NOT signed off. The paywall bandit runs NEUTRAL and optimizes on nothing
+  (REWARD_WEIGHTS_SIGNED_OFF=false). Optimizing on viewer continuation has real wellbeing stakes and needs an
+  explicit, conscious founder decision; it was reverted after an ambiguous signal was over-read as a sign-off.
+- Governance: never record or act on a founder gate as signed without an explicit founder decision.

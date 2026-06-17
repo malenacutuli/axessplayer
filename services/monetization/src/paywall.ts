@@ -47,11 +47,12 @@ export function selectOffer(
 
 // ---------- PATH-LEVEL paywall bandit (buy / watch_ad / subscribe) ----------
 // Picks which path to FEATURE per viewer, logged with propensity so the choice is off-policy evaluable.
-// The reward-weights founder sign-off (2026-06-17) is GRANTED, so the bandit may optimize on the ratified
-// reward (viewer continuation). Two things stay HARD regardless of any sign-off: revenue EXTRACTION is never
-// the objective (REVENUE_OPTIMIZATION_ENABLED is permanently false), and the anti-dark-pattern constraints
-// below are hard. watch_ad leads the default order (the pro-viewer, no-spend option first), so with neutral
-// reward weights the featured path is the free one until observed continuation data shifts it.
+// The reward-weights founder gate is OPEN/DRAFT: there is no explicit founder decision on record, so the
+// bandit runs NEUTRAL (uniform, no optimization) and never optimizes on any reward, including viewer
+// continuation. Optimizing on continuation is a real behavioral/wellbeing choice and must not be enabled
+// without an explicit, conscious founder sign-off. Two things stay HARD regardless: revenue EXTRACTION is
+// never the objective (REVENUE_OPTIMIZATION_ENABLED permanently false), and the anti-dark-pattern
+// constraints below are hard. watch_ad leads the default order (the pro-viewer, no-spend option first).
 
 export type PaywallPath = "watch_ad" | "buy" | "subscribe";
 export const PAYWALL_PATHS: PaywallPath[] = ["watch_ad", "buy", "subscribe"];
@@ -59,9 +60,10 @@ export const PAYWALL_PATHS: PaywallPath[] = ["watch_ad", "buy", "subscribe"];
 // PERMANENT hard rule: the bandit never optimizes for revenue extraction, signed off or not.
 export const REVENUE_OPTIMIZATION_ENABLED = false;
 
-// Reward-weights founder sign-off: GRANTED. Gates whether the bandit optimizes on the continuation reward
-// (true) or runs neutral/DRAFT (false). Extraction stays off either way.
-export const REWARD_WEIGHTS_SIGNED_OFF = true;
+// Reward-weights founder gate: OPEN. False until an explicit founder sign-off. While false the bandit is
+// neutral (uniform, off-policy evaluable) and optimizes on nothing. Do not flip without a conscious founder
+// decision (optimizing on continuation has real wellbeing stakes).
+export const REWARD_WEIGHTS_SIGNED_OFF = false;
 
 // Reward weights over paths (the ratified reward is viewer continuation, NOT revenue). Neutral defaults so
 // the featured path stays the pro-viewer watch_ad until observed continuation data accrues. Never set from
