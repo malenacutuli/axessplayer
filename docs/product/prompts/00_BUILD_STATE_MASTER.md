@@ -65,3 +65,9 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
   Live-verified against hosted: a 3-event batch -> 2 accepted with user_id stamped from the session (not
   the body), 1 F1 violation rejected; smoke rows cleaned. Wiring: set VITE_EVENTS_BASE_URL to the collector
   so apps/web capture.ts ships consent-gated events. P3 now fully instrumented.
+- 2026-06-17: P4-T1 DONE (9cdb0dc). C10 caption compliance: always-on speaker NAME tag (redundant
+  non-color cue) + character color as a controllable enhancement (captionColor pref + A11ySheet toggle;
+  off = compliant white). 4 spec tests; web suite 61 green. P4-T3 verified by audit: a11y prefs persist
+  to localStorage (axessplayer.a11y) and one language pref drives audio + captions + sign together in
+  Player.tsx (single-language drive). REMAINING P4-T2: self-attaching track URLs on Studio upload. Next:
+  P4-T2 then P5 recommender (two-tower + ranker, separable from the re-cutter, C5).
