@@ -11,7 +11,10 @@ independent Reviewer + Test Authority (spec-derived tests, non-author review) ->
 commit + push. Progress note after each plane.
 
 Three founder sign-offs (build fully, then PAUSE for go-live; keep building other planes meanwhile):
-- [ ] money/ledger semantics go-live
+- [ ] money/ledger semantics go-live  <- BUILT 2026-06-17, AWAITING FOUNDER SIGN-OFF before any real
+      transaction. economy spend/grant RPCs (frozen, F-hardened) + services/monetization (bandit paywall,
+      reward settlement, Stripe-to-grant). The fenced boundary is the actual /grant call and the live
+      Stripe key; nothing transacts until you approve.
 - [ ] biometric/consent architecture go-live
 - [ ] reward-function weights ratification
 
@@ -37,6 +40,9 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
 - P6 Monetization + ledger. PARTIAL. economy spend/grant RPCs exist (hosted, F-hardened); web/Studio
   purchasing only (IAP tax C8). GAP: unlock sheet -> /spend [P6-T1]; pass/sub/rewarded-ad [P6-T2];
   bandit paywall [P6-T3]; Stripe test-mode checkout [P6-T4]. SIGN-OFF: money/ledger go-live.
+  STATUS: P6-T1 unlock->/spend DONE (useUnlock, idempotent, server-derived paywall on 402). P6-T2/T3/T4
+  logic DONE as services/monetization (paywall bandit, idempotent reward settlement, Stripe-to-grant), all
+  pure + fenced behind the money sign-off. economy /grant stays service-to-service (clients cannot mint).
 - P7 Consent + provenance + trust. PARTIAL. consent gate + consent_ledger table + Article 50 disclosure.
   GAP: consent ledger write path [P7-T1]; C2PA signing at serve + provenance tap-through (disclosure not
   explanation C7) [P7-T2]; trust serve listener [P7-T3]; EU/Swiss routing flag [P7-T4]. SIGN-OFF: consent.
@@ -89,3 +95,9 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
   assertNoRecutterSignal throws if a cut-selection signal is used as a feature (C5 attribution firewall).
   Head/task weights flagged for the reward-weights founder sign-off. Next: P6 monetization + ledger (build
   to the money sign-off gate), then P7 consent + trust.
+- 2026-06-17: P6 DONE to the gate. P6-T1 (unlock->/spend) already wired. Built services/monetization:
+  paywall.ts (bandit offer selection, honest propensity, fixed founder-approved offers, no dark patterns),
+  rewards.ts (idempotent rewarded-ad/daily-checkin settlement, server-minted only), stripe.ts (paid+test
+  checkout -> idempotent grant; livemode blocked until sign-off). grant.ts shared shape. 9 spec tests;
+  full turbo typecheck 23/23 + test 23/23 green. >>> FOUNDER SIGN-OFF NOW WAITING: money/ledger go-live
+  (the /grant call + live Stripe). Continuing to P7 consent + provenance + trust without blocking.
