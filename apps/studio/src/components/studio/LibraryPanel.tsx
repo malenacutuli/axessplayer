@@ -1,39 +1,41 @@
-// Library panel: the grid of series cards with gradient covers and LIVE / DRAFT / OUTLINE publish badges.
-// The first card is the real seeded series and opens the branch editor; the rest are styled placeholders
-// (no list-series endpoint exists yet). A "New episode" action also opens the branch editor. No em dashes.
+// Library panel: the grid of series cards. The LIVE cards are the REAL published series from GET /feed
+// (so the Studio always lists what is actually in the schema, not a hardcoded seed id); the draft/outline
+// cards are styled placeholders until those series are authored. Opening a live card loads its graph into
+// the branch editor. A "New episode" action opens the active series. No em dashes.
 import { useEffect, useState } from "react";
-import { LIBRARY_CARDS, type LibraryCard } from "../../api/knownSeries.js";
+import { LIBRARY_CARDS } from "../../api/knownSeries.js";
 import { useContentClient } from "../../api/useContentClient.js";
+import type { FeedSeries } from "../../api/client.js";
 
 export interface LibraryPanelProps {
-  // Open the branch editor for a given series (the real seed id), or for the active series via New episode.
+  // Open the branch editor for a given series id (a real published series), or undefined for a new one.
   onOpenSeries: (seriesId: string | undefined) => void;
 }
 
-function PublishBadge({ state }: { state: LibraryCard["publish"] }): JSX.Element {
-  const cls = state === "live" ? "pub live" : "pub draft";
-  const label = state === "live" ? "LIVE" : state === "draft" ? "DRAFT" : "OUTLINE";
-  return <span className={cls}>{label}</span>;
-}
-
 export function LibraryPanel({ onOpenSeries }: LibraryPanelProps): JSX.Element {
-  const live = LIBRARY_CARDS.find((c) => c.publish === "live");
   const client = useContentClient();
-  // The live card shows the real generated poster (0009c) when one is set; the gradient is the fallback.
-  const [livePoster, setLivePoster] = useState<string | null>(null);
+  const [feed, setFeed] = useState<FeedSeries[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
-    if (!live?.seriesId) return;
     let alive = true;
     void client
-      .getSeriesGraph(live.seriesId)
-      .then((g) => {
-        if (alive) setLivePoster(g.series.poster_url ?? null);
+      .getFeed()
+      .then((series) => {
+        if (alive) setFeed(series);
       })
-      .catch(() => {});
+      .catch((e: unknown) => {
+        if (alive) setError(e instanceof Error ? e.message : "feed_load_failed");
+      });
     return () => {
       alive = false;
     };
-  }, [client, live?.seriesId]);
+  }, [client]);
+
+  // Placeholder cards: the non-live styled tiles from the prototype (drafts / outlines), shown after the
+  // real published series so the grid still reads like the prototype before those titles are authored.
+  const placeholders = LIBRARY_CARDS.filter((c) => c.publish !== "live");
+
   return (
     <div className="spanel" data-testid="panel-library">
       <div className="sbar">
@@ -44,49 +46,77 @@ export function LibraryPanel({ onOpenSeries }: LibraryPanelProps): JSX.Element {
         <button
           type="button"
           className="btn pri"
-          onClick={() => onOpenSeries(live?.seriesId)}
+          onClick={() => onOpenSeries(feed[0]?.id)}
+          disabled={feed.length === 0}
           data-testid="new-episode"
         >
           + New episode
         </button>
       </div>
 
+      {error && (
+        <p className="statusline err" role="alert" data-testid="library-error">
+          Could not load the library: {error}
+        </p>
+      )}
+
       <div className="libgrid" data-testid="library-grid">
-        {LIBRARY_CARDS.map((card) => {
-          const clickable = Boolean(card.seriesId);
-          const poster = card.publish === "live" ? livePoster : null;
-          return (
-            <button
-              key={card.title}
-              type="button"
-              className="lib"
-              disabled={!clickable}
-              onClick={() => clickable && onOpenSeries(card.seriesId)}
-              data-testid={`library-card-${card.publish}`}
-              aria-label={`${card.title} (${card.publish})`}
-            >
-              <div
-                className={`ph ${poster ? "" : card.gradientClass}`}
-                data-testid={card.publish === "live" ? "library-poster-live" : undefined}
-                data-poster-url={poster ?? ""}
-                style={poster ? { backgroundImage: `url(${poster})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
-              />
-              <div className="b">
-                <div className="t">{card.title}</div>
-                <div className="s">
-                  <PublishBadge state={card.publish} />
-                  {card.subtitle ? <span>{card.subtitle}</span> : null}
-                </div>
+        {feed.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            className="lib"
+            onClick={() => onOpenSeries(s.id)}
+            data-testid="library-card-live"
+            aria-label={`${s.title} (live)`}
+          >
+            <div
+              className={`ph ${s.poster_url ? "" : "gp"}`}
+              data-testid="library-poster-live"
+              data-poster-url={s.poster_url ?? ""}
+              style={s.poster_url ? { backgroundImage: `url(${s.poster_url})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+            />
+            <div className="b">
+              <div className="t">{s.title}</div>
+              <div className="s">
+                <span className="pub live">LIVE</span>
+                {s.genre ? <span>{s.genre}</span> : null}
               </div>
-            </button>
-          );
-        })}
+            </div>
+          </button>
+        ))}
+
+        {feed.length === 0 && !error && (
+          <div className="muted" data-testid="library-empty" style={{ padding: 12 }}>
+            No published series yet. Publish one to see it here.
+          </div>
+        )}
+
+        {placeholders.map((card) => (
+          <button
+            key={card.title}
+            type="button"
+            className="lib"
+            disabled
+            data-testid={`library-card-${card.publish}`}
+            aria-label={`${card.title} (${card.publish})`}
+          >
+            <div className={`ph ${card.gradientClass}`} />
+            <div className="b">
+              <div className="t">{card.title}</div>
+              <div className="s">
+                <span className="pub draft">{card.publish === "draft" ? "DRAFT" : "OUTLINE"}</span>
+                {card.subtitle ? <span>{card.subtitle}</span> : null}
+              </div>
+            </div>
+          </button>
+        ))}
       </div>
 
       <div className="note">
         <span className="notetag">FILLS THE GAP</span>
-        The content upload tool that did not exist. It writes to the same content graph the player reads
-        from.
+        The content upload tool that did not exist. It lists the real published series from the content
+        graph the player reads from.
       </div>
     </div>
   );

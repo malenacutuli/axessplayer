@@ -13,12 +13,12 @@ import { PricingPanel } from "./studio/PricingPanel.js";
 import { PublishPanel } from "./studio/PublishPanel.js";
 import { OperatorPanel } from "./studio/OperatorPanel.js";
 import { useFlatGraph } from "../api/useFlatGraph.js";
-import { LAST_SIGNAL_SERIES_ID } from "../api/knownSeries.js";
 
 export function StudioPage(): JSX.Element {
   const [panel, setPanel] = useState<PanelId>("library");
-  // Default to the real seeded series so the studio is wired to live content on first paint.
-  const [seriesId, setSeriesId] = useState<string>(LAST_SIGNAL_SERIES_ID);
+  // No series loaded until the author opens one from the Library (which lists the real published series).
+  // Empty id keeps the graph idle, so the Studio never tries to load a series that is not in the schema.
+  const [seriesId, setSeriesId] = useState<string>("");
   const [selectedBeatId, setSelectedBeatId] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 

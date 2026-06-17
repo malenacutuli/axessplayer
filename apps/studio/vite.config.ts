@@ -24,6 +24,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      "/feed": CONTENT_TARGET,
       "/series": CONTENT_TARGET,
       "/episodes": CONTENT_TARGET,
       "/beats": CONTENT_TARGET,

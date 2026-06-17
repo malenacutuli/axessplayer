@@ -310,6 +310,7 @@ export function createFakeContentServer(): FakeServer {
       base_language: "en",
       available_languages: ["en"],
       cover_url: null,
+      published_at: "2026-06-15T00:00:00.000Z",
     });
     episodes.set(episodeId, {
       id: episodeId,

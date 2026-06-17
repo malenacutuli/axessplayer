@@ -45,6 +45,16 @@ export class ContentApiError extends Error {
 
 export type FetchLike = typeof fetch;
 
+// A published series as GET /feed returns it (newest first).
+export interface FeedSeries {
+  id: string;
+  title: string;
+  genre: string | null;
+  cover_url: string | null;
+  poster_url: string | null;
+  published_at: string;
+}
+
 // Operator dashboard aggregates returned by GET /admin/overview (mirrors the content service shape).
 export interface AdminOverview {
   series: { published: number; total: number };
@@ -104,6 +114,17 @@ export class ContentClient {
   // consumes this flat shape, so the consumer-app nested-graph bug cannot recur here.
   async getFlatGraph(seriesId: GraphIdParam): Promise<FlatGraph> {
     return flattenGraph(await this.getSeriesGraph(seriesId));
+  }
+
+  // GET /feed : the real published series (newest first), so the Library lists what is actually in the
+  // schema instead of a hardcoded seed id. Empty when nothing is published.
+  async getFeed(): Promise<FeedSeries[]> {
+    const res = await this.fetchImpl(joinUrl(this.baseUrl, "/feed"), {
+      method: "GET",
+      headers: { accept: "application/json" },
+    });
+    const body = await this.parse<{ series?: FeedSeries[] }>(res);
+    return body.series ?? [];
   }
 
   // GET /admin/overview : read-only operator aggregates (content + ledger + decisions) from the live schema.

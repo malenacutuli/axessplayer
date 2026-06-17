@@ -50,7 +50,7 @@ describe("StudioPage", () => {
   it("shows the Library with the live series and publish badges", async () => {
     renderStudio(server);
     expect(screen.getByTestId("panel-library")).toBeInTheDocument();
-    expect(screen.getByText("The Last Signal")).toBeInTheDocument();
+    expect(await screen.findByText("The Last Signal")).toBeInTheDocument();
     // LIVE / DRAFT / OUTLINE badges from the prototype.
     expect(screen.getByText("LIVE")).toBeInTheDocument();
     expect(screen.getAllByText("DRAFT").length).toBeGreaterThanOrEqual(1);
@@ -63,7 +63,7 @@ describe("StudioPage", () => {
     const user = userEvent.setup();
     renderStudio(server);
 
-    await user.click(screen.getByTestId("library-card-live"));
+    await user.click((await screen.findByTestId("library-card-live")));
     await waitFor(() => expect(screen.getByTestId("panel-branch")).toBeInTheDocument());
 
     // Five seeded beats become five nodes; the premium ending makes the ending beat a gold premium node.
@@ -80,7 +80,7 @@ describe("StudioPage", () => {
   it("selects a node (rose ring) and carries the selection to Media", async () => {
     const user = userEvent.setup();
     renderStudio(server);
-    await user.click(screen.getByTestId("library-card-live"));
+    await user.click((await screen.findByTestId("library-card-live")));
     await waitFor(() => expect(screen.getByTestId("panel-branch")).toBeInTheDocument());
 
     const branchNode = await screen.findByTestId("gnode-bbbbbbbb-0000-0000-0000-000000000002");
@@ -96,7 +96,7 @@ describe("StudioPage", () => {
   it("uploads a variant (POST /variants) and the graph reflects it, with no user_id sent", async () => {
     const user = userEvent.setup();
     renderStudio(server);
-    await user.click(screen.getByTestId("library-card-live"));
+    await user.click((await screen.findByTestId("library-card-live")));
     await waitFor(() => expect(screen.getByTestId("panel-branch")).toBeInTheDocument());
 
     // Select the cold open beat, go to media, count its variants.
@@ -129,7 +129,7 @@ describe("StudioPage", () => {
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup();
     renderStudio(server);
-    await user.click(screen.getByTestId("library-card-live"));
+    await user.click((await screen.findByTestId("library-card-live")));
     await waitFor(() => expect(screen.getByTestId("panel-branch")).toBeInTheDocument());
 
     await user.click(screen.getByTestId("gnode-bbbbbbbb-0000-0000-0000-000000000001"));
@@ -160,7 +160,7 @@ describe("StudioPage", () => {
   it("stages a chosen master in the drop zone and registers it with a derived URL", async () => {
     const user = userEvent.setup();
     renderStudio(server);
-    await user.click(screen.getByTestId("library-card-live"));
+    await user.click((await screen.findByTestId("library-card-live")));
     await waitFor(() => expect(screen.getByTestId("panel-branch")).toBeInTheDocument());
     await user.click(screen.getByTestId("gnode-bbbbbbbb-0000-0000-0000-000000000001"));
     await user.click(screen.getByTestId("goto-media"));
@@ -193,7 +193,7 @@ describe("StudioPage", () => {
   it("sets a premium price (POST /variants is_premium) from the Pricing panel", async () => {
     const user = userEvent.setup();
     renderStudio(server);
-    await user.click(screen.getByTestId("library-card-live"));
+    await user.click((await screen.findByTestId("library-card-live")));
     await waitFor(() => expect(screen.getByTestId("panel-branch")).toBeInTheDocument());
     await user.click(screen.getByTestId("goto-media"));
     await user.click(await screen.findByTestId("goto-pricing"));
@@ -212,7 +212,7 @@ describe("StudioPage", () => {
   it("publishes the series for real (POST /series/{id}/publish) and reflects the live state", async () => {
     const user = userEvent.setup();
     renderStudio(server);
-    await user.click(screen.getByTestId("library-card-live"));
+    await user.click((await screen.findByTestId("library-card-live")));
     await waitFor(() => expect(screen.getByTestId("panel-branch")).toBeInTheDocument());
     await user.click(screen.getByTestId("goto-media"));
     await user.click(await screen.findByTestId("goto-pricing"));
@@ -222,18 +222,20 @@ describe("StudioPage", () => {
     expect(within(publish).getByTestId("publish-checklist")).toBeInTheDocument();
     expect(within(publish).getByText(/Premium ending priced \(5 coins\)/)).toBeInTheDocument();
 
-    // Publish: the button calls the real route; after the graph reloads the panel shows the live state and
-    // the button flips to Unpublish.
-    await user.click(within(publish).getByRole("button", { name: "Publish to feed" }));
+    // The series is seeded live (it shows in the Library feed), so the panel starts on the live state.
+    // Round-trip the real routes: unpublish, then publish again, and confirm the live state returns.
+    await user.click(within(publish).getByRole("button", { name: "Unpublish" }));
+    await user.click(await screen.findByRole("button", { name: "Publish to feed" }));
     expect(await screen.findByTestId("publish-confirmation")).toHaveTextContent(/Live on the consumer feed/);
     expect(await screen.findByRole("button", { name: "Unpublish" })).toBeInTheDocument();
   });
 
-  it("shows a load error when the series graph is missing", async () => {
-    const empty = createFakeContentServer(); // not seeded: the live series id 404s
-    const user = userEvent.setup();
+  it("shows the empty-library state when nothing is published (no missing-series load)", async () => {
+    const empty = createFakeContentServer(); // not seeded: GET /feed returns no published series
     renderStudio(empty);
-    await user.click(screen.getByTestId("library-card-live"));
-    expect(await screen.findByTestId("graph-error")).toHaveTextContent("series_not_found");
+    // The Library lists only real published series, so an empty feed shows the empty state and offers no
+    // live card to open. The Studio never eagerly loads a series that is not in the schema.
+    expect(await screen.findByTestId("library-empty")).toBeInTheDocument();
+    expect(screen.queryByTestId("library-card-live")).not.toBeInTheDocument();
   });
 });
