@@ -56,8 +56,12 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
 - P8 Creator Studio. LARGELY DONE. library, branch editor, media/variant, poster, pricing, publish. GAP:
   accessibility editor [P8-T1]; channel + monetization settings + wallet [P8-T2]; analytics with
   off-policy counterfactuals as BANDS not points (C6) [P8-T3].
-- P9 Admin/operator console. GAP. dashboards, per-video insight, policy console, trust center, moderation,
-  payouts.
+- P9 Admin/operator console. CORE DONE (library). services/admin: alerts.ts (adaptive-policy alerts from
+  the Gate A readout: guardrail-breach critical, underperforming-cut warn, inconclusive-at-scale info),
+  moderation.ts (first-decision-wins queue state machine, human-in-the-loop, idempotent), payouts.ts
+  (creator earnings REPORT with flagged platform fee, never a disbursement). 7 spec tests. Per-video
+  insight + trust center reuse presentation.ts (beat retention, C6 bands) and trust verify. Remaining: the
+  dashboard UI app surfaces (consume these + the readout/OPE/trust APIs).
 - P10 Generation pipeline. STUB. variant interface accepts pre-rendered asset OR generation spec;
   orchestrator skeleton; real model calls gated on cost sign-off (FinOps C16).
 - P11 Brand + placement + marketplace. GAP. render-time placement (beat_variant), safety gates, market.
