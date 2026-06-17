@@ -1,0 +1,136 @@
+# Render Blueprint for the full Axessplayer stack: the Node/Hono services (Docker) bound to the hosted
+# Supabase mobile schema, plus the consumer + Studio static sites. Connect once: Render dashboard -> New ->
+# Blueprint -> pick the github.com/malenacutuli/axessplayer repo -> Apply. Then set the sync:false secrets in
+# the dashboard (DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ECONOMY_SERVICE_SECRET) and the VITE_*_BASE_URL on
+# the static sites to the assigned service URLs (or the api.humanaaxess.com subdomains once DNS is mapped).
+# Server secrets NEVER ship to the browser; only VITE_ public vars are in the static-site env. No em dashes.
+
+services:
+  # ---------------- backend services (Docker, bound to hosted Supabase mobile schema) ----------------
+  - type: web
+    name: axessplayer-content
+    runtime: docker
+    dockerfilePath: ./services/content/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_OPTIONS
+        value: "-c search_path=mobile,public"
+      - key: SUPABASE_URL
+        value: https://faeyekynudyzeotbjfsj.supabase.co
+      - key: POSTER_BUCKET
+        value: thumbnails
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+  - type: web
+    name: axessplayer-decision
+    runtime: docker
+    dockerfilePath: ./services/decision/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_OPTIONS
+        value: "-c search_path=mobile,public"
+      - key: DATABASE_URL
+        sync: false
+
+  - type: web
+    name: axessplayer-economy
+    runtime: docker
+    dockerfilePath: ./services/economy/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_OPTIONS
+        value: "-c search_path=mobile,public"
+      - key: DATABASE_URL
+        sync: false
+      - key: ECONOMY_SERVICE_SECRET
+        sync: false
+
+  - type: web
+    name: axessplayer-manifest
+    runtime: docker
+    dockerfilePath: ./services/manifest/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_OPTIONS
+        value: "-c search_path=mobile,public"
+      - key: DATABASE_URL
+        sync: false
+
+  - type: web
+    name: axessplayer-settlement
+    runtime: docker
+    dockerfilePath: ./services/monetization/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ECONOMY_SERVICE_SECRET
+        sync: false
+      # Service-to-service over Render internal networking.
+      - key: ECONOMY_BASE_URL
+        fromService:
+          type: web
+          name: axessplayer-economy
+          property: hostport
+      - key: CONTENT_BASE_URL
+        fromService:
+          type: web
+          name: axessplayer-content
+          property: hostport
+
+  # ---------------- frontends (static, built from the monorepo) ----------------
+  - type: web
+    name: axessplayer-web
+    runtime: static
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm gen && pnpm --filter @axessplayer/web build
+    staticPublishPath: ./apps/web/dist
+    envVars:
+      # Set these to the assigned backend URLs (or api.humanaaxess.com subdomains after DNS). Public only.
+      - key: VITE_CONTENT_BASE_URL
+        sync: false
+      - key: VITE_ECONOMY_BASE_URL
+        sync: false
+      - key: VITE_DECISION_BASE_URL
+        sync: false
+      - key: VITE_MANIFEST_BASE_URL
+        sync: false
+      - key: VITE_SESSION_TOKEN
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
+    name: axessplayer-studio
+    runtime: static
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm gen && pnpm --filter @axessplayer/studio build
+    staticPublishPath: ./apps/studio/dist
+    envVars:
+      - key: VITE_CONTENT_BASE_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
