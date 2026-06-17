@@ -27,8 +27,13 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
 - P4 Accessibility. LARGELY DONE. CWI three-axis, AD + EAD pause, EN/ES dub, sign PiP, graceful-absence,
   availability regression guard. GAP: compliant-default-plus-color audit (C10) [P4-T1]; self-attaching
   track URLs on upload [P4-T2]; remembered toggles + single-language drive [P4-T3].
-- P5 Recommender (isolated from re-cutter, C5). GAP. two-tower retrieval + multi-task ranker with a
-  duration-debiased watch-time head + feature store + exploration; training stream separable.
+- P5 Recommender (isolated from re-cutter, C5). DONE (library). services/recommender: featureStore.ts
+  (engagement-only features + the C5 firewall assertNoRecutterSignal + duration-debiased watch fraction),
+  twoTower.ts (T1 retrieval, identity cold-start towers + retrieveTopK), ranker.ts (T2 multi-task heads
+  completion/watch/returns, return-dominant, never raw-watch-maximizing + epsilon exploration with an
+  honest top propensity). 12 spec tests. Serving endpoint + offline tower/head training are the remaining
+  productionization (flagged; the math + interfaces are done). Head/task weights are flagged placeholders
+  for the reward-weights founder sign-off.
 - P6 Monetization + ledger. PARTIAL. economy spend/grant RPCs exist (hosted, F-hardened); web/Studio
   purchasing only (IAP tax C8). GAP: unlock sheet -> /spend [P6-T1]; pass/sub/rewarded-ad [P6-T2];
   bandit paywall [P6-T3]; Stripe test-mode checkout [P6-T4]. SIGN-OFF: money/ledger go-live.
@@ -78,3 +83,9 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
   the variant needs 0009a track-URL fields ratified into the frozen content POST /variants contract (must
   not edit contracts/). Until ratified, URLs derive + apply out of band. P4 complete to the contract
   boundary. Next: P5 recommender.
+- 2026-06-17: P5 DONE (library). services/recommender built: two-tower retrieval (T1), feature store with
+  the C5 firewall + duration-debiased watch fraction (T3 + T4), multi-task ranker with exploration (T2).
+  12 spec tests; full turbo typecheck 22/22 + test 22/22 green. The recommender trains on engagement only;
+  assertNoRecutterSignal throws if a cut-selection signal is used as a feature (C5 attribution firewall).
+  Head/task weights flagged for the reward-weights founder sign-off. Next: P6 monetization + ledger (build
+  to the money sign-off gate), then P7 consent + trust.

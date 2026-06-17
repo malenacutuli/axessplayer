@@ -1,0 +1,18 @@
+{
+  "name": "@axessplayer/recommender",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Recommender (what series to surface in the feed): two-tower retrieval + a multi-task ranker with a duration-debiased watch-time head + a feature store + exploration. Its training signal is engagement, kept SEPARABLE from the re-cutter's cut-selection propensity (CORRECTIONS C5) so a future experiment can isolate the cut. No em dashes.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo lint ok",
+    "test": "node --import tsx --test $(find src -name '*.test.ts' 2>/dev/null)"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^20.0.0"
+  }
+}
