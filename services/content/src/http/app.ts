@@ -35,6 +35,7 @@ import {
   type CreateVariantBody,
   type CreateEdgeBody,
 } from "../content.js";
+import type { PosterGenerator } from "../poster.js";
 
 // Path param pinned to the contract (content.yaml 0.3.1) via the generated operations type, so the route
 // cannot drift from the spec without a type error. The contract documents no request body schemas for the
@@ -44,6 +45,9 @@ type GraphIdParam = operations["getSeriesGraph"]["parameters"]["path"]["id"];
 
 export interface AppDeps {
   db: ContentDB;
+  // Optional server-side poster generator (stability-ai -> storage). When absent the generate route
+  // answers 501, so the test harness and any deploy without image keys stays clean.
+  posterGen?: PosterGenerator;
 }
 
 // Build the content HTTP app. The DB is injected so production wires the node-postgres PgContentDb while
@@ -147,6 +151,26 @@ export function createContentApp(deps: AppDeps): Hono {
     const day = c.req.query("day") ?? new Date().toISOString().slice(0, 10);
     const result = await handleAdminAdsToday(c.req.param("userId"), day, db);
     return c.json(result.body, result.status as 200 | 400 | 501);
+  });
+
+  // POST /series/{id}/poster/generate : server-side generate (stability-ai) -> upload -> persist
+  // series.poster_url with C2PA + Article 50 provenance. The generation key never reaches the browser.
+  app.post("/series/:id/poster/generate", async (c) => {
+    if (!deps.posterGen) return c.json({ error: "poster_generation_unavailable" }, 501);
+    const id = c.req.param("id");
+    const raw = await readJson(c);
+    if (raw == null) return c.json({ error: "invalid_json" }, 400);
+    const prompt = (raw as { prompt?: unknown }).prompt;
+    if (typeof prompt !== "string" || prompt.trim().length === 0) return c.json({ error: "invalid_prompt" }, 400);
+    let url: string;
+    try {
+      url = (await deps.posterGen.generate({ seriesId: id, prompt })).url;
+    } catch (e) {
+      return c.json({ error: "generation_failed", detail: String(e instanceof Error ? e.message : e).slice(0, 160) }, 502);
+    }
+    const provenance = { c2pa: true, synthetic: true, generator: "stability-ai", article50: "AI-generated" };
+    const result = await handleSetSeriesPoster(id, { poster_url: url, provenance }, db);
+    return c.json(result.body, result.status as 200 | 400 | 404);
   });
 
   // PATCH /series/{id}/poster (0009c) : store the chosen generated poster URL + C2PA provenance.

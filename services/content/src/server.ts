@@ -21,6 +21,7 @@ import type { Hono } from "hono";
 
 import { createContentApp } from "./http/app.js";
 import { PgContentDb } from "./pgContentDb.js";
+import { makePosterGenerator } from "./poster.js";
 
 export interface ContentServerConfig {
   databaseUrl: string;
@@ -42,9 +43,18 @@ export function readConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Content
   return { databaseUrl, ...(dbOptions != null && dbOptions.length > 0 ? { dbOptions } : {}) };
 }
 
-// Build the production content app: a node-postgres-backed PgContentDb handed to the existing factory.
-export function buildContentApp(pool: pg.Pool): Hono {
-  return createContentApp({ db: new PgContentDb(pool) });
+// Build the production content app: a node-postgres-backed PgContentDb handed to the existing factory,
+// plus an optional server-side poster generator wired from the Supabase env (SUPABASE_URL +
+// SUPABASE_SERVICE_ROLE_KEY + POSTER_BUCKET, default the public "thumbnails" bucket). When the env is
+// absent the generator is undefined and the generate route answers 501.
+export function buildContentApp(pool: pg.Pool, env: NodeJS.ProcessEnv = process.env): Hono {
+  const supabaseUrl = env.SUPABASE_URL;
+  const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
+  const posterGen =
+    supabaseUrl && serviceKey
+      ? makePosterGenerator({ supabaseUrl, serviceKey, bucket: env.POSTER_BUCKET ?? "thumbnails" })
+      : undefined;
+  return createContentApp({ db: new PgContentDb(pool), ...(posterGen ? { posterGen } : {}) });
 }
 
 // --- node:http bridge: map a Node request to a Web Request, run the Hono app, write the Web Response back.
