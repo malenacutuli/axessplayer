@@ -5,7 +5,10 @@
 import { createSettlementServer, type GrantSink, type PaywallPresentation } from "./server.js";
 import type { GrantRequest } from "./grant.js";
 
-const economyBase = (process.env.ECONOMY_BASE_URL ?? "http://127.0.0.1:8091").replace(/\/$/, "");
+// Normalize a base URL: Render's Blueprint `fromService property: hostport` injects a bare "host:port"
+// with NO scheme, which makes fetch() throw on an invalid URL. Prepend http:// when the scheme is absent.
+const withScheme = (u: string): string => (/^https?:\/\//i.test(u) ? u : `http://${u}`);
+const economyBase = withScheme((process.env.ECONOMY_BASE_URL ?? "http://127.0.0.1:8091").replace(/\/$/, ""));
 const serviceSecret = process.env.ECONOMY_SERVICE_SECRET;
 if (!serviceSecret) {
   throw new Error("grant settlement: ECONOMY_SERVICE_SECRET is required (service-to-service /grant auth)");
@@ -26,7 +29,7 @@ const economySink: GrantSink = {
 
 // Server-side daily rewarded-ad cap input: read today's rewarded_ad count from the content service's
 // read-only ledger aggregate. The cap is checked before any mint, so the client cannot exceed it.
-const contentBase = (process.env.CONTENT_BASE_URL ?? "http://127.0.0.1:8093").replace(/\/$/, "");
+const contentBase = withScheme((process.env.CONTENT_BASE_URL ?? "http://127.0.0.1:8093").replace(/\/$/, ""));
 const adsGrantedToday = async (userId: string, dayIso: string): Promise<number> => {
   try {
     const res = await fetch(`${contentBase}/admin/ads-today/${encodeURIComponent(userId)}?day=${dayIso}`);

@@ -106,17 +106,17 @@ export function createSettlementServer(sink: GrantSink, opts: SettlementOptions 
               return send(res, 429, { error: "daily_cap_reached", cap: dailyAdCap, today });
             }
           }
-          return settle(res, settleRewardedAd(r));
+          return await settle(res,settleRewardedAd(r));
         }
         if (method === "POST" && path === "/reward/checkin") {
           const { userId } = await readJson<{ userId: string }>(req);
           if (!userId) return send(res, 400, { error: "userId required" });
-          return settle(res, settleCheckin(userId, utcDay()));
+          return await settle(res,settleCheckin(userId, utcDay()));
         }
         if (method === "POST" && path === "/reward/follow") {
           const { userId } = await readJson<{ userId: string }>(req);
           if (!userId) return send(res, 400, { error: "userId required" });
-          return settle(res, settleFollow(userId));
+          return await settle(res,settleFollow(userId));
         }
         if (method === "POST" && path === "/paywall/present") {
           const body = await readJson<{ userId?: string; seriesId?: string; beatVariantId?: string; sessionId?: string }>(req);
@@ -157,7 +157,7 @@ export function createSettlementServer(sink: GrantSink, opts: SettlementOptions 
         }
         if (method === "POST" && path === "/stripe/webhook") {
           const session = await readJson<CheckoutSession>(req);
-          return settle(res, grantFromCheckout(session, offers)); // livemode refused inside (test mode only)
+          return await settle(res,grantFromCheckout(session, offers)); // livemode refused inside (test mode only)
         }
         send(res, 404, { error: "not found" });
       } catch (e) {
