@@ -71,3 +71,10 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
   to localStorage (axessplayer.a11y) and one language pref drives audio + captions + sign together in
   Player.tsx (single-language drive). REMAINING P4-T2: self-attaching track URLs on Studio upload. Next:
   P4-T2 then P5 recommender (two-tower + ranker, separable from the re-cutter, C5).
+- 2026-06-17: P4-T2 mechanism DONE. deriveTrackUrls + listTracks in apps/studio/src/api/media.ts (master
+  URL + present files -> 0009a track URL fields; only the ASL sign base, PSL/LSA derived client-side) with
+  4 spec tests (studio suite 34 green). Media-server GET /tracks/<id> lists the accessibility files in the
+  media dir; live-verified (returns captions/ad/sign/5 dubs). CONTRACT GATE flagged: attaching these onto
+  the variant needs 0009a track-URL fields ratified into the frozen content POST /variants contract (must
+  not edit contracts/). Until ratified, URLs derive + apply out of band. P4 complete to the contract
+  boundary. Next: P5 recommender.

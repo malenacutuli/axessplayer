@@ -123,6 +123,57 @@ export function isPlayableVideoUrl(url: string | undefined): boolean {
   return false;
 }
 
+// P4-T2: self-attaching accessibility track URLs. The accessibility pipeline (tools/accessibility-pipeline
+// build-captions/ad/dub/sign) writes its outputs next to the master in the same media dir by convention.
+// deriveTrackUrls turns the master URL plus the files actually present into the 0009a track URL fields, so
+// a variant carries its caption/AD/sign/dub tracks without manual entry. Only the ASL sign base is
+// attached; PSL/LSA are derived from it client-side in Player.tsx. No em dashes.
+//
+// CONTRACT GATE (flagged): attaching these onto the variant needs the 0009a track-URL fields ratified into
+// the frozen content POST /variants contract, which must not be edited here. Until then this derives the
+// URLs (ready to attach) and they are applied out of band. See docs build-state P4-T2.
+export interface DerivedTrackUrls {
+  caption_doc_url?: string;
+  audio_description_url?: string;
+  sign_video_url?: string;
+  dub_audio_urls?: Record<string, string>;
+}
+
+const DUB_LANGS = ["es", "fr", "de", "it", "pt"] as const;
+
+export function deriveTrackUrls(masterUrl: string, present: string[]): DerivedTrackUrls {
+  const dir = masterUrl.replace(/[^/]+$/, ""); // ".../media/<id>/"
+  const has = (f: string) => present.includes(f);
+  const out: DerivedTrackUrls = {};
+  if (has("captions.json")) out.caption_doc_url = `${dir}captions.json`;
+  if (has("ad.json")) out.audio_description_url = `${dir}ad.json`;
+  if (has("asl_sign.webm")) out.sign_video_url = `${dir}asl_sign.webm`;
+  const dubs: Record<string, string> = {};
+  for (const l of DUB_LANGS) if (has(`${l}_dub.m4a`)) dubs[l] = `${dir}${l}_dub.m4a`;
+  if (Object.keys(dubs).length > 0) out.dub_audio_urls = dubs;
+  return out;
+}
+
+// Ask the media server which accessibility track files are present for an uploaded master. Returns the
+// bare filenames; deriveTrackUrls turns them into URLs. Best-effort: returns [] on any error.
+export async function listTracks(
+  masterUrl: string | undefined,
+  opts: { baseUrl?: string; fetch?: typeof globalThis.fetch } = {},
+): Promise<string[]> {
+  const id = mediaIdFromUrl(masterUrl);
+  if (!id) return [];
+  const base = (opts.baseUrl ?? mediaBaseUrl()).replace(/\/$/, "");
+  const doFetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
+  try {
+    const res = await doFetch(`${base}/tracks/${encodeURIComponent(id)}`);
+    if (!res.ok) return [];
+    const body = (await res.json()) as { files?: string[] };
+    return Array.isArray(body.files) ? body.files : [];
+  } catch {
+    return [];
+  }
+}
+
 // Attach a source to a <video>, using hls.js for HLS (.m3u8) where the browser cannot play it natively
 // (everywhere except Safari). Returns a cleanup function. Dynamically imports hls.js so it is only loaded
 // when an HLS source is actually played. No em dashes.

@@ -6,7 +6,7 @@
 
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
-import { createReadStream, createWriteStream, existsSync, mkdirSync, rmSync, statSync } from "node:fs";
+import { createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, extname, join, resolve } from "node:path";
 
@@ -156,6 +156,25 @@ const server = createServer((req, res) => {
     }
     res.writeHead(200, { "content-type": "application/json" });
     res.end(JSON.stringify({ job_id: id, status: job.status, master_url: job.master_url, reason: job.reason }));
+    return;
+  }
+
+  // Accessibility track listing: GET /tracks/<id> -> { files } present in the media dir (for P4-T2
+  // self-attaching track URLs). Lists the accessibility outputs the pipeline wrote next to the master.
+  if (req.method === "GET" && url.pathname.startsWith("/tracks/")) {
+    const id = decodeURIComponent(url.pathname.replace(/^\/tracks\//, "").replace(/\/.*$/, ""));
+    const dir = join(UPLOAD_DIR, id);
+    let files = [];
+    if (id && resolve(dir).startsWith(resolve(UPLOAD_DIR) + "/") && existsSync(dir)) {
+      const TRACK = /^(captions\.json|ad\.json|[a-z]{2}_sign\.webm|[a-z]{2}_captions\.json|[a-z]{2}_dub\.m4a|asl_sign\.webm)$/;
+      try {
+        files = readdirSync(dir).filter((f) => TRACK.test(f));
+      } catch {
+        files = [];
+      }
+    }
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ id, files }));
     return;
   }
 
