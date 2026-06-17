@@ -9,3 +9,5 @@ export * from "./qa.js";
 export * from "./generationDb.js";
 export * from "./cdn.js";
 export * from "./pipeline.js";
+export * from "./finops.js";
+export * from "./variantSource.js";

@@ -62,8 +62,13 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
   (creator earnings REPORT with flagged platform fee, never a disbursement). 7 spec tests. Per-video
   insight + trust center reuse presentation.ts (beat retention, C6 bands) and trust verify. Remaining: the
   dashboard UI app surfaces (consume these + the readout/OPE/trust APIs).
-- P10 Generation pipeline. STUB. variant interface accepts pre-rendered asset OR generation spec;
-  orchestrator skeleton; real model calls gated on cost sign-off (FinOps C16).
+- P10 Generation pipeline. CORE DONE. services/generation already had spec/pipeline/backends (cost-gated)/
+  qa/cdn/c2pa. Added finops.ts (C16 FinOps gate: budget with default DENY_ALL, authorizeSpend refuses zero
+  and over-budget; nothing generates until a budget is approved) and variantSource.ts (the unified
+  interface: prerendered asset passes through; a generation spec runs only when the tier is permitted AND
+  the FinOps budget authorizes; B_likeness be-the-protagonist is FENCED per C9; real-time world-model
+  generation fenced, interface ready). 42 generation tests. Real model calls remain behind the FinOps
+  budget (cost sign-off) and the backends cost gate.
 - P11 Brand + placement + marketplace. GAP. render-time placement (beat_variant), safety gates, market.
 - P12 White-label licensing + engine-API metering. GAP. last, real demand only.
 
