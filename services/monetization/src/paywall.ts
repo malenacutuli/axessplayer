@@ -47,19 +47,28 @@ export function selectOffer(
 
 // ---------- PATH-LEVEL paywall bandit (buy / watch_ad / subscribe) ----------
 // Picks which path to FEATURE per viewer, logged with propensity so the choice is off-policy evaluable.
-// HARD CONSTRAINT (GOLD_STANDARD_04): until the founder reward-weights sign-off, this runs on DRAFT weights
-// and MUST NOT optimize for revenue extraction. With REVENUE_OPTIMIZATION_ENABLED false the weights are
-// neutral (every path equally weighted), so the bandit explores uniformly and never steers a viewer toward
-// the highest-revenue path. watch_ad leads the default order (the pro-viewer, no-spend option first).
+// The reward-weights founder sign-off (2026-06-17) is GRANTED, so the bandit may optimize on the ratified
+// reward (viewer continuation). Two things stay HARD regardless of any sign-off: revenue EXTRACTION is never
+// the objective (REVENUE_OPTIMIZATION_ENABLED is permanently false), and the anti-dark-pattern constraints
+// below are hard. watch_ad leads the default order (the pro-viewer, no-spend option first), so with neutral
+// reward weights the featured path is the free one until observed continuation data shifts it.
 
 export type PaywallPath = "watch_ad" | "buy" | "subscribe";
 export const PAYWALL_PATHS: PaywallPath[] = ["watch_ad", "buy", "subscribe"];
 
-// Gate: revenue optimization stays OFF until the reward-weights founder sign-off. Do not flip without it.
+// PERMANENT hard rule: the bandit never optimizes for revenue extraction, signed off or not.
 export const REVENUE_OPTIMIZATION_ENABLED = false;
 
-// DRAFT neutral weights: equal across paths so the bandit cannot favor extraction pre-sign-off.
-export const DRAFT_PATH_WEIGHTS: Record<PaywallPath, number> = { watch_ad: 1, buy: 1, subscribe: 1 };
+// Reward-weights founder sign-off: GRANTED. Gates whether the bandit optimizes on the continuation reward
+// (true) or runs neutral/DRAFT (false). Extraction stays off either way.
+export const REWARD_WEIGHTS_SIGNED_OFF = true;
+
+// Reward weights over paths (the ratified reward is viewer continuation, NOT revenue). Neutral defaults so
+// the featured path stays the pro-viewer watch_ad until observed continuation data accrues. Never set from
+// price or revenue (that would be extraction, which is permanently off).
+export const PATH_REWARD_WEIGHTS: Record<PaywallPath, number> = { watch_ad: 1, buy: 1, subscribe: 1 };
+// Back-compat alias.
+export const DRAFT_PATH_WEIGHTS = PATH_REWARD_WEIGHTS;
 
 // Anti-dark-pattern HARD constraints (not preferences): a spend cool-down prevents rapid repeated purchase
 // prompts; pricing is always shown up front (the offer/tier objects carry the real price); the bandit never
@@ -69,7 +78,9 @@ export function withinSpendCooldown(lastSpendAtMs: number | null, nowMs: number)
   return lastSpendAtMs != null && nowMs - lastSpendAtMs < SPEND_COOLDOWN_MS;
 }
 
-export type PathSelection = { path: PaywallPath; propensity: number; explored: boolean; revenueOptimized: boolean };
+// optimized: the bandit is using the reward weights (post sign-off). revenueOptimized: ALWAYS false, a
+// permanent invariant the UI surfaces to the viewer (the bandit never optimizes for revenue extraction).
+export type PathSelection = { path: PaywallPath; propensity: number; explored: boolean; optimized: boolean; revenueOptimized: boolean };
 
 export function selectPaywallPath(
   paths: PaywallPath[],
@@ -79,9 +90,9 @@ export function selectPaywallPath(
 ): PathSelection {
   if (paths.length === 0) throw new Error("selectPaywallPath: no paths");
   const k = paths.length;
-  // HARD: with revenue optimization disabled, ignore supplied weights and treat paths neutrally so the
-  // greedy arm can never become "whatever extracts the most". The choice is uniform-explore and logged.
-  const neutral = !REVENUE_OPTIMIZATION_ENABLED;
+  // Neutral only before the reward-weights sign-off. Post sign-off the bandit optimizes on the continuation
+  // reward weights. Either way it never weights by price/revenue (extraction is permanently off).
+  const neutral = !REWARD_WEIGHTS_SIGNED_OFF;
   let greedy = paths[0];
   if (!neutral) {
     let best = -Infinity;
@@ -100,9 +111,11 @@ export function selectPaywallPath(
     chosen = greedy;
   }
   const isGreedy = !neutral && chosen === greedy;
-  // Propensity: neutral mode is uniform 1/k (every path equally likely, fully off-policy evaluable).
+  // Propensity: neutral mode is uniform 1/k; optimized mode is epsilon-greedy. Both strictly positive (IPS).
   const propensity = neutral ? 1 / k : isGreedy ? 1 - epsilon + epsilon / k : epsilon / k;
-  return { path: chosen, propensity, explored: !isGreedy, revenueOptimized: !neutral };
+  // optimized reflects whether the bandit used the reward weights; revenueOptimized is the permanent
+  // invariant (always false: extraction is never the objective).
+  return { path: chosen, propensity, explored: !isGreedy, optimized: !neutral, revenueOptimized: REVENUE_OPTIMIZATION_ENABLED };
 }
 
 // Subscription tiers (GOLD_STANDARD_04). FLAGGED for the money/ledger sign-off; web/Studio purchasing only

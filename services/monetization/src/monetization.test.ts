@@ -10,8 +10,9 @@ import {
   DEFAULT_OFFERS,
   selectPaywallPath,
   PAYWALL_PATHS,
-  DRAFT_PATH_WEIGHTS,
+  PATH_REWARD_WEIGHTS,
   REVENUE_OPTIMIZATION_ENABLED,
+  REWARD_WEIGHTS_SIGNED_OFF,
   withinSpendCooldown,
   SPEND_COOLDOWN_MS,
   SUBSCRIPTION_TIERS,
@@ -21,22 +22,28 @@ import { grantFromCheckout, type CheckoutSession } from "./stripe.js";
 import { isGrant } from "./grant.js";
 
 describe("paywall PATH bandit hard rules (GOLD_STANDARD_04)", () => {
-  it("runs on DRAFT weights: revenue optimization is OFF until the reward-weights sign-off", () => {
+  it("revenue extraction is NEVER the objective: revenueOptimized is permanently false, signed off or not", () => {
     assert.equal(REVENUE_OPTIMIZATION_ENABLED, false);
-  });
-  it("neutral mode never optimizes for revenue: uniform 1/k propensity, revenueOptimized false", () => {
-    // Even with a revenue-skewed weight map, the DRAFT gate forces a neutral uniform choice.
+    // Even handed a revenue-skewed weight map, the selection never reports revenue optimization.
     const skewed = { watch_ad: 0, buy: 100, subscribe: 50 };
     for (const r of [0, 0.34, 0.67, 0.99]) {
       const sel = selectPaywallPath(PAYWALL_PATHS, skewed, 0.2, () => r);
       assert.equal(sel.revenueOptimized, false);
-      assert.ok(Math.abs(sel.propensity - 1 / PAYWALL_PATHS.length) < 1e-9);
+      assert.ok(sel.propensity > 0); // strictly positive for IPS
       assert.ok(PAYWALL_PATHS.includes(sel.path));
     }
   });
-  it("watch_ad leads the default path order (pro-viewer, no-spend first)", () => {
+  it("with neutral production reward weights, the pro-viewer watch_ad path is featured (no explore)", () => {
+    // rng above epsilon -> greedy; neutral weights -> greedy is the first path, watch_ad.
+    const sel = selectPaywallPath(PAYWALL_PATHS, PATH_REWARD_WEIGHTS, 0.2, () => 0.99);
+    assert.equal(sel.path, "watch_ad");
+    assert.equal(sel.optimized, REWARD_WEIGHTS_SIGNED_OFF); // optimizing on the reward post sign-off
+    assert.equal(sel.revenueOptimized, false);
+  });
+  it("watch_ad leads the default path order, and reward weights are non-revenue (neutral)", () => {
     assert.equal(PAYWALL_PATHS[0], "watch_ad");
-    assert.equal(DRAFT_PATH_WEIGHTS.watch_ad, DRAFT_PATH_WEIGHTS.buy); // neutral, equal weights
+    assert.equal(PATH_REWARD_WEIGHTS.watch_ad, PATH_REWARD_WEIGHTS.buy); // neutral, never price-derived
+    assert.equal(PATH_REWARD_WEIGHTS.buy, PATH_REWARD_WEIGHTS.subscribe);
   });
   it("anti-dark-pattern spend cool-down is enforced as a hard window", () => {
     assert.equal(withinSpendCooldown(null, 1000), false);

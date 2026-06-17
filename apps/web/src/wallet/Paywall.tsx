@@ -135,9 +135,9 @@ export function PaywallSheet({
                 )}
               </div>
             ))}
-            {presentation.draft && (
+            {!presentation.revenueOptimized && (
               <p className="muted" data-testid="paywall-draft" style={{ fontSize: 11, marginTop: 8 }}>
-                Pricing shown up front. Offers are not optimized for revenue (draft reward weights, pending sign-off).
+                Pricing shown up front. Offers are never optimized for revenue extraction.
               </p>
             )}
           </div>

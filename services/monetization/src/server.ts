@@ -14,7 +14,7 @@ import {
   PAYWALL_PATHS,
   DRAFT_PATH_WEIGHTS,
   SUBSCRIPTION_TIERS,
-  REVENUE_OPTIMIZATION_ENABLED,
+  REWARD_WEIGHTS_SIGNED_OFF,
   type Offer,
 } from "./paywall.js";
 
@@ -137,7 +137,7 @@ export function createSettlementServer(sink: GrantSink, opts: SettlementOptions 
                 path: sel.path,
                 propensity: sel.propensity,
                 paths: PAYWALL_PATHS,
-                draft: !REVENUE_OPTIMIZATION_ENABLED,
+                draft: !REWARD_WEIGHTS_SIGNED_OFF,
                 revenueOptimized: sel.revenueOptimized,
               })
               .catch(() => {});
@@ -149,7 +149,8 @@ export function createSettlementServer(sink: GrantSink, opts: SettlementOptions 
             paths: PAYWALL_PATHS,
             offers,
             tiers: SUBSCRIPTION_TIERS,
-            draft: !REVENUE_OPTIMIZATION_ENABLED,
+            draft: !REWARD_WEIGHTS_SIGNED_OFF,
+            optimized: sel.optimized,
             revenueOptimized: sel.revenueOptimized,
             eventId,
           });
