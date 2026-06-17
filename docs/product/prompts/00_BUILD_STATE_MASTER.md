@@ -15,7 +15,10 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
       transaction. economy spend/grant RPCs (frozen, F-hardened) + services/monetization (bandit paywall,
       reward settlement, Stripe-to-grant). The fenced boundary is the actual /grant call and the live
       Stripe key; nothing transacts until you approve.
-- [ ] biometric/consent architecture go-live
+- [ ] biometric/consent architecture go-live  <- BUILT 2026-06-17, AWAITING FOUNDER SIGN-OFF. Consent
+      hash-chain ledger + C2PA provenance + verify tap-through + EU/Swiss routing all built and tested
+      (services/trust serve listener). The fenced boundary is the TEST C2PA signer -> real KMS-backed
+      cose-sign1 cutover and the biometric/likeness-consent go-live; nothing biometric ships until approved.
 - [ ] reward-function weights ratification
 
 ## Plane status (build order)
@@ -46,6 +49,10 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
 - P7 Consent + provenance + trust. PARTIAL. consent gate + consent_ledger table + Article 50 disclosure.
   GAP: consent ledger write path [P7-T1]; C2PA signing at serve + provenance tap-through (disclosure not
   explanation C7) [P7-T2]; trust serve listener [P7-T3]; EU/Swiss routing flag [P7-T4]. SIGN-OFF: consent.
+  STATUS: DONE to the gate. services/trust domain (C2PA TEST signer, hash-chain consent ledger, verify)
+  already built; added server.ts (POST /provenance, POST /consent write path, GET /verify/<id> Article 50
+  tap-through = disclosure not explanation), serve.ts (hosted pool), sovereignty.ts (EU/Swiss fail-
+  sovereign routing). 24 trust tests green. Real KMS C2PA + biometric-consent go-live fenced for sign-off.
 - P8 Creator Studio. LARGELY DONE. library, branch editor, media/variant, poster, pricing, publish. GAP:
   accessibility editor [P8-T1]; channel + monetization settings + wallet [P8-T2]; analytics with
   off-policy counterfactuals as BANDS not points (C6) [P8-T3].
@@ -101,3 +108,9 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
   checkout -> idempotent grant; livemode blocked until sign-off). grant.ts shared shape. 9 spec tests;
   full turbo typecheck 23/23 + test 23/23 green. >>> FOUNDER SIGN-OFF NOW WAITING: money/ledger go-live
   (the /grant call + live Stripe). Continuing to P7 consent + provenance + trust without blocking.
+- 2026-06-17: P7 DONE to the gate. services/trust serve listener built (server.ts: provenance, consent
+  write path, verify tap-through; serve.ts hosted pool; sovereignty.ts EU/Swiss routing). The C2PA signer
+  is the TEST HMAC (real KMS cose-sign1 is the cutover); consent ledger is the tamper-evident hash chain.
+  24 trust tests; full turbo 23/23. >>> FOUNDER SIGN-OFF NOW WAITING (2 of 3): biometric/consent
+  architecture go-live. Continuing to P8 Studio gaps (accessibility editor, channel/monetization/wallet,
+  analytics as bands not points) then P9 admin, P10 generation, P11 marketplace, P12 licensing.
