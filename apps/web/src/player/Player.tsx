@@ -756,8 +756,12 @@ const CAP_SAFE_STYLE: CSSProperties = {
 // with apps/studio/src/api/media.ts isPlayableVideoUrl. No em dashes.
 function isPlayableVideoUrl(url: string | undefined): boolean {
   if (!url) return false;
-  if (/\.(mp4|m4v|mov|webm|ogv|ogg)(\?|$)/i.test(url)) return true;
-  return url.includes("/media/");
+  // A path the local media proxy serves (relative or absolute) is playable.
+  if (url.includes("/media/")) return true;
+  // An absolute video file URL is playable. A BARE relative path (e.g. /manus-storage/x.mp4) is NOT: it
+  // resolves against the app origin and 404s, mounting a dead <video> the tap can never start. Treat it as
+  // no-media so the player shows the explicit reason instead of a frozen "Tap to play".
+  return /^https?:\/\//i.test(url) && /\.(mp4|m4v|mov|webm|ogv|ogg)(\?|$)/i.test(url);
 }
 
 // Plain SVG control glyphs (no emoji, no symbol fonts), inheriting currentColor.

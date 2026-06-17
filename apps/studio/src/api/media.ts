@@ -118,9 +118,10 @@ export async function pingMediaServer(opts: { baseUrl?: string; fetch?: typeof g
 // to show a real preview rather than the gradient.
 export function isPlayableVideoUrl(url: string | undefined): boolean {
   if (!url) return false;
-  if (/\.(m3u8|mp4|m4v|mov|webm|ogv|ogg)(\?|$)/i.test(url)) return true;
+  // A media-proxy path (relative or absolute) is playable. A bare relative file path is NOT: it would 404
+  // against the app origin. Kept in sync with apps/web/src/player/Player.tsx isPlayableVideoUrl.
   if (url.includes("/media/")) return true;
-  return false;
+  return /^https?:\/\//i.test(url) && /\.(m3u8|mp4|m4v|mov|webm|ogv|ogg)(\?|$)/i.test(url);
 }
 
 // P4-T2: self-attaching accessibility track URLs. The accessibility pipeline (tools/accessibility-pipeline
