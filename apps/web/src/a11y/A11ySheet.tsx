@@ -72,6 +72,22 @@ export function A11ySheet({ prefs, active, availableLanguages, availability, sel
         </button>
       </div>
 
+      <div className="opt" data-available={present("captions")}>
+        <span>Character colors<span className="muted"> (enhancement; names always shown)</span></span>
+        <button
+          type="button"
+          className={prefs.captionColor && present("captions") ? "toggle" : "toggle off"}
+          aria-pressed={prefs.captionColor && present("captions")}
+          aria-label="Character colors"
+          disabled={!present("captions")}
+          onClick={() => present("captions") && set({ captionColor: !prefs.captionColor })}
+          data-testid="a11y-caption-color"
+          style={present("captions") ? undefined : { opacity: 0.4, cursor: "not-allowed" }}
+        >
+          <i />
+        </button>
+      </div>
+
       <div className="opt" data-available={present("audioDescription")}>
         <span>
           Audio description

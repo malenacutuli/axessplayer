@@ -641,7 +641,7 @@ export function Player({
       {prefs.captions && trackAvail.captions && (
         <div className="cap-safe" data-testid="track-captions" style={CAP_SAFE_STYLE}>
           {captionSegments.length > 0 ? (
-            <CaptionsWithIntention segments={captionSegments} meta={captionMeta} currentTimeMs={currentTimeMs} enabled />
+            <CaptionsWithIntention segments={captionSegments} meta={captionMeta} currentTimeMs={currentTimeMs} enabled colorEnabled={prefs.captionColor} />
           ) : (
             // No caption document on this cut yet (0009a not wired for it): keep the honest indicator.
             <span style={{ opacity: 0.7, fontSize: 13 }}>Captions on (no caption track for this cut)</span>

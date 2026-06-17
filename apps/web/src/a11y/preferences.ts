@@ -9,6 +9,9 @@ export interface A11yPreferences {
   captions: boolean;
   audioDescription: boolean;
   sign: boolean;
+  // C10: character color is an opt-in enhancement. Captions stay compliant (white + the speaker name tag)
+  // when this is off; on, dialogue takes the character color. Meaning never depends on color either way.
+  captionColor: boolean;
   // Preferred language code, for example "en". Falls back to the variant language when unavailable.
   language: string;
   // Preferred sign language short name (ASL, PSL, ...). Falls back to the first one the title provides.
@@ -20,6 +23,7 @@ export const DEFAULT_A11Y: A11yPreferences = {
   captions: true,
   audioDescription: true,
   sign: true,
+  captionColor: true,
   language: "en",
   signLanguage: "ASL",
 };

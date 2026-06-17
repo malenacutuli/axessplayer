@@ -25,11 +25,15 @@ export interface CaptionsWithIntentionProps {
   meta?: CaptionMeta;
   currentTimeMs: number;
   enabled: boolean;
+  // C10: character color is an enhancement, never the sole carrier of meaning. The speaker NAME tag is
+  // always shown (a redundant non-color cue), and colorEnabled gates whether dialogue words take the
+  // character color or render compliant white. Defaults to true; turning it off gives the white default.
+  colorEnabled?: boolean;
 }
 
 const FONT_FAMILY = '"Roboto Flex", Inter, system-ui, sans-serif';
 
-export function CaptionsWithIntention({ segments, meta, currentTimeMs, enabled }: CaptionsWithIntentionProps) {
+export function CaptionsWithIntention({ segments, meta, currentTimeMs, enabled, colorEnabled = true }: CaptionsWithIntentionProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(320);
 
@@ -70,8 +74,12 @@ export function CaptionsWithIntention({ segments, meta, currentTimeMs, enabled }
   const color = characterColor(active);
   const isSfx = active.type === "soundeffect";
   const isMusic = active.type === "music";
-  // Sound effects and music are WHITE, not character-colored. Music is static (not animated).
-  const baseColor = isSfx || isMusic ? "#FFFFFF" : color;
+  // Sound effects and music are WHITE, not character-colored. Music is static (not animated). For
+  // dialogue, the character color is applied only when colorEnabled (C10: compliant white otherwise).
+  const baseColor = isSfx || isMusic ? "#FFFFFF" : colorEnabled ? color : "#FFFFFF";
+  // The speaker name tag is the redundant non-color attribution cue (WCAG 1.4.1 / EN 301 549): who is
+  // speaking is conveyed by the NAME text, never by hue alone. Shown for dialogue, not for sfx/music.
+  const showSpeaker = !isSfx && !isMusic && typeof active.speaker === "string" && active.speaker.length > 0;
 
   return (
     <div ref={ref} data-testid="captions-ci" data-speaker={active.speaker} data-emotion={active.emotion ?? ""} style={{ width: "100%", display: "flex", justifyContent: "center" }}>
@@ -90,6 +98,23 @@ export function CaptionsWithIntention({ segments, meta, currentTimeMs, enabled }
         }}
       >
         {isMusic && <span style={{ color: "#FFF", margin: "0 0.3em" }} aria-hidden="true">&#9834;</span>}
+        {showSpeaker && (
+          <div
+            data-testid="captions-speaker"
+            style={{
+              fontFamily: FONT_FAMILY,
+              fontSize: Math.round(baseUnitPx * 0.5),
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: baseColor,
+              opacity: 0.92,
+              marginBottom: 2,
+            }}
+          >
+            {active.speaker}
+          </div>
+        )}
         {page.words.map((word, i) => {
           const w = word as typeof word & { energy_rms?: number; f0_hz?: number; harmonic_ratio?: number };
           const sizePct = sizePercentFromEnergy(w.energy_rms, meta); // 3..12
