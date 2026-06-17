@@ -11,14 +11,14 @@ independent Reviewer + Test Authority (spec-derived tests, non-author review) ->
 commit + push. Progress note after each plane.
 
 Three founder sign-offs (build fully, then PAUSE for go-live; keep building other planes meanwhile):
-- [ ] money/ledger semantics go-live  <- BUILT 2026-06-17, AWAITING FOUNDER SIGN-OFF before any real
-      transaction. economy spend/grant RPCs (frozen, F-hardened) + services/monetization (bandit paywall,
-      reward settlement, Stripe-to-grant). The fenced boundary is the actual /grant call and the live
-      Stripe key; nothing transacts until you approve.
-- [ ] biometric/consent architecture go-live  <- BUILT 2026-06-17, AWAITING FOUNDER SIGN-OFF. Consent
-      hash-chain ledger + C2PA provenance + verify tap-through + EU/Swiss routing all built and tested
-      (services/trust serve listener). The fenced boundary is the TEST C2PA signer -> real KMS-backed
-      cose-sign1 cutover and the biometric/likeness-consent go-live; nothing biometric ships until approved.
+- [x] money/ledger semantics go-live  <- SIGNED OFF 2026-06-17. Coin ledger is LIVE: the grant settlement
+      server (services/monetization serve.ts) settles verified rewards + paid TEST-mode Stripe to economy
+      /grant (demo coins, idempotent). STILL OFF by standing safety rule: the live Stripe key and any
+      real-money charge (livemode sessions are refused); flip to live out of band when ready.
+- [x] biometric/consent architecture go-live  <- SIGNED OFF 2026-06-17. Architecture approved and live
+      (services/trust serve: consent hash-chain write + C2PA verify tap-through + EU/Swiss routing). STILL
+      PENDING infra: the TEST C2PA signer -> real KMS-backed cose-sign1 cutover needs KMS credentials (not
+      available to the agent). Be-the-protagonist likeness remains fenced (C9), separate from this sign-off.
 - [ ] reward-function weights ratification
 
 ## Plane status (build order)
@@ -114,3 +114,10 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
   24 trust tests; full turbo 23/23. >>> FOUNDER SIGN-OFF NOW WAITING (2 of 3): biometric/consent
   architecture go-live. Continuing to P8 Studio gaps (accessibility editor, channel/monetization/wallet,
   analytics as bands not points) then P9 admin, P10 generation, P11 marketplace, P12 licensing.
+- 2026-06-17: FOUNDER SIGNED OFF money/ledger + consent architecture. Wired the money go-live boundary:
+  services/monetization/server.ts (createSettlementServer: POST /reward/ad, /reward/checkin,
+  /stripe/webhook -> GrantSink) + serve.ts (real sink POSTs economy /grant with ECONOMY_SERVICE_SECRET).
+  Coin ledger LIVE (demo coins). Live Stripe key + real charges remain OFF per safety rule (livemode
+  refused). Consent live; real KMS C2PA signer awaits creds. 14 monetization tests; full turbo 23/23.
+  Remaining sign-off: reward-weights ratification (decision/recommender/paywall placeholder weights).
+  Next: P8 Studio gaps.
