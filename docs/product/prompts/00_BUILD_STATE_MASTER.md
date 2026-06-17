@@ -75,7 +75,18 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
   assertNotAdPlaneDriven throws if an ad-CTR signal would drive cut selection; selectPlacement picks a
   safety-passed bid with an honest propensity, never an unsafe one, null when none safe), marketplace.ts
   (self-serve campaign matcher: targeting + budget + safety). 8 spec tests; full turbo 25/25.
-- P12 White-label licensing + engine-API metering. GAP. last, real demand only.
+- P12 White-label licensing + engine-API metering. GAP. last, real demand only. (Scaffold started then
+  deferred 2026-06-17 when the C17 ingestion-factory directive arrived; rebuild after P13.)
+
+- P13 Ingestion content factory (C17, cross-cutting). CORE DONE. services/ingestion: stages.ts (the
+  accessibility ingest DAG, fan-out per language + per sign language; cost tiering hero=full vs
+  longtail=base-lang+drafts), orchestrator.ts (idempotent + resumable + cost-gated DAG runner: re-runs only
+  missing stages, never duplicates, PAUSES over budget, registers each artifact via injected 0009a+C2PA
+  port), signTier.ts (auto draft vs human-interpreter clips matched to transcript timecodes; hero publish
+  needs human quality + full coverage + Deaf review). 6 spec tests incl pause-then-resume with no stage run
+  twice. Executors injected (the real transcribe/build-captions/-ad/-sign/-dub edge functions + the
+  0009a/C2PA registrar are the serving-layer wiring). REMAINING: wire real executors; wire P9 showrunner +
+  P10 auto slot detection/fill stages into the same orchestrator as those planes land.
 
 ## Fenced off (do NOT build into core; C9)
 - Be-the-protagonist likeness insertion: isolated, behind consent ledger; architect variant interface for
@@ -142,3 +153,9 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
   refused). Consent live; real KMS C2PA signer awaits creds. 14 monetization tests; full turbo 23/23.
   Remaining sign-off: reward-weights ratification (decision/recommender/paywall placeholder weights).
   Next: P8 Studio gaps.
+- 2026-06-17: ADOPTED C17 + prompt 13 (automated content factory). P12 deferred. P13 ingestion
+  orchestrator CORE built (services/ingestion): idempotent + resumable + cost-gated DAG that auto-produces
+  every accessibility derivative on upload, with cost tiering (hero vs long-tail) and the sign quality tier
+  (auto draft vs human-interpreter + Deaf review). 6 tests incl kill-and-resume with zero duplicate stage
+  runs; full turbo typecheck 26/26 + test 26/26 green. Next: wire the real stage executors (transcribe /
+  build-* / generate-dubbing edge functions) + the 0009a+C2PA registrar, then the P9/P10 backend stages.
