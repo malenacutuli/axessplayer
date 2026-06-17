@@ -1,0 +1,14 @@
+{
+  "name": "@axessplayer/licensing",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "White-label licensing + engine-API metering (the second business). Tenant provisioning, hashed engine-API keys, credit metering with quota enforcement, and per-tenant billing REPORTS (a report, never a charge). Pure logic. No em dashes.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo lint ok",
+    "test": "node --import tsx --test $(find src -name '*.test.ts' 2>/dev/null)"
+  },
+  "devDependencies": { "typescript": "^5.5.0", "tsx": "^4.19.0", "@types/node": "^20.0.0" }
+}

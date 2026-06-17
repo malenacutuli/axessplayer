@@ -167,3 +167,11 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
   and writes the consent ref for a likeness asset. 19 ingestion tests; full turbo green. Orchestration
   unchanged. >>> FOUNDER SIGN-OFF NOW WAITING: consent/provenance go-live for the ingestion path (real C2PA
   + consent-ref writes) before it runs live, per the founder instruction (consent is one of the three gates).
+- 2026-06-17: P12 DONE (library). services/licensing: tenant.ts (provisioning + idempotent suspend/
+  reactivate), apiKeys.ts (hash-only engine-API keys, verify by hash, idempotent revoke), metering.ts
+  (credit metering, idempotent recordUsage by key, quotaCheck denies over the hard cap), billing.ts
+  (per-tenant invoice REPORT: plan base + metered overage, flagged prices, never a charge). 9 spec tests;
+  full turbo typecheck 27/27 + test 27/27 green. >>> ALL 12 BUILD-ORDER PLANES + the P13 content factory
+  now have their cores built and tested. Remaining: UI app surfaces (admin/licensing dashboards), the live
+  I/O wiring of the ingestion executors/registrar (awaiting the consent/provenance go-live sign-off), real
+  KMS C2PA, real JWKS auth, and wiring the P9/P10 backend stages into the orchestrator.
