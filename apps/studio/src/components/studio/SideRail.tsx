@@ -1,7 +1,7 @@
 // The studio left rail: the "axess studio" wordmark and the panel nav, matching the prototype. The active
 // panel button gets the .on class (white pill, rose icon). No em dashes.
 
-export type PanelId = "library" | "branch" | "media" | "poster" | "pricing" | "publish" | "operator";
+export type PanelId = "library" | "produce" | "branch" | "media" | "poster" | "pricing" | "publish" | "operator";
 
 const ICONS: Record<PanelId, JSX.Element> = {
   library: (
@@ -50,10 +50,18 @@ const ICONS: Record<PanelId, JSX.Element> = {
       <path d="M7 14l3-4 3 3 4-6" />
     </svg>
   ),
+  produce: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <path d="M12 3v12" />
+      <path d="M8 11l4 4 4-4" />
+      <path d="M5 19h14" />
+    </svg>
+  ),
 };
 
 const NAV: Array<{ id: PanelId; label: string }> = [
   { id: "library", label: "Library" },
+  { id: "produce", label: "Produce" },
   { id: "branch", label: "Branch editor" },
   { id: "media", label: "Media & variants" },
   { id: "poster", label: "Poster" },

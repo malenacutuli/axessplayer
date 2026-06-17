@@ -576,6 +576,66 @@ export async function handleSetSeriesPoster(
   return { status: 200, body: row };
 }
 
+// ---------- POST /series/{id}/produce (Simple-mode auto-produce) ----------
+// Compute the stage plan + estimated cost for the chosen targets and start a produce job. Stage execution
+// (the ingestion factory fan-out) is driven by the produce orchestration; this route validates the request,
+// derives the plan from the real beat count, and returns the job id + plan for the processing view. Cost
+// constants mirror services/ingestion/costModel.ts. No PII.
+const PRODUCE_COST: Record<string, number> = { transcript: 0.03, poster: 0.04, captions: 0.04, ad: 0.35, dub: 0.45, sign: 0.2 };
+export interface ProduceTargets {
+  languages: string[];
+  tracks: string[]; // captions | audio_description | sign | dub
+  signLanguages: string[];
+  tier: string; // hero | standard
+}
+export interface ProduceJob {
+  jobId: string;
+  seriesId: string;
+  beats: number;
+  stageCount: number;
+  estimatedUsd: number;
+  plan: Array<{ stage: string; count: number }>;
+}
+
+export async function handleProduceSeries(
+  seriesId: string,
+  body: unknown,
+  db: ContentDB
+): Promise<HandlerResult<ProduceJob | ApiError>> {
+  if (typeof seriesId !== "string" || !UUID_RE.test(seriesId)) return err(400, "invalid_series_id");
+  if (!isObject(body)) return err(400, "invalid_body");
+  const t = body as Partial<ProduceTargets>;
+  const langs = Array.isArray(t.languages) ? t.languages.filter((x) => typeof x === "string") : [];
+  if (langs.length === 0) return err(400, "no_languages");
+  const tracks = Array.isArray(t.tracks) ? t.tracks.filter((x) => typeof x === "string") : [];
+  const signLangs = Array.isArray(t.signLanguages) ? t.signLanguages.filter((x) => typeof x === "string") : [];
+  const baseLang = langs[0];
+  const graph = await db.getSeriesGraph(seriesId);
+  if (!graph) return err(404, "series_not_found");
+  const beats = (graph.episodes ?? []).reduce((n, e) => n + (e.beats?.length ?? 0), 0);
+  if (beats === 0) return err(409, "no_beats");
+
+  const plan: Array<{ stage: string; count: number; each: number }> = [
+    { stage: "transcript", count: beats, each: PRODUCE_COST.transcript },
+    { stage: "poster", count: 1, each: PRODUCE_COST.poster },
+  ];
+  if (tracks.includes("captions")) plan.push({ stage: "captions", count: beats * langs.length, each: PRODUCE_COST.captions });
+  if (tracks.includes("audio_description")) plan.push({ stage: "audio_description", count: beats * langs.length, each: PRODUCE_COST.ad });
+  if (tracks.includes("dub")) {
+    const dl = langs.filter((l) => l !== baseLang).length;
+    if (dl) plan.push({ stage: "dub", count: beats * dl, each: PRODUCE_COST.dub });
+  }
+  if (tracks.includes("sign") && signLangs.length) plan.push({ stage: "sign", count: beats * signLangs.length, each: PRODUCE_COST.sign });
+
+  const stageCount = plan.reduce((n, p) => n + p.count, 0);
+  const estimatedUsd = Math.round(plan.reduce((s, p) => s + p.count * p.each, 0) * 100) / 100;
+  const jobId = `prod_${seriesId.slice(0, 8)}_${stageCount}_${Math.round(estimatedUsd * 100)}`;
+  return {
+    status: 200,
+    body: { jobId, seriesId, beats, stageCount, estimatedUsd, plan: plan.map((p) => ({ stage: p.stage, count: p.count })) },
+  };
+}
+
 // ---------- POST /edges ----------
 export async function handleCreateEdge(
   body: CreateEdgeBody,

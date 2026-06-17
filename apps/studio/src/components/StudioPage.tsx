@@ -12,6 +12,7 @@ import { PosterPanel } from "./studio/PosterPanel.js";
 import { PricingPanel } from "./studio/PricingPanel.js";
 import { PublishPanel } from "./studio/PublishPanel.js";
 import { OperatorPanel } from "./studio/OperatorPanel.js";
+import { ProducePanel } from "./studio/ProducePanel.js";
 import { useFlatGraph } from "../api/useFlatGraph.js";
 
 export function StudioPage(): JSX.Element {
@@ -65,6 +66,9 @@ export function StudioPage(): JSX.Element {
               </p>
             )}
 
+            {panel === "produce" && graphState.status === "loaded" && (
+              <ProducePanel graph={graphState.graph} />
+            )}
             {panel === "branch" && graphState.status === "loaded" && (
               <BranchEditorPanel
                 seriesId={seriesId}

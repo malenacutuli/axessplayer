@@ -28,6 +28,7 @@ import {
   handleAdminAdsToday,
   handleAdminPaywallEvent,
   handleSetSeriesPoster,
+  handleProduceSeries,
   handleCreateEdge,
   type ContentDB,
   type CreateSeriesBody,
@@ -188,6 +189,14 @@ export function createContentApp(deps: AppDeps): Hono {
     if (raw == null) return c.json({ error: "invalid_json" }, 400);
     const result = await handleSetSeriesPoster(c.req.param("id"), raw, db);
     return c.json(result.body, result.status as 200 | 400 | 404);
+  });
+
+  // POST /series/{id}/produce : Simple-mode auto-produce. Returns the stage plan + cost + job id.
+  app.post("/series/:id/produce", async (c) => {
+    const raw = await readJson(c);
+    if (raw == null) return c.json({ error: "invalid_json" }, 400);
+    const result = await handleProduceSeries(c.req.param("id"), raw, db);
+    return c.json(result.body, result.status as 200 | 400 | 404 | 409);
   });
 
   // POST /edges : connect two beats with an optional condition. The handler rejects self-edges and

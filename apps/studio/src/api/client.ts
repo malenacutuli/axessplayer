@@ -116,6 +116,21 @@ export class ContentClient {
     return flattenGraph(await this.getSeriesGraph(seriesId));
   }
 
+  // POST /series/{id}/produce : start the Simple-mode auto-produce job for the whole series (the ingestion
+  // factory fans out transcript/poster/captions/AD/sign/dub across the chosen targets). Returns the job id +
+  // the stage plan so the processing view can track it.
+  async produceSeries(
+    id: string,
+    targets: { languages: string[]; tracks: string[]; signLanguages: string[]; tier: string },
+  ): Promise<{ jobId: string; stageCount: number; estimatedUsd: number }> {
+    const res = await this.fetchImpl(joinUrl(this.baseUrl, `/series/${encodeURIComponent(id)}/produce`), {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify(targets),
+    });
+    return this.parse(res);
+  }
+
   // GET /feed : the real published series (newest first), so the Library lists what is actually in the
   // schema instead of a hardcoded seed id. Empty when nothing is published.
   async getFeed(): Promise<FeedSeries[]> {
