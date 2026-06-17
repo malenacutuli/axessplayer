@@ -12,11 +12,34 @@ export interface RewardResult {
   today?: number;
 }
 
+export interface CoinPack {
+  id: string;
+  coins: number;
+  priceUsd: number;
+}
+export interface SubTier {
+  id: string;
+  label: string;
+  priceUsd: number;
+  coinsPerMonth: number;
+}
+export interface PaywallPresentation {
+  path: "watch_ad" | "buy" | "subscribe";
+  propensity: number;
+  paths: Array<"watch_ad" | "buy" | "subscribe">;
+  offers: CoinPack[];
+  tiers: SubTier[];
+  draft: boolean;
+  revenueOptimized: boolean;
+}
+
 export interface RewardsClient {
   watchRewardedAd(userId: string, impressionId: string): Promise<RewardResult>;
   checkin(userId: string): Promise<RewardResult>;
   follow(userId: string): Promise<RewardResult>;
   adsToday(userId: string): Promise<{ count: number; cap: number }>;
+  // The bandit-chosen paywall presentation (DRAFT weights, propensity logged server-side).
+  presentPaywall(input: { userId: string; seriesId?: string; beatVariantId?: string; sessionId?: string }): Promise<PaywallPresentation>;
 }
 
 export interface RewardsClientOptions {
@@ -54,6 +77,15 @@ export function createRewardsClient(opts: RewardsClientOptions = {}): RewardsCli
     watchRewardedAd: (userId, impressionId) => post("/reward/ad", { userId, impressionId, verified: true }),
     checkin: (userId) => post("/reward/checkin", { userId }),
     follow: (userId) => post("/reward/follow", { userId }),
+    async presentPaywall(input) {
+      const res = await doFetch(`${rb}/paywall/present`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) throw new Error(`paywall present failed (${res.status})`);
+      return (await res.json()) as PaywallPresentation;
+    },
     async adsToday(userId) {
       try {
         const res = await doFetch(`${cb}/admin/ads-today/${encodeURIComponent(userId)}`);

@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { EconomyClient } from "../api/economy.js";
+import type { RewardsClient, PaywallPresentation } from "../api/rewards.js";
 import type { SeriesGraph, VariantNode } from "../api/content.js";
 import { variantForBeat, variantToBeatResolver } from "../api/content.js";
 import type { Transport } from "@axessplayer/player-sdk";
@@ -43,6 +44,10 @@ export interface PlayerProps {
   graph: SeriesGraph;
   transport: Transport;
   economy: EconomyClient;
+  // Server-side reward + paywall-present client. When present, the paywall runs the DRAFT bandit and the
+  // watch-ad-to-unlock loop. Optional so the player works standalone.
+  rewards?: RewardsClient;
+  seriesId?: string;
   userId: string;
   startBeatId: string;
   // Back to the feed.
@@ -68,6 +73,8 @@ export function Player({
   graph,
   transport,
   economy,
+  rewards,
+  seriesId,
   userId,
   startBeatId,
   onBack,
@@ -204,10 +211,27 @@ export function Player({
   const [showPaywall, setShowPaywall] = useState(false);
   const [showA11y, setShowA11y] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
+  // The DRAFT bandit's paywall presentation (path + coin packs + tiers + propensity, logged server-side).
+  const [presentation, setPresentation] = useState<PaywallPresentation | null>(null);
+  const [adBusy, setAdBusy] = useState(false);
 
   useEffect(() => {
     if (premiumGate && !unlocked) setShowPaywall(true);
   }, [premiumGate, unlocked]);
+
+  // When the paywall opens, ask the server for the bandit-chosen path (this also logs the propensity).
+  useEffect(() => {
+    if (!showPaywall || !rewards || !premiumGate || presentation) return;
+    void rewards
+      .presentPaywall({
+        userId,
+        ...(seriesId ? { seriesId } : {}),
+        beatVariantId: premiumGate.id,
+        sessionId: `sess-${userId}`,
+      })
+      .then(setPresentation)
+      .catch(() => {});
+  }, [showPaywall, rewards, premiumGate, presentation, userId, seriesId]);
 
   useEffect(() => {
     if (unlocked && unlock.state.balance != null) {
@@ -219,13 +243,28 @@ export function Player({
   const onPaywallChoose = useCallback(
     (choice: PaywallChoice) => {
       if (!premiumGate) return;
-      if (choice === "unlock" || choice === "buy") {
+      if (choice === "unlock") {
         void unlock.unlock("beat_variant", premiumGate.id);
+        return;
       }
-      // watch_ad and subscribe route to the ad / subscription rails (server-verified /grant), flagged
-      // as integration-time; presented per the contract PaywallOptions but not wired to a live rail.
+      if (choice === "watch_ad" && rewards) {
+        // Watch-ad-to-unlock: the server grants coins on a verified ad completion, then we settle the
+        // unlock with the now-higher balance. Both legs are server-side and idempotent.
+        setAdBusy(true);
+        const impressionId = `imp-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+        void rewards
+          .watchRewardedAd(userId, impressionId)
+          .then((r) => {
+            if (r.granted || r.balance != null) return unlock.unlock("beat_variant", premiumGate.id);
+            return undefined;
+          })
+          .finally(() => setAdBusy(false));
+        return;
+      }
+      // buy and subscribe stay behind the TEST guard: the live Stripe rail is never invoked from here.
+      // The sheet surfaces transparent prices; wiring a Stripe TEST checkout is the next integration step.
     },
-    [premiumGate, unlock],
+    [premiumGate, unlock, rewards, userId],
   );
 
   // The cut shown after an unlock is the premium ending; otherwise whatever is on the branch path.
@@ -677,7 +716,9 @@ export function Player({
           coinCost={premiumGate.coin_cost}
           balance={unlock.state.balance ?? 0}
           serverOptions={unlock.state.paywall ?? undefined}
-          busy={unlock.state.status === "spending"}
+          presentation={presentation ?? undefined}
+          busy={unlock.state.status === "spending" || adBusy}
+          adBusy={adBusy}
           error={unlock.state.status === "error" ? unlock.state.error : null}
           onChoose={onPaywallChoose}
           onDismiss={() => setShowPaywall(false)}

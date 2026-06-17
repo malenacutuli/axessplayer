@@ -140,6 +140,8 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
             graph={graph}
             transport={clients.playerTransport()}
             economy={clients.economy}
+            rewards={clients.rewards}
+            seriesId={seriesId}
             userId={userId}
             startBeatId={start.id}
             onBack={() => setScreen("feed")}

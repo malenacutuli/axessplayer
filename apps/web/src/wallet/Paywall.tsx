@@ -6,6 +6,7 @@
 // No em dashes.
 
 import type { PaywallOptions } from "../api/economy.js";
+import type { PaywallPresentation } from "../api/rewards.js";
 import { LockIcon } from "../ui/icons.js";
 
 export type PaywallChoice = "buy" | "watch_ad" | "subscribe" | "unlock";
@@ -18,9 +19,13 @@ export interface PaywallSheetProps {
   // When set, the server already returned a 402 with these options. When undefined, this is the
   // pre-spend paywall at a premium beat: offer the direct unlock plus the standard rails.
   serverOptions?: PaywallOptions;
+  // The DRAFT bandit's chosen path + transparent coin packs and subscription tiers. When present, the
+  // sheet leads with the chosen path (never hides the others; anti-dark-pattern) and shows real prices.
+  presentation?: PaywallPresentation;
   onChoose: (choice: PaywallChoice) => void;
   onDismiss: () => void;
   busy?: boolean;
+  adBusy?: boolean;
   error?: string | null;
 }
 
@@ -30,13 +35,27 @@ const LABELS: Record<"buy" | "watch_ad" | "subscribe", string> = {
   subscribe: "Subscribe",
 };
 
+const PATH_LABEL: Record<"watch_ad" | "buy" | "subscribe", string> = {
+  watch_ad: "Watch a rewarded ad to unlock",
+  buy: "Buy coins",
+  subscribe: "Subscribe",
+};
+
+// Lead with the bandit-chosen path, then the remaining paths in their server order. Every path is shown
+// (anti-dark-pattern: never hide an option), just reordered to feature the choice.
+function orderedPaths(p: PaywallPresentation): Array<"watch_ad" | "buy" | "subscribe"> {
+  return [p.path, ...p.paths.filter((x) => x !== p.path)];
+}
+
 export function PaywallSheet({
   coinCost,
   balance,
   serverOptions,
+  presentation,
   onChoose,
   onDismiss,
   busy,
+  adBusy,
   error,
 }: PaywallSheetProps) {
   const canAfford = balance >= coinCost;
@@ -87,6 +106,43 @@ export function PaywallSheet({
           </button>
         )}
 
+        {/* DRAFT bandit presentation: lead with the chosen path, show every path with transparent prices.
+            watch_ad is the no-spend option; buy/subscribe carry a TEST badge (no live rail). */}
+        {presentation && !serverOptions && (
+          <div data-testid="paywall-presentation" data-chosen-path={presentation.path}>
+            {orderedPaths(presentation).map((p) => (
+              <div key={p} style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  className={p === presentation.path ? "paybtn" : "paybtn ghost"}
+                  onClick={() => onChoose(p)}
+                  disabled={busy}
+                  data-testid={`paywall-path-${p}`}
+                  aria-label={PATH_LABEL[p]}
+                >
+                  {p === "watch_ad" ? (adBusy ? "Watching ad..." : "Watch a rewarded ad to unlock") : PATH_LABEL[p]}
+                  {(p === "buy" || p === "subscribe") && <span className="muted" style={{ marginLeft: 8 }}>TEST mode</span>}
+                </button>
+                {p === "buy" && (
+                  <div className="muted" data-testid="paywall-packs" style={{ fontSize: 12, marginTop: 4 }}>
+                    {presentation.offers.map((o) => `${o.coins} coins $${o.priceUsd}`).join("  -  ")}
+                  </div>
+                )}
+                {p === "subscribe" && (
+                  <div className="muted" data-testid="paywall-tiers" style={{ fontSize: 12, marginTop: 4 }}>
+                    {presentation.tiers.map((t) => `${t.label} $${t.priceUsd}/mo`).join("  -  ")}
+                  </div>
+                )}
+              </div>
+            ))}
+            {presentation.draft && (
+              <p className="muted" data-testid="paywall-draft" style={{ fontSize: 11, marginTop: 8 }}>
+                Pricing shown up front. Offers are not optimized for revenue (draft reward weights, pending sign-off).
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Server-offered options on a 402, in the order the server returned them. */}
         {options.map((opt) => (
           <button
@@ -103,8 +159,8 @@ export function PaywallSheet({
           </button>
         ))}
 
-        {/* The rewarded-ad ghost is part of the prototype's default paywall (no 402 case). */}
-        {!serverOptions && (
+        {/* The rewarded-ad ghost is part of the prototype's default paywall (no 402, no bandit case). */}
+        {!serverOptions && !presentation && (
           <button
             type="button"
             className="paybtn ghost"

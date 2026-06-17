@@ -19,6 +19,7 @@ export default defineConfig({
       "/decide": "http://127.0.0.1:8092",
       "/manifest": "http://127.0.0.1:8094",
       "/reward": "http://127.0.0.1:8100",
+      "/paywall": "http://127.0.0.1:8100",
       "/admin": "http://127.0.0.1:8093",
     },
   },
