@@ -16,8 +16,9 @@ export interface Stage {
   tier?: "draft" | "quality"; // sign auto-draft vs human-interpreter quality
 }
 
-// FLAGGED placeholder per-stage cost estimates.
-const COST = { transcript: 0.2, character: 0.3, poster: 0.1, captions: 0.15, ad: 0.4, sign: 0.5, dub: 0.6 } as const;
+// Per-stage cost estimates are calibrated to the real edge functions (services/ingestion/costModel.ts),
+// so the cost gate pauses an actual run, not a $0 simulation.
+import { STAGE_COST_USD as COST } from "./costModel.js";
 
 // Build the accessibility ingest DAG for a set of target languages and the database sign languages. The
 // transcript is the spine; character attribution and per-language tracks hang off it. Sign tracks are the

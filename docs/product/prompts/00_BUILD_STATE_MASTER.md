@@ -159,3 +159,11 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
   (auto draft vs human-interpreter + Deaf review). 6 tests incl kill-and-resume with zero duplicate stage
   runs; full turbo typecheck 26/26 + test 26/26 green. Next: wire the real stage executors (transcribe /
   build-* / generate-dubbing edge functions) + the 0009a+C2PA registrar, then the P9/P10 backend stages.
+- 2026-06-17: P13 real-wiring pre-live gates. costModel.ts: per-stage costs calibrated to the real edge
+  functions (transcribe/generate-ad/generate-dubbing/tts/build-*), flagged. PROVEN: a fresh hero ingest
+  costs $5.31; a $2.50 cap pauses after 12/23 stages ($2.23), opening the budget resumes to $5.31 (not a
+  $0 simulation). trustRegistrar.ts routes C2PA signing + consent-ref writes through the trust service but
+  GATED behind consentProvenanceLive (default false): not-live attaches the track URL only; live C2PA-signs
+  and writes the consent ref for a likeness asset. 19 ingestion tests; full turbo green. Orchestration
+  unchanged. >>> FOUNDER SIGN-OFF NOW WAITING: consent/provenance go-live for the ingestion path (real C2PA
+  + consent-ref writes) before it runs live, per the founder instruction (consent is one of the three gates).
