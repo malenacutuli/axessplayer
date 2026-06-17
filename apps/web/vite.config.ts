@@ -18,6 +18,8 @@ export default defineConfig({
       "/grant": "http://127.0.0.1:8091",
       "/decide": "http://127.0.0.1:8092",
       "/manifest": "http://127.0.0.1:8094",
+      "/reward": "http://127.0.0.1:8100",
+      "/admin": "http://127.0.0.1:8093",
     },
   },
   test: {

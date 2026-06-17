@@ -158,7 +158,12 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
           <div className="feedhead">
             <span className="t">Wallet</span>
           </div>
-          <WalletScreen wallet={wallet} />
+          <WalletScreen
+            wallet={wallet}
+            userId={userId}
+            rewards={clients.rewards}
+            onEarned={() => void refreshWallet()}
+          />
           <BottomNav active="wallet" onNavigate={onNavigate} />
         </div>
       );

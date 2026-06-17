@@ -5,6 +5,7 @@
 import { loadConfig, type AppConfig } from "./config.js";
 import { createContentClient, type ContentClient } from "./api/content.js";
 import { createEconomyClient, type EconomyClient } from "./api/economy.js";
+import { createRewardsClient, type RewardsClient } from "./api/rewards.js";
 import { createWebTransport } from "./player/webTransport.js";
 import type { SessionProvider } from "./api/session.js";
 import type { Transport } from "@axessplayer/player-sdk";
@@ -13,6 +14,8 @@ export interface Clients {
   config: AppConfig;
   content: ContentClient;
   economy: EconomyClient;
+  // Server-side reward callbacks (rewarded ad, check-in, follow). The browser never mints coins.
+  rewards: RewardsClient;
   // Builds a fresh player transport for one viewing session.
   playerTransport(onStripUserId?: (id: string) => void): Transport;
 }
@@ -35,6 +38,12 @@ export function buildClients(opts: BuildClientsOptions): Clients {
     economy: createEconomyClient({
       baseUrl: config.economyBaseUrl,
       session: opts.session,
+      fetch: opts.fetch,
+    }),
+    // Same-origin via the Vite proxy: /reward/* to the settlement service, /admin/* to content.
+    rewards: createRewardsClient({
+      rewardsBaseUrl: config.economyBaseUrl,
+      contentBaseUrl: config.contentBaseUrl,
       fetch: opts.fetch,
     }),
     playerTransport: (onStripUserId) =>
