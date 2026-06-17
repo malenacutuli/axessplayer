@@ -166,7 +166,7 @@ const server = createServer((req, res) => {
     const dir = join(UPLOAD_DIR, id);
     let files = [];
     if (id && resolve(dir).startsWith(resolve(UPLOAD_DIR) + "/") && existsSync(dir)) {
-      const TRACK = /^(captions\.json|ad\.json|[a-z]{2}_sign\.webm|[a-z]{2}_captions\.json|[a-z]{2}_dub\.m4a|asl_sign\.webm)$/;
+      const TRACK = /^(captions\.json|ad\.json|[a-z]{2,3}_sign\.webm|[a-z]{2}_captions\.json|[a-z]{2}_ad\.json|[a-z]{2}_dub\.m4a)$/;
       try {
         files = readdirSync(dir).filter((f) => TRACK.test(f));
       } catch {

@@ -23,7 +23,7 @@ const COST = { transcript: 0.2, character: 0.3, poster: 0.1, captions: 0.15, ad:
 // transcript is the spine; character attribution and per-language tracks hang off it. Sign tracks are the
 // auto-draft tier (human clips replace them later via signTier). Every database sign language gets a draft
 // regardless of the spoken target languages (C17: draft sign in EVERY database language).
-export function accessibilityStages(langs: string[], signLanguages: string[]): Stage[] {
+export function accessibilityStages(langs: string[], signLanguages: string[], baseLang?: string): Stage[] {
   const stages: Stage[] = [
     { id: "transcript", kind: "transcript", deps: [], generates: true, estimateUsd: COST.transcript },
     { id: "character", kind: "character", deps: ["transcript"], generates: true, estimateUsd: COST.character },
@@ -32,7 +32,10 @@ export function accessibilityStages(langs: string[], signLanguages: string[]): S
   for (const lang of langs) {
     stages.push({ id: `captions:${lang}`, kind: "captions", deps: ["transcript", "character"], generates: true, estimateUsd: COST.captions, lang });
     stages.push({ id: `ad:${lang}`, kind: "ad", deps: [`captions:${lang}`], generates: true, estimateUsd: COST.ad, lang });
-    stages.push({ id: `dub:${lang}`, kind: "dub", deps: [`captions:${lang}`], generates: true, estimateUsd: COST.dub, lang });
+    // The base language plays its original audio; only non-base languages need a dub.
+    if (lang !== baseLang) {
+      stages.push({ id: `dub:${lang}`, kind: "dub", deps: [`captions:${lang}`], generates: true, estimateUsd: COST.dub, lang });
+    }
   }
   for (const sl of signLanguages) {
     stages.push({ id: `sign:${sl}`, kind: "sign", deps: ["transcript"], generates: true, estimateUsd: COST.sign, signLanguage: sl, tier: "draft" });
