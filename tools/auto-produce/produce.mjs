@@ -10,7 +10,7 @@
 //     --variant <variantId> --series <seriesId> --content <http://127.0.0.1:8093> \
 //     [--langs es,fr] [--speaker Name] [--stages captions,poster,publish]
 
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -77,9 +77,37 @@ if (STAGES.includes("captions")) {
   log("captions", `registered caption_doc_url -> ${PUBLIC}/captions.json`);
 }
 
-// ---- 4. dubs (real, via generate-dubbing edge function) ---- flagged: wired in the next increment
+// ---- 4. dubs (real translated audio via the generate-dubbing edge function, ElevenLabs) ----
 if (STAGES.includes("dubs") && LANGS.length) {
-  log("dubs", `TODO wire generate-dubbing for: ${LANGS.join(", ")} (edge function, ElevenLabs)`);
+  const SB = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
+  const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!SB || !KEY) {
+    log("dubs", "skipped (SUPABASE_URL/SERVICE_ROLE_KEY not in env)");
+  } else {
+    const transcript = (JSON.parse(readFileSync(whisperJson, "utf8")).segments ?? [])
+      .map((s) => String(s.text ?? "").trim()).join(" ").trim();
+    const dub = {};
+    for (const lang of LANGS) {
+      log("dubs", `generate-dubbing -> ${lang} (translate + ElevenLabs)`);
+      const res = await fetch(`${SB}/functions/v1/generate-dubbing`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${KEY}`, apikey: KEY, "content-type": "application/json" },
+        body: JSON.stringify({ text: transcript, targetLanguage: lang }),
+      });
+      if (!res.ok) { log("dubs", `${lang}: failed ${res.status}`); continue; }
+      const j = await res.json();
+      if (!j.audioBase64) { log("dubs", `${lang}: no audio returned`); continue; }
+      const file = `${lang}_dub.mp3`;
+      const bytes = Buffer.from(j.audioBase64, "base64");
+      writeFileSync(join(DIR, file), bytes);
+      dub[lang] = `${PUBLIC}/${file}`;
+      log("dubs", `${lang}: ${Math.round(bytes.length / 1024)}kb | "${String(j.translatedText ?? "").slice(0, 48)}..."`);
+    }
+    if (Object.keys(dub).length) {
+      await patchTracks({ dub_audio_urls: dub });
+      log("dubs", `registered dub_audio_urls: ${Object.keys(dub).join(", ")}`);
+    }
+  }
 }
 
 // ---- 5. poster (server-side stability-ai via the content service) ----
