@@ -69,7 +69,12 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
   the FinOps budget authorizes; B_likeness be-the-protagonist is FENCED per C9; real-time world-model
   generation fenced, interface ready). 42 generation tests. Real model calls remain behind the FinOps
   budget (cost sign-off) and the backends cost gate.
-- P11 Brand + placement + marketplace. GAP. render-time placement (beat_variant), safety gates, market.
+- P11 Brand + placement + marketplace. CORE DONE. services/placement: safety.ts (brand-safety constraint
+  gate, fails closed: rating/exclusion/competitor), placement.ts (in-scene placement = render-time slot on
+  a beat_variant on the CONTENT plane, never an ad interstitial; the content/ad plane firewall
+  assertNotAdPlaneDriven throws if an ad-CTR signal would drive cut selection; selectPlacement picks a
+  safety-passed bid with an honest propensity, never an unsafe one, null when none safe), marketplace.ts
+  (self-serve campaign matcher: targeting + budget + safety). 8 spec tests; full turbo 25/25.
 - P12 White-label licensing + engine-API metering. GAP. last, real demand only.
 
 ## Fenced off (do NOT build into core; C9)
