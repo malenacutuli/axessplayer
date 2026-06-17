@@ -160,6 +160,30 @@ ALTER TABLE mobile.beat_variants ADD COLUMN IF NOT EXISTS dub_audio_urls        
 ALTER TABLE mobile.series        ADD COLUMN IF NOT EXISTS poster_url        text;
 ALTER TABLE mobile.series        ADD COLUMN IF NOT EXISTS poster_provenance jsonb;
 
+-- ===== Engagement event log (P3-T1). Append-only stream from the analytics-sdk via the events collector
+-- (services/events). No hard FKs: high-volume ingest must not drop an event on a missing join key; ids
+-- are join keys read-side. Idempotent on (session_id, event_id). =====
+CREATE TABLE IF NOT EXISTS mobile.engagement_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id TEXT NOT NULL,
+  user_id UUID,
+  series_id UUID,
+  session_id TEXT NOT NULL,
+  type TEXT NOT NULL,
+  decision_id UUID,
+  beat_id UUID,
+  variant_id UUID,
+  completion DOUBLE PRECISION,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  ts TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (session_id, event_id)
+);
+CREATE INDEX IF NOT EXISTS idx_engagement_decision ON mobile.engagement_events(decision_id);
+CREATE INDEX IF NOT EXISTS idx_engagement_session  ON mobile.engagement_events(session_id, ts);
+CREATE INDEX IF NOT EXISTS idx_engagement_type     ON mobile.engagement_events(type, ts);
+ALTER TABLE mobile.engagement_events ENABLE ROW LEVEL SECURITY;
+
 -- ===== 0003 + 0004 ledger functions: retargeted public.* -> mobile.*, F2 search_path='' preserved =====
 -- (function bodies identical to the frozen migrations except every object is mobile-qualified)
 -- See infra/hosted/mobile_schema_functions.sql for the spend_coins and grant_coins definitions applied.

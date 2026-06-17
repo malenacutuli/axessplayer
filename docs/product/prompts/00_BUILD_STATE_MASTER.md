@@ -53,3 +53,15 @@ Three founder sign-offs (build fully, then PAUSE for go-live; keep building othe
 ## Status log
 - 2026-06-17: master build-state created. Prompt 01 COMPLETE, CI green (aa07af6). P1 done; P2/P3/P4/P8
   largely done. Starting the gap-closing sweep in build order. Three sign-offs pending.
+- 2026-06-17: P2 verified by audit. P2-T1: canon constraint solver present (services/decision/src/canon.ts
+  canonFilter gates the arm set so re-cuts cannot contradict beats.canon_facts). P2-T2: all three /decide
+  paths (adaptive, control/opt-out, timeout/error) log via deps.logger.log before returning; propensity is
+  set on every path (null for the deterministic director's cut, which IPS excludes). No code change needed.
+- 2026-06-17: P3-T1 DONE. Built services/events (the engagement events collector): collector.ts (validate
+  the frozen events.md types, reject a body user_id per F1, idempotent map to columns + payload),
+  server.ts (POST /events, stamps user_id from the session bearer), serve.ts (pg pool, hosted mobile
+  schema). Added mobile.engagement_events (append-only, idempotent on session_id+event_id) to the hosted
+  schema and the infra/hosted deploy transform. 12 spec-derived node:test cases pass; typecheck clean.
+  Live-verified against hosted: a 3-event batch -> 2 accepted with user_id stamped from the session (not
+  the body), 1 F1 violation rejected; smoke rows cleaned. Wiring: set VITE_EVENTS_BASE_URL to the collector
+  so apps/web capture.ts ships consent-gated events. P3 now fully instrumented.

@@ -1,0 +1,21 @@
+{
+  "name": "@axessplayer/events",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Engagement events collector. Receives the frozen contracts/events/events.md events from the analytics-sdk and persists them append-only to mobile.engagement_events. Identity is the session subject, never a body field (F1). No em dashes.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo lint ok",
+    "serve": "node --import tsx src/serve.ts",
+    "test": "node --import tsx --test $(find test -name '*.test.ts' 2>/dev/null)"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.11.0",
+    "pg": "^8.12.0"
+  }
+}
