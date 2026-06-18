@@ -397,6 +397,25 @@ importers:
         specifier: ^5.5.0
         version: 5.9.3
 
+  services/companions:
+    dependencies:
+      pg:
+        specifier: ^8.12.0
+        version: 8.21.0
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      '@types/pg':
+        specifier: ^8.11.0
+        version: 8.20.0
+      tsx:
+        specifier: ^4.19.0
+        version: 4.22.4
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+
   services/content:
     devDependencies:
       '@electric-sql/pglite':
@@ -436,6 +455,18 @@ importers:
       '@types/pg':
         specifier: ^8.11.0
         version: 8.20.0
+      tsx:
+        specifier: ^4.19.0
+        version: 4.22.4
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+
+  services/delight:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
       tsx:
         specifier: ^4.19.0
         version: 4.22.4
@@ -683,6 +714,27 @@ importers:
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.43
+      tsx:
+        specifier: ^4.19.0
+        version: 4.22.4
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+
+  services/social:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      '@types/pg':
+        specifier: ^8.11.0
+        version: 8.20.0
+      hono:
+        specifier: ^4.12.25
+        version: 4.12.25
+      pg:
+        specifier: ^8.12.0
+        version: 8.21.0
       tsx:
         specifier: ^4.19.0
         version: 4.22.4

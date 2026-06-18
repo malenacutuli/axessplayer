@@ -55,6 +55,14 @@ export function buildDeps(cfg: IngestionServerConfig): ApiDeps {
   return { store: selectStore(), verifier: selectVerifier(cfg) };
 }
 
+// Permissive CORS so the Vercel preview browsers can call this service cross-origin with a bearer token.
+// Mirrors the identity/content services: ACAO:* on every response, preflight answered 204. No cookies.
+export const CORS_HEADERS: Record<string, string> = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET, POST, PATCH, DELETE, OPTIONS",
+  "access-control-allow-headers": "content-type, authorization, accept",
+};
+
 function readBody(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -96,14 +104,28 @@ export function startServer(
   const server = createServer((req, res) => {
     void (async () => {
       try {
+        // CORS preflight: answer 204 with the ACAO headers before any routing/auth.
+        if ((req.method ?? "GET").toUpperCase() === "OPTIONS") {
+          res.writeHead(204, CORS_HEADERS);
+          res.end();
+          return;
+        }
         const body = await readBody(req);
         const apiReq = toApiRequest(req, body);
         const apiRes = await handle(apiReq, deps);
-        res.writeHead(apiRes.status, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+        res.writeHead(apiRes.status, {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+          ...CORS_HEADERS,
+        });
         res.end(JSON.stringify(apiRes.body));
       } catch {
         if (!res.headersSent) {
-          res.writeHead(500, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+          res.writeHead(500, {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+            ...CORS_HEADERS,
+          });
         }
         res.end(JSON.stringify({ error: "internal_error" }));
       }

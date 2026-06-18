@@ -1,0 +1,17 @@
+{
+  "name": "@axessplayer/delight",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo lint ok",
+    "serve": "node --import tsx src/serve.ts",
+    "test": "node --import tsx --test $(find src test -name '*.test.ts' 2>/dev/null)"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}

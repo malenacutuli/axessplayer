@@ -1,14 +1,33 @@
 // HTTP surface for the engagement events collector. POST /events { events: [...] } persists the batch
 // to mobile.engagement_events. Identity is taken from the Authorization session bearer (F1), never the
 // body. Permissive CORS so the browser analytics-sdk can post cross-origin in dev. No em dashes.
+//
+// BOOT RESILIENCE: the SQL client is obtained LAZILY (a provider closure) per request, never at server
+// construction. createEventsServer therefore never connects to pg, so the listener can bind and answer
+// GET /healthz with 200 even when the database is briefly unreachable or DATABASE_URL surfaces late. A
+// failure to obtain the client (or a query error) degrades to a clean 503 on the write path instead of
+// crashing the process. This is why Render sees the port open and the service healthy at boot.
 
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
 import { persistEvents, userFromAuthorization, type RawEvent, type SqlClient } from "./collector.js";
 import { persistAxpEvent, isAxpEventBody } from "./axp-collector.js";
 
+// A lazy provider of the SQL client. Resolving it may build/borrow a pg pool on first use, or throw if the
+// database is unreachable. The server treats a throw as a recoverable 503, never a process crash.
+export type SqlProvider = () => Promise<SqlClient> | SqlClient;
+
+// Accept either a concrete client (eager wiring, e.g. tests) or a lazy provider (production boot).
+function asProvider(sqlOrProvider: SqlClient | SqlProvider): SqlProvider {
+  return typeof sqlOrProvider === "function"
+    ? (sqlOrProvider as SqlProvider)
+    : () => sqlOrProvider;
+}
+
+// Permissive CORS so the Vercel preview browsers / analytics-sdk can post cross-origin with a bearer
+// token. Mirrors the identity/content services: ACAO:* on every response, preflight answered 204.
 const CORS: Record<string, string> = {
   "access-control-allow-origin": "*",
-  "access-control-allow-methods": "POST, OPTIONS",
+  "access-control-allow-methods": "GET, POST, PATCH, DELETE, OPTIONS",
   "access-control-allow-headers": "content-type, authorization, accept",
 };
 
@@ -23,7 +42,8 @@ async function readBody(req: IncomingMessage): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-export function createEventsServer(sql: SqlClient): Server {
+export function createEventsServer(sqlOrProvider: SqlClient | SqlProvider): Server {
+  const provideSql = asProvider(sqlOrProvider);
   return createServer((req, res) => {
     void (async () => {
       try {
@@ -32,7 +52,9 @@ export function createEventsServer(sql: SqlClient): Server {
           res.writeHead(204, CORS);
           return res.end();
         }
-        if (req.url === "/healthz") return send(res, 200, { ok: true });
+        // Liveness MUST NOT touch the database: Render's health check has to pass at boot even before pg
+        // is reachable. Strip any query string so /healthz?x=1 still matches.
+        if ((req.url ?? "").split("?")[0] === "/healthz") return send(res, 200, { ok: true });
         if (method === "POST" && (req.url ?? "").startsWith("/events")) {
           const raw = await readBody(req);
           let parsed: unknown;
@@ -40,6 +62,17 @@ export function createEventsServer(sql: SqlClient): Server {
             parsed = raw ? JSON.parse(raw) : {};
           } catch {
             return send(res, 400, { error: "invalid json" });
+          }
+          // Obtain the SQL client lazily. A connection failure here is recoverable: degrade to 503 so the
+          // collector buffers/retries client-side rather than crashing the process.
+          let sql: SqlClient;
+          try {
+            sql = await provideSql();
+          } catch (e) {
+            return send(res, 503, {
+              error: "database unavailable",
+              detail: e instanceof Error ? e.message : String(e),
+            });
           }
           const userId = userFromAuthorization(req.headers["authorization"]);
           // Canonical AxpEvent single-event ingest (analytics-sdk emit client wire shape). Validated
