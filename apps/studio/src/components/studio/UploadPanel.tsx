@@ -43,6 +43,8 @@ interface RowItem {
   // The beat + episode this master landed on, so the per-row Process CTA can target the right episode.
   beatId?: string;
   episodeId?: string;
+  // Upload progress in [0,1] while state is "uploading" (resumable chunks complete), for the progress bar.
+  progress?: number;
   // Accessibility produce state for the per-row CTA.
   produce: ProduceState;
   produceJobId?: string;
@@ -147,8 +149,10 @@ export function UploadPanel({ proMode, onNavigate }: UploadPanelProps): JSX.Elem
         continue;
       }
       try {
-        patchRow(id, { state: "uploading" });
-        const { publicUrl } = await uploadMaster(file, workingGraph.seriesId);
+        patchRow(id, { state: "uploading", progress: 0 });
+        const { publicUrl } = await uploadMaster(file, workingGraph.seriesId, {
+          onProgress: (fraction) => patchRow(id, { progress: fraction }),
+        });
         patchRow(id, { state: "registering" });
         await client.createVariant({
           beat_id: beat.id,
@@ -305,7 +309,10 @@ export function UploadPanel({ proMode, onNavigate }: UploadPanelProps): JSX.Elem
                   <span className="uploadrow__beat muted">{r.beatLabel}</span>
                   <span className={`uploadrow__state state-${r.state}`}>
                     {r.state === "queued" && "Queued"}
-                    {r.state === "uploading" && "Uploading..."}
+                    {r.state === "uploading" &&
+                      (r.progress != null && r.progress > 0
+                        ? `Uploading... ${Math.round(r.progress * 100)}%`
+                        : "Uploading...")}
                     {r.state === "registering" && "Registering variant..."}
                     {r.state === "done" && "Registered"}
                     {r.state === "error" && <span role="alert">Failed: {r.message}</span>}
