@@ -333,3 +333,113 @@ test("destructive seam with a malformed id is 400 before audit", async () => {
   assert.equal(res.status, 400);
   assert.equal(audit.entries().length, 0);
 });
+
+// ---- Section 10-12 routes: monetization, analytics, growth ------------------------------------------
+
+const emptyDb = { async query() { return { rows: [] }; } } as unknown as QueryPort;
+
+test("GET /admin/monetization returns the rule set with display-only, non-editable reward weights", async () => {
+  const res = await app(emptyDb).request("/admin/monetization", { headers: { authorization: "Bearer operator:Finance:f1" } });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { rules: unknown[]; rewardWeights: { editable: boolean }; rulesSource: string };
+  assert.ok(body.rules.length > 0);
+  assert.equal(body.rulesSource, "default");
+  // HARD GATE at the HTTP layer: reward weights are display-only and not editable.
+  assert.equal(body.rewardWeights.editable, false);
+});
+
+test("HARD GATE: reward weights are NEVER writable: a pricing edit is a 501 audit seam and the payload exposes no editable weight", async () => {
+  const audit = new InMemoryAuditSink();
+  const a = createAdminApp({ db: emptyDb, verifier: testOperatorVerifier(), audit });
+
+  // A Finance operator may reach the pricing-edit seam (RBAC write), but it is a 501 that mutates nothing.
+  const seam = await a.request("/admin/monetization/pricing", {
+    method: "POST",
+    headers: { authorization: "Bearer operator:Finance:f1", "content-type": "application/json" },
+    body: JSON.stringify({ id: "pack_small", amount: 1 }),
+  });
+  assert.equal(seam.status, 501);
+  assert.equal((await seam.json() as { error: string }).error, "not_implemented");
+  // The attempt was audited, nothing executed.
+  assert.equal(audit.entries().length, 1);
+  assert.deepEqual(audit.entries()[0].after, { executed: false, reason: "not_implemented" });
+
+  // There is NO route that writes a reward weight at all: a PATCH that tries to target weights still hits the
+  // pricing seam (501), never a weight mutation, and the GET payload carries no editable weight field.
+  const view = await a.request("/admin/monetization", { headers: { authorization: "Bearer operator:Owner:o1" } });
+  const body = (await view.json()) as { rewardWeights: Record<string, unknown> };
+  assert.equal(body.rewardWeights.editable, false);
+  assert.equal(body.rewardWeights["value"], undefined);
+  assert.equal(body.rewardWeights["weights"], undefined);
+});
+
+test("pricing edit is RBAC-forbidden for a non-finance role (read-only violation, no audit)", async () => {
+  const audit = new InMemoryAuditSink();
+  const a = createAdminApp({ db: emptyDb, verifier: testOperatorVerifier(), audit });
+  // Marketing reads monetization but cannot edit pricing (finance-gated write).
+  const res = await a.request("/admin/monetization/pricing", {
+    method: "POST",
+    headers: { authorization: "Bearer operator:Marketing:m1", "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(res.status, 403);
+  assert.equal((await res.json() as { reason: string }).reason, "read_only_violation");
+  assert.equal(audit.entries().length, 0);
+});
+
+test("GET /admin/analytics defaults to the funnel and accepts a dim; lift is a band, never a point", async () => {
+  // Default funnel.
+  const funnelDb = {
+    async query(text: string) {
+      if (/from engagement_events/.test(text)) return { rows: [{ impression: 100, play: 40, view_3s: 30, completion_50: 15, episode_completed: 10, unlock: 1 }] };
+      return { rows: [] };
+    },
+  } as unknown as QueryPort;
+  const a = app(funnelDb);
+  const def = await a.request("/admin/analytics", { headers: { authorization: "Bearer operator:ReadOnly:r1" } });
+  assert.equal(def.status, 200);
+  const defBody = (await def.json()) as { dim: string; stages: unknown[] };
+  assert.equal(defBody.dim, "funnel");
+  assert.equal(defBody.stages.length, 6);
+
+  // Branch dim: lift comes back as a band triplet.
+  const branchDb = {
+    async query(text: string) {
+      if (/from decision_log/.test(text)) return { rows: [{ beat_id: "b1", treatment_trials: 100, treatment_success: 80, control_trials: 100, control_success: 20 }] };
+      return { rows: [] };
+    },
+  } as unknown as QueryPort;
+  const br = await app(branchDb).request("/admin/analytics?dim=branch", { headers: { authorization: "Bearer operator:Admin:a1" } });
+  assert.equal(br.status, 200);
+  const brBody = (await br.json()) as { dim: string; branches: Array<{ lift: { low: number; high: number; center: number } }> };
+  assert.equal(brBody.dim, "branch");
+  const lift = brBody.branches[0].lift;
+  assert.ok(typeof lift.low === "number" && typeof lift.high === "number" && typeof lift.center === "number");
+  assert.ok(lift.low <= lift.center && lift.center <= lift.high);
+});
+
+test("analytics is a broad-read surface: even ReadOnly can read it", async () => {
+  const res = await app(emptyDb).request("/admin/analytics?dim=a11y", { headers: { authorization: "Bearer operator:ReadOnly:r1" } });
+  assert.equal(res.status, 200);
+});
+
+test("GET /admin/growth: referral health from referrals, creative bandit + acquisition unwired", async () => {
+  const db = {
+    async query(text: string) {
+      if (/information_schema\.tables/.test(text)) return { rows: [] };
+      if (/from referrals/.test(text)) return { rows: [{ invited: 10, joined: 4, first_watch: 1, reward_granted: 1, total: 15 }] };
+      return { rows: [] };
+    },
+  } as unknown as QueryPort;
+  const res = await app(db).request("/admin/growth", { headers: { authorization: "Bearer operator:Marketing:m1" } });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as {
+    creativeBandit: { source: string };
+    acquisition: { source: string; channels: unknown[] };
+    referrals: { invited: number };
+  };
+  assert.equal(body.creativeBandit.source, "unwired");
+  assert.equal(body.acquisition.source, "unwired");
+  assert.deepEqual(body.acquisition.channels, []);
+  assert.equal(body.referrals.invited, 10);
+});

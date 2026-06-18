@@ -413,6 +413,159 @@ export interface AdminCreators {
   creators: CreatorRow[];
 }
 
+/* ------------------------------- Monetization -------------------------------- */
+// Section 10. GET /admin/monetization -> the pricing-rules engine config (READ ONLY this wave). Rules are
+// scoped by country / platform / content-type / experiment-cohort and cover credit packs, subscriptions,
+// trials, rewarded ads, premium / alt-ending / POV / intensity pricing, promo codes, regional pricing,
+// tax / VAT, refunds, and chargebacks. Every mutation (create / edit a rule) is an RBAC-gated, audit-logged
+// SEAM rendered disabled coming-soon; nothing here writes. The reward-function weights are DISPLAY-ONLY for
+// every role: changing them is a founder sign-off, never an operator/agent action, so they carry no edit
+// control and a visible note. Stripe is in TEST mode (a badge says so). No em dashes.
+export type MonetizationRuleKind =
+  | "credit_pack"
+  | "subscription"
+  | "trial"
+  | "rewarded_ad"
+  | "premium_cut"
+  | "alt_ending"
+  | "pov"
+  | "intensity"
+  | "promo_code"
+  | "regional"
+  | "tax_vat"
+  | "refund"
+  | "chargeback";
+
+export interface MonetizationRule {
+  id: string;
+  kind: MonetizationRuleKind;
+  name: string;
+  // The price as a formatted string (coins or currency), display only. The ledger / Stripe is the source.
+  price: string;
+  // Scope dimensions. Any may be "all" (global default rule). Never an empty string.
+  country: string;
+  platform: string; // ios / android / web / all
+  contentType: string; // series / episode / branch / ending / all
+  cohort: string; // experiment cohort, or "all"
+  status: "active" | "scheduled" | "paused" | "draft";
+  // A short human note about what the rule does (e.g. "20% off, expires 2026-07-01"). Display only.
+  note?: string;
+}
+
+// The reward-function weights. DISPLAY ONLY. Each weight is rendered read-only with the founder-sign-off
+// note; there is no edit control and no mutation endpoint.
+export interface RewardWeight {
+  key: string;
+  label: string;
+  // The current weight value (0..1 or a signed contribution), shown as a formatted string. Display only.
+  value: string;
+  // What signal this weight applies to (e.g. completion, replay, accessibility usage). Display only.
+  signal: string;
+}
+
+export interface AdminMonetization {
+  // Stripe is always TEST in this build; the flag drives a visible badge and a "no live charges" note.
+  stripeMode: "test" | "live";
+  rules: MonetizationRule[];
+  rewardWeights: RewardWeight[];
+}
+
+/* --------------------------------- Analytics --------------------------------- */
+// Section 11. GET /admin/analytics?dim=... -> dashboards built on the canonical event taxonomy. The
+// dimension switcher drives dim (content / series / episode / branch / ending / a11y / language /
+// monetization / funnel / cohorts / retention / churn / LTV / CAC). Every counterfactual / lift figure is a
+// BAND {low, high, center}, never a point. The UI exports the loaded rows to CSV client-side; saved
+// segments and scheduled reports are coming-soon affordances. No em dashes.
+export type AnalyticsDim =
+  | "content"
+  | "series"
+  | "episode"
+  | "branch"
+  | "ending"
+  | "a11y"
+  | "language"
+  | "monetization"
+  | "funnel"
+  | "cohorts"
+  | "retention"
+  | "churn"
+  | "ltv"
+  | "cac";
+
+// A KPI summarizing the dimension (top of the report). value is a formatted string; an optional band makes
+// it a counterfactual interval rendered as a LiftBand.
+export interface AnalyticsKpi {
+  key: string;
+  label: string;
+  value: string;
+  band?: KpiBand;
+}
+// A generic report row. metric/value columns plus an optional counterfactual lift band for that row.
+export interface AnalyticsRow {
+  // The row label (series title, branch name, language, cohort, funnel step, ...).
+  label: string;
+  // Primary metric value (formatted), e.g. "78.4%" or "12,400".
+  value: string;
+  // Optional secondary metric (formatted), e.g. a delta or a paired figure.
+  secondary?: string;
+  // Optional counterfactual lift, shown as a band, never a point.
+  band?: KpiBand;
+}
+export interface AnalyticsReport {
+  dim: AnalyticsDim;
+  title: string;
+  // Column headers for the rows table (2 or 3 columns depending on whether secondary is used).
+  columns: string[];
+  kpis: AnalyticsKpi[];
+  rows: AnalyticsRow[];
+}
+
+/* ---------------------------------- Growth ----------------------------------- */
+// Section 12. GET /admin/growth -> the UA surface. creativeTests are the bandit win-rates (per creative arm,
+// each with a win-rate band since it is estimated). channels are CAC / LTV / payback by channel + cohort,
+// where LTV / CAC are bands when estimated. referral is the referral-loop health from mobile.referrals. No
+// em dashes.
+export interface CreativeArm {
+  id: string;
+  name: string;
+  channel: string;
+  impressions: number;
+  // Bandit win-rate as a band (estimated), never a point. Percent positions of the interval.
+  winRate: KpiBand;
+  // Allocation the bandit currently gives this arm (0..100), display only.
+  allocationPct: number;
+  status: "live" | "paused" | "winner" | "exhausted";
+}
+export interface GrowthChannel {
+  id: string;
+  channel: string;
+  cohort: string;
+  // CAC in USD (a point: it is realized spend / installs).
+  cacUsd: number;
+  // LTV as a band (estimated/projected), never a point. USD-denominated band rendered as a LiftBand label.
+  ltvBand: KpiBand;
+  // Payback in months (a point estimate, with a band-backed LTV behind it).
+  paybackMonths: number;
+  // Installs / activations attributed to the channel-cohort.
+  installs: number;
+}
+export interface ReferralHealth {
+  // Headline loop metrics (display only). k-factor is the viral coefficient.
+  invitesSent: number;
+  invitesAccepted: number;
+  acceptRatePct: number;
+  kFactor: number;
+  // The k-factor projection is a band (estimated), never a point.
+  kFactorBand: KpiBand;
+  // Funnel steps for the referral loop (sent -> accepted -> activated -> retained), as rows.
+  funnel: Array<{ label: string; value: number }>;
+}
+export interface AdminGrowth {
+  creativeTests: CreativeArm[];
+  channels: GrowthChannel[];
+  referral: ReferralHealth;
+}
+
 /* ----------------------------------- Client ---------------------------------- */
 export interface AdminApiConfig {
   baseUrl: string;
@@ -550,6 +703,21 @@ export class AdminApi {
   // GET /admin/creators/:id -> creator detail (read-only; financial actions gated elsewhere)
   creatorDetail(id: string): Promise<CreatorDetail> {
     return this.get<CreatorDetail>(`/admin/creators/${encodeURIComponent(id)}`);
+  }
+
+  // GET /admin/monetization -> pricing-rules config + display-only reward weights (SELECT-only read)
+  monetization(): Promise<AdminMonetization> {
+    return this.get<AdminMonetization>("/admin/monetization");
+  }
+
+  // GET /admin/analytics?dim=... -> a dimension-scoped report (counterfactual lift as bands, never points)
+  analytics(dim: AnalyticsDim): Promise<AnalyticsReport> {
+    return this.get<AnalyticsReport>(`/admin/analytics?dim=${encodeURIComponent(dim)}`);
+  }
+
+  // GET /admin/growth -> creative-test bandit win-rates, CAC/LTV/payback, referral-loop health
+  growth(): Promise<AdminGrowth> {
+    return this.get<AdminGrowth>("/admin/growth");
   }
 }
 

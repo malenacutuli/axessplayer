@@ -372,6 +372,197 @@ export function seriesOwnerColumnProbeSql(): Sql {
   };
 }
 
+// ---- Analytics (GET /admin/analytics?dim=) ----------------------------------------------------------
+//
+// Aggregate the canonical event taxonomy (packages/analytics-sdk/src/events.ts), stored as the `type`
+// column on mobile.engagement_events, into the requested dimension. These are SELECT-only group-by counts;
+// the band derivation (lift as {low,high,center}) happens in the pure aggregate layer, never in SQL. The
+// firewall holds: these reads touch engagement_events / decision_log / coin_transactions only, never a
+// content-ranking weight.
+
+// Funnel: count events per canonical funnel stage in ONE pass over engagement_events. The stages are the
+// documented default funnel impression -> play -> view_3s -> completion_50 -> episode_completed -> unlock
+// (unlock_purchased is the monetized terminal). Counted as filtered aggregates so a single scan yields the
+// whole funnel. Distinct sessions per stage would be a later refinement; this counts events per stage,
+// which is the honest raw funnel and is flagged as such in the aggregate.
+export function funnelCountsSql(): Sql {
+  return {
+    text:
+      "select " +
+      "count(*) filter (where type = 'impression')::int as impression, " +
+      "count(*) filter (where type = 'play')::int as play, " +
+      "count(*) filter (where type = 'view_3s')::int as view_3s, " +
+      "count(*) filter (where type = 'completion_50')::int as completion_50, " +
+      "count(*) filter (where type = 'episode_completed')::int as episode_completed, " +
+      "count(*) filter (where type = 'unlock_purchased')::int as unlock " +
+      "from engagement_events",
+    values: [],
+  };
+}
+
+// Per-series funnel rollup (dim=series): the same funnel stages grouped by series_id, joined to the title.
+// Drives the by-series analytics table. Limited so the table never unbounded-scans.
+export function funnelBySeriesSql(limit = 50): Sql {
+  return {
+    text:
+      "select e.series_id, s.title, " +
+      "count(*) filter (where e.type = 'impression')::int as impression, " +
+      "count(*) filter (where e.type = 'play')::int as play, " +
+      "count(*) filter (where e.type = 'view_3s')::int as view_3s, " +
+      "count(*) filter (where e.type = 'completion_50')::int as completion_50, " +
+      "count(*) filter (where e.type = 'episode_completed')::int as episode_completed, " +
+      "count(*) filter (where e.type = 'unlock_purchased')::int as unlock " +
+      "from engagement_events e join series s on s.id = e.series_id " +
+      "where e.series_id is not null " +
+      "group by e.series_id, s.title order by play desc limit $1",
+    values: [limit],
+  };
+}
+
+// Per-episode funnel rollup (dim=episode): funnel stages grouped by episode_id. Limited.
+export function funnelByEpisodeSql(limit = 100): Sql {
+  return {
+    text:
+      "select e.episode_id, " +
+      "count(*) filter (where e.type = 'play')::int as play, " +
+      "count(*) filter (where e.type = 'completion_50')::int as completion_50, " +
+      "count(*) filter (where e.type = 'episode_completed')::int as episode_completed " +
+      "from engagement_events e where e.episode_id is not null " +
+      "group by e.episode_id order by play desc limit $1",
+    values: [limit],
+  };
+}
+
+// Accessibility / language usage (dim=a11y, dim=language): counts of the toggle events that prove an a11y
+// track or a language was actually used. caption/ad/sign toggles for a11y; language_switched for language.
+export function a11yUsageSql(): Sql {
+  return {
+    text:
+      "select " +
+      "count(*) filter (where type = 'caption_toggled')::int as caption, " +
+      "count(*) filter (where type = 'ad_toggled')::int as audio_description, " +
+      "count(*) filter (where type = 'sign_toggled')::int as sign, " +
+      "count(*) filter (where type = 'language_switched')::int as language " +
+      "from engagement_events",
+    values: [],
+  };
+}
+
+// Branch lift (dim=branch): for each branch beat, count how a variant performed vs the control arm. The
+// COUNTERFACTUAL is derived as a BAND in the aggregate, never a point. This reads the logged decisions
+// (decision_log) joined to the downstream completion signal. The hosted decision_log carries variant_id,
+// is_control, and reward; we count, per beat, treatment vs control completions and trials so the aggregate
+// can form a lift band. is_control splits the two arms; created_at is not needed for the count.
+export function branchOutcomesSql(limit = 50): Sql {
+  return {
+    text:
+      "select beat_id, " +
+      "count(*) filter (where not is_control)::int as treatment_trials, " +
+      "count(*) filter (where not is_control and reward > 0)::int as treatment_success, " +
+      "count(*) filter (where is_control)::int as control_trials, " +
+      "count(*) filter (where is_control and reward > 0)::int as control_success " +
+      "from decision_log where beat_id is not null " +
+      "group by beat_id order by treatment_trials desc limit $1",
+    values: [limit],
+  };
+}
+
+// Retention (dim=retention): distinct users seen on day 0 vs returning on later days. The hosted schema has
+// no precomputed cohort table; this is a coarse day-bucketed distinct-user count over engagement_events
+// that the aggregate folds into a retention curve. Counts distinct users per day offset from their first
+// seen event. This is a heavier query; it is bounded to the trailing window in the aggregate via the param.
+export function retentionByDaySql(windowDays = 30): Sql {
+  return {
+    text:
+      "with first_seen as (" +
+      "select user_id, min(ts)::date as d0 from engagement_events " +
+      "where user_id is not null and ts >= now() - ($1 || ' days')::interval group by user_id" +
+      ") " +
+      "select (e.ts::date - f.d0) as day_offset, count(distinct e.user_id)::int as users " +
+      "from engagement_events e join first_seen f on f.user_id = e.user_id " +
+      "where e.ts >= now() - ($1 || ' days')::interval " +
+      "group by day_offset order by day_offset",
+    values: [String(windowDays)],
+  };
+}
+
+// ---- Monetization (GET /admin/monetization) ---------------------------------------------------------
+//
+// Pricing config lives in the LIVE economy services (not imported or edited here). This service READS what
+// the hosted schema observably carries: the distinct coin_transactions types in use, and the observed
+// per-type coin volume, so the monetization view shows what is actually transacting. The documented default
+// pricing rule set (packs/subs/premium) is a READ MODEL returned by the aggregate as a constant with a
+// source flag, NOT read from a table that does not exist. Reward weights are returned display-only by the
+// aggregate as a constant DRAFT marker and are NEVER selected here.
+
+// Observed transaction types + volume from the ledger, so the pricing view can flag which configured rules
+// are actually firing. SELECT-only over coin_transactions.
+export function monetizationLedgerSql(): Sql {
+  return {
+    text:
+      "select type, count(*)::int as count, " +
+      "coalesce(sum(amount) filter (where amount > 0), 0)::int as credited, " +
+      "coalesce(-sum(amount) filter (where amount < 0), 0)::int as spent " +
+      "from coin_transactions group by type order by count desc",
+    values: [],
+  };
+}
+
+// Observed episode + variant coin prices actually configured in the catalog, so the premium-cut pricing
+// view reflects real content prices (server-priced; the client never sets these). Reads episodes.coin_cost
+// and beat_variants.coin_cost as a distribution, not per-row PII.
+export function episodePriceDistributionSql(): Sql {
+  return {
+    text:
+      "select coin_cost, count(*)::int as episodes " +
+      "from episodes where coin_cost is not null and coin_cost > 0 " +
+      "group by coin_cost order by coin_cost",
+    values: [],
+  };
+}
+
+export function variantPriceDistributionSql(): Sql {
+  return {
+    text:
+      "select coin_cost, count(*)::int as variants " +
+      "from beat_variants where is_premium and coin_cost is not null and coin_cost > 0 " +
+      "group by coin_cost order by coin_cost",
+    values: [],
+  };
+}
+
+// ---- Growth (GET /admin/growth) ---------------------------------------------------------------------
+//
+// Referral-loop health from mobile.referrals: counts by funnel status (invited/joined/first_watch) and how
+// many had a reward granted. reward_granted is a NEUTRAL bookkeeping flag (per 05_referrals.sql), never an
+// optimization target; we only count it. SELECT-only.
+export function referralHealthSql(): Sql {
+  return {
+    text:
+      "select " +
+      "count(*) filter (where status = 'invited')::int as invited, " +
+      "count(*) filter (where status = 'joined')::int as joined, " +
+      "count(*) filter (where status = 'first_watch')::int as first_watch, " +
+      "count(*) filter (where reward_granted)::int as reward_granted, " +
+      "count(*)::int as total " +
+      "from referrals",
+    values: [],
+  };
+}
+
+// Probe for a creative-experiment table (services/experiment data shape). The hosted schema has no creative
+// bandit table; this catalog probe lets the aggregate return an empty typed shape + source:"unwired" rather
+// than fabricating win-rates. Reads only information_schema (no content rows), keeping the firewall intact.
+export function creativeExperimentTableProbeSql(): Sql {
+  return {
+    text:
+      "select table_name from information_schema.tables " +
+      "where table_schema in ('mobile', 'public') " +
+      "and table_name in ('creative_tests', 'creative_experiments', 'experiment_arms') limit 1",
+    values: [],
+  };
+}
+
 // ---- Accessibility readiness (GET /admin/accessibility) ---------------------------------------------
 
 // Per-series accessibility track coverage: total variants and how many carry each of the four tracks

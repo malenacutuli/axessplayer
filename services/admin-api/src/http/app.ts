@@ -37,6 +37,9 @@ import {
   type QueryPort,
 } from "../aggregate.js";
 import { validateStoryGraph, simulateStoryGraph, type SimulateInput } from "../storygraph.js";
+import { buildMonetization } from "../monetization.js";
+import { buildAnalytics, parseDim } from "../analytics.js";
+import { buildGrowth } from "../growth.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -227,6 +230,47 @@ export function createAdminApp(deps: AppDeps): Hono {
     if (detail == null) return c.json({ error: "not_found" }, 404);
     return c.json(detail);
   });
+
+  // ---- Section 10: MONETIZATION (pricing rules read model) ------------------------------------------
+  // GET /admin/monetization : the documented default pricing-rules read model + observed ledger/prices.
+  // Reward weights are returned DISPLAY-ONLY (a DRAFT constant, never editable). The live economy service
+  // owns authoritative config; this never imports or edits it. RBAC: read-broad, finance-gated writes.
+  app.get("/admin/monetization", async (c) => c.json(await buildMonetization(db)));
+
+  // POST/PATCH /admin/monetization/pricing : pricing-edit AUDIT SEAM. RBAC gates this to the monetization
+  // write roles (Finance/Admin/Owner) at the middleware. The mutation backend is unwired, so this audits
+  // the attempt and returns 501 WITHOUT touching any data. A reward-weight edit is deliberately NOT a route
+  // here: weights are a founder sign-off, surfaced display-only in the GET payload, never mutable.
+  async function pricingEditSeam(c: Context<{ Variables: Vars }>): Promise<Response> {
+    await recordMutation(audit, c.get("operator"), "monetization.pricing.edit", "pricing_rules", undefined, {
+      executed: false,
+      reason: "not_implemented",
+    });
+    return c.json(
+      {
+        error: "not_implemented",
+        action: "monetization.pricing.edit",
+        note: "pricing-edit backend is unwired; this seam audited the attempt and performed no config change. Reward weights are never editable (founder sign-off).",
+      },
+      501,
+    );
+  }
+  app.post("/admin/monetization/pricing", (c) => pricingEditSeam(c));
+  app.patch("/admin/monetization/pricing", (c) => pricingEditSeam(c));
+
+  // ---- Section 11: ANALYTICS (canonical event-taxonomy dashboards) ----------------------------------
+  // GET /admin/analytics?dim= : aggregate the event taxonomy into the requested dimension (default funnel).
+  // Counterfactual / branch lift is returned as a BAND {low,high,center}, never a point. Read-broad RBAC.
+  app.get("/admin/analytics", async (c) => {
+    const dim = parseDim(c.req.query("dim"));
+    return c.json(await buildAnalytics(db, dim));
+  });
+
+  // ---- Section 12: GROWTH (creative bandit / CAC-LTV bands / referral health) -----------------------
+  // GET /admin/growth : creative-test win-rates (empty + unwired until a creative table exists), CAC/LTV/
+  // payback as band estimates (unwired until a spend source lands), and referral-loop health from
+  // mobile.referrals. RBAC: read-broad, Marketing-gated writes (no write route this slice).
+  app.get("/admin/growth", async (c) => c.json(await buildGrowth(db)));
 
   // ---- DESTRUCTIVE SEAMS (GDPR export/delete, ban, refund) ------------------------------------------
   // These are RBAC-gated by the elevated write surfaces (gdpr/moderation) in rbac.ts. They are PURE SEAMS

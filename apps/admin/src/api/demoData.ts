@@ -10,9 +10,13 @@ import type {
   AdminContentList,
   AdminCreators,
   AdminDashboard,
+  AdminGrowth,
   AdminMe,
+  AdminMonetization,
   AdminPlacements,
   AdminUsers,
+  AnalyticsDim,
+  AnalyticsReport,
   ContentNode,
   CreatorDetail,
   MediaFactoryJobs,
@@ -513,3 +517,239 @@ function demoCreatorDetail(id: string): CreatorDetail | undefined {
   };
 }
 export { demoCreatorDetail };
+
+/* ------------------------------- Monetization -------------------------------- */
+// Section 10. Synthetic pricing-rules config + display-only reward weights. Prices are illustrative; the
+// ledger / Stripe is the real source. Stripe is TEST. No live charges. No personal/biometric data.
+export const DEMO_MONETIZATION: AdminMonetization = {
+  stripeMode: "test",
+  rules: [
+    { id: "rule_pack_s", kind: "credit_pack", name: "Starter coin pack", price: "100 coins · $0.99", country: "all", platform: "all", contentType: "all", cohort: "all", status: "active", note: "Entry pack" },
+    { id: "rule_pack_m", kind: "credit_pack", name: "Standard coin pack", price: "500 coins · $3.99", country: "all", platform: "all", contentType: "all", cohort: "all", status: "active" },
+    { id: "rule_pack_l", kind: "credit_pack", name: "Premium coin pack", price: "1,200 coins · $8.99", country: "all", platform: "all", contentType: "all", cohort: "all", status: "active", note: "Best value" },
+    { id: "rule_sub_plus", kind: "subscription", name: "Plus monthly", price: "$6.99 / mo", country: "all", platform: "all", contentType: "all", cohort: "all", status: "active" },
+    { id: "rule_sub_prem", kind: "subscription", name: "Premium monthly", price: "$12.99 / mo", country: "all", platform: "all", contentType: "all", cohort: "all", status: "active" },
+    { id: "rule_trial", kind: "trial", name: "Premium 7-day trial", price: "Free · 7 days", country: "all", platform: "all", contentType: "all", cohort: "new_signups", status: "active", note: "Converts to Premium monthly" },
+    { id: "rule_rewarded", kind: "rewarded_ad", name: "Rewarded ad unlock", price: "1 ad = 20 coins", country: "all", platform: "android", contentType: "all", cohort: "free_tier", status: "active", note: "Free-tier only; capped 3/day" },
+    { id: "rule_premium_cut", kind: "premium_cut", name: "Director's cut unlock", price: "120 coins", country: "all", platform: "all", contentType: "series", cohort: "all", status: "active" },
+    { id: "rule_alt_ending", kind: "alt_ending", name: "Alternate ending", price: "80 coins", country: "all", platform: "all", contentType: "ending", cohort: "all", status: "active" },
+    { id: "rule_pov", kind: "pov", name: "Extra POV track", price: "60 coins", country: "all", platform: "all", contentType: "branch", cohort: "all", status: "active" },
+    { id: "rule_intensity", kind: "intensity", name: "Intensity variant", price: "40 coins", country: "all", platform: "all", contentType: "episode", cohort: "all", status: "active" },
+    { id: "rule_promo", kind: "promo_code", name: "Promo WELCOME20", price: "20% off first pack", country: "all", platform: "all", contentType: "all", cohort: "all", status: "scheduled", note: "Starts 2026-07-01" },
+    { id: "rule_regional_in", kind: "regional", name: "Regional pricing (IN)", price: "Premium $4.99 / mo", country: "IN", platform: "all", contentType: "all", cohort: "all", status: "active", note: "PPP-adjusted" },
+    { id: "rule_regional_br", kind: "regional", name: "Regional pricing (BR)", price: "Premium R$24.90 / mo", country: "BR", platform: "all", contentType: "all", cohort: "all", status: "active", note: "PPP-adjusted" },
+    { id: "rule_vat_eu", kind: "tax_vat", name: "EU VAT", price: "+19-27% by member state", country: "EU", platform: "all", contentType: "all", cohort: "all", status: "active", note: "Applied at checkout" },
+    { id: "rule_refund", kind: "refund", name: "Refund window", price: "14 days · unused coins", country: "EU", platform: "all", contentType: "all", cohort: "all", status: "active", note: "Statutory" },
+    { id: "rule_chargeback", kind: "chargeback", name: "Chargeback policy", price: "Account hold on dispute", country: "all", platform: "all", contentType: "all", cohort: "all", status: "active" },
+  ],
+  // DISPLAY ONLY. Changing any of these is a founder sign-off, never an operator action. No edit control.
+  rewardWeights: [
+    { key: "w_completion", label: "Completion", value: "0.34", signal: "episode_completed" },
+    { key: "w_replay", label: "Replay / rewatch", value: "0.18", signal: "branch_replayed" },
+    { key: "w_branch", label: "Branch engagement", value: "0.21", signal: "branch_decision" },
+    { key: "w_accessibility", label: "Accessibility usage", value: "0.15", signal: "a11y_track_used" },
+    { key: "w_satisfaction", label: "Reported satisfaction", value: "0.12", signal: "post_watch_rating" },
+  ],
+};
+
+/* --------------------------------- Analytics --------------------------------- */
+// Section 11. A dimension-scoped report fixture builder. Every counterfactual lift is a band, never a point.
+const ANALYTICS_REPORTS: Record<AnalyticsDim, AnalyticsReport> = {
+  series: {
+    dim: "series",
+    title: "By series",
+    columns: ["Series", "Watch starts", "Completion", "Adaptive lift"],
+    kpis: [
+      { key: "starts", label: "Watch starts", value: "9.1M" },
+      { key: "completion", label: "Avg completion", value: "78.4%" },
+      { key: "lift", label: "Adaptive completion lift", value: "band", band: { low: 6, high: 17, center: 11, label: "Estimated completion lift 6% to 17%" } },
+    ],
+    rows: [
+      { label: "Shadow Signal", value: "4.2M", secondary: "81.0%", band: { low: 8, high: 19, center: 13, label: "Lift 8% to 19%" } },
+      { label: "The Hidden Heiress", value: "3.0M", secondary: "76.5%", band: { low: 5, high: 15, center: 10, label: "Lift 5% to 15%" } },
+      { label: "North Pivot", value: "1.9M", secondary: "72.1%", band: { low: 3, high: 12, center: 7, label: "Lift 3% to 12%" } },
+    ],
+  },
+  episode: {
+    dim: "episode",
+    title: "By episode",
+    columns: ["Episode", "Starts", "Drop-off"],
+    kpis: [{ key: "ep", label: "Episodes tracked", value: "42" }, { key: "drop", label: "Median drop-off", value: "11.2%" }],
+    rows: [
+      { label: "Shadow Signal Ep1", value: "1.4M", secondary: "7.1%" },
+      { label: "Shadow Signal Ep2", value: "1.2M", secondary: "9.8%" },
+      { label: "Hidden Heiress Ep5", value: "0.9M", secondary: "14.0%" },
+    ],
+  },
+  branch: {
+    dim: "branch",
+    title: "By branch",
+    columns: ["Branch decision", "Decisions", "Take rate", "Engagement lift"],
+    kpis: [
+      { key: "dec", label: "Branch decisions", value: "4.4M" },
+      { key: "lift", label: "Branch engagement lift", value: "band", band: { low: 9, high: 22, center: 15, label: "Engagement lift 9% to 22%" } },
+    ],
+    rows: [
+      { label: 'Shadow Ep1 · "Answer as Maya"', value: "1.1M", secondary: "58%", band: { low: 10, high: 24, center: 16, label: "Lift 10% to 24%" } },
+      { label: 'Shadow Ep1 · "Trace the signal"', value: "0.8M", secondary: "42%", band: { low: 6, high: 18, center: 12, label: "Lift 6% to 18%" } },
+    ],
+  },
+  ending: {
+    dim: "ending",
+    title: "By ending",
+    columns: ["Ending", "Reached", "Unlock rate"],
+    kpis: [{ key: "endings", label: "Endings", value: "12" }, { key: "premium", label: "Premium unlock rate", value: "9.4%" }],
+    rows: [
+      { label: "Shadow Signal · Canon ending", value: "61%", secondary: "free" },
+      { label: "Shadow Signal · Alternate ending", value: "9.4%", secondary: "80 coins" },
+    ],
+  },
+  a11y: {
+    dim: "a11y",
+    title: "By accessibility track",
+    columns: ["Track", "Sessions using", "Share"],
+    kpis: [{ key: "usage", label: "Accessibility usage", value: "41.6%" }, { key: "sign", label: "Sign-track sessions", value: "312k" }],
+    rows: [
+      { label: "Captions (CWI)", value: "1.6M", secondary: "33.0%" },
+      { label: "Audio description", value: "420k", secondary: "8.7%" },
+      { label: "Sign language", value: "312k", secondary: "6.4%" },
+    ],
+  },
+  language: {
+    dim: "language",
+    title: "By language",
+    columns: ["Language", "Sessions", "Completion"],
+    kpis: [{ key: "langs", label: "Languages", value: "18" }, { key: "intl", label: "Non-EN share", value: "47%" }],
+    rows: [
+      { label: "EN", value: "2.6M", secondary: "79%" },
+      { label: "ES", value: "0.9M", secondary: "77%" },
+      { label: "PT", value: "0.5M", secondary: "75%" },
+    ],
+  },
+  monetization: {
+    dim: "monetization",
+    title: "Monetization",
+    columns: ["Source", "Revenue", "Share", "Adaptive lift"],
+    kpis: [
+      { key: "rev", label: "Revenue", value: "$1.84M" },
+      { key: "lift", label: "Adaptive revenue lift", value: "band", band: { low: 8, high: 19, center: 13, label: "Revenue lift 8% to 19%" } },
+    ],
+    rows: [
+      { label: "Coins", value: "$1.02M", secondary: "55%", band: { low: 9, high: 21, center: 14, label: "Lift 9% to 21%" } },
+      { label: "Subscriptions", value: "$0.46M", secondary: "25%" },
+      { label: "Ads", value: "$0.24M", secondary: "13%" },
+      { label: "Brand", value: "$0.12M", secondary: "7%" },
+    ],
+  },
+  funnel: {
+    dim: "funnel",
+    title: "Acquisition funnel",
+    columns: ["Step", "Users", "Step conversion"],
+    kpis: [{ key: "top", label: "Top of funnel", value: "5.0M" }, { key: "conv", label: "Install to subscribe", value: "3.1%" }],
+    rows: [
+      { label: "App store visit", value: "5.0M", secondary: "100%" },
+      { label: "Install", value: "1.6M", secondary: "32%" },
+      { label: "First watch", value: "1.2M", secondary: "75%" },
+      { label: "Subscribe", value: "156k", secondary: "13%" },
+    ],
+  },
+  cohorts: {
+    dim: "cohorts",
+    title: "Cohorts",
+    columns: ["Signup cohort", "Size", "W4 retention"],
+    kpis: [{ key: "best", label: "Best W4 retention", value: "38%" }],
+    rows: [
+      { label: "2026-03", value: "210k", secondary: "31%" },
+      { label: "2026-04", value: "248k", secondary: "34%" },
+      { label: "2026-05", value: "291k", secondary: "38%" },
+    ],
+  },
+  retention: {
+    dim: "retention",
+    title: "Retention",
+    columns: ["Window", "Retained", "Rate"],
+    kpis: [{ key: "d1", label: "D1 retention", value: "52%" }, { key: "d30", label: "D30 retention", value: "27%" }],
+    rows: [
+      { label: "D1", value: "830k", secondary: "52%" },
+      { label: "D7", value: "560k", secondary: "35%" },
+      { label: "D30", value: "432k", secondary: "27%" },
+    ],
+  },
+  churn: {
+    dim: "churn",
+    title: "Churn",
+    columns: ["Segment", "Churned", "Monthly churn"],
+    kpis: [{ key: "churn", label: "Blended monthly churn", value: "5.8%" }],
+    rows: [
+      { label: "Plus", value: "9.1k", secondary: "6.4%" },
+      { label: "Premium", value: "4.2k", secondary: "3.9%" },
+    ],
+  },
+  ltv: {
+    dim: "ltv",
+    title: "Lifetime value",
+    columns: ["Cohort", "LTV (band)", "Payback"],
+    kpis: [
+      { key: "ltv", label: "Blended LTV (estimated)", value: "band", band: { low: 28, high: 64, center: 44, label: "LTV $28 to $64" } },
+    ],
+    rows: [
+      { label: "Premium · NA", value: "$44 to $78", secondary: "4.1 mo", band: { low: 44, high: 78, center: 58, label: "LTV $44 to $78" } },
+      { label: "Plus · EU", value: "$22 to $48", secondary: "6.3 mo", band: { low: 22, high: 48, center: 33, label: "LTV $22 to $48" } },
+    ],
+  },
+  cac: {
+    dim: "cac",
+    title: "Acquisition cost",
+    columns: ["Channel", "CAC", "Installs"],
+    kpis: [{ key: "cac", label: "Blended CAC", value: "$3.40" }],
+    rows: [
+      { label: "Paid social", value: "$3.80", secondary: "620k" },
+      { label: "Referral", value: "$0.90", secondary: "210k" },
+      { label: "Search", value: "$4.20", secondary: "180k" },
+    ],
+  },
+  content: {
+    dim: "content",
+    title: "Content overview",
+    columns: ["Metric", "Value", "Trend"],
+    kpis: [{ key: "titles", label: "Live titles", value: "3" }, { key: "variants", label: "Variants", value: "1,566" }],
+    rows: [
+      { label: "Live series", value: "3", secondary: "+0" },
+      { label: "Variants produced", value: "1,566", secondary: "+212 / 28d" },
+      { label: "Avg a11y coverage", value: "98%", secondary: "+1pp" },
+    ],
+  },
+};
+function demoAnalytics(dim: AnalyticsDim): AnalyticsReport {
+  return ANALYTICS_REPORTS[dim] ?? ANALYTICS_REPORTS.series;
+}
+export { demoAnalytics };
+
+/* ---------------------------------- Growth ----------------------------------- */
+// Section 12. Synthetic UA surface. Win-rates and LTV are bands (estimated), never points.
+export const DEMO_GROWTH: AdminGrowth = {
+  creativeTests: [
+    { id: "arm_a", name: "Hook: deaf-led trailer", channel: "Paid social", impressions: 1_240_000, winRate: { low: 38, high: 54, center: 46, label: "Win-rate 38% to 54%" }, allocationPct: 44, status: "live" },
+    { id: "arm_b", name: "Hook: branch-the-story", channel: "Paid social", impressions: 980_000, winRate: { low: 30, high: 47, center: 38, label: "Win-rate 30% to 47%" }, allocationPct: 31, status: "live" },
+    { id: "arm_c", name: "Hook: unlock the ending", channel: "Search", impressions: 410_000, winRate: { low: 18, high: 33, center: 25, label: "Win-rate 18% to 33%" }, allocationPct: 17, status: "paused" },
+    { id: "arm_d", name: "Hook: cinematic montage", channel: "Search", impressions: 120_000, winRate: { low: 6, high: 16, center: 11, label: "Win-rate 6% to 16%" }, allocationPct: 8, status: "exhausted" },
+  ],
+  channels: [
+    { id: "ch_social_na", channel: "Paid social", cohort: "NA", cacUsd: 3.8, ltvBand: { low: 44, high: 78, center: 58, label: "LTV $44 to $78" }, paybackMonths: 4.1, installs: 620_000 },
+    { id: "ch_ref_global", channel: "Referral", cohort: "Global", cacUsd: 0.9, ltvBand: { low: 36, high: 70, center: 50, label: "LTV $36 to $70" }, paybackMonths: 1.2, installs: 210_000 },
+    { id: "ch_search_eu", channel: "Search", cohort: "EU", cacUsd: 4.2, ltvBand: { low: 22, high: 48, center: 33, label: "LTV $22 to $48" }, paybackMonths: 6.3, installs: 180_000 },
+  ],
+  referral: {
+    invitesSent: 412_000,
+    invitesAccepted: 138_000,
+    acceptRatePct: 33.5,
+    kFactor: 0.41,
+    kFactorBand: { low: 32, high: 52, center: 41, label: "k-factor projection 0.32 to 0.52" },
+    funnel: [
+      { label: "Invites sent", value: 412_000 },
+      { label: "Accepted", value: 138_000 },
+      { label: "Activated", value: 96_000 },
+      { label: "Retained (W4)", value: 41_000 },
+    ],
+  },
+};

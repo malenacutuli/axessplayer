@@ -181,3 +181,48 @@ test("ban requires Moderation/Admin/Owner; refund requires Finance/Moderation/Ad
     assert.equal(decide(role, "/admin/users/abc/refund", "POST").allow, false, `${role} may not refund`);
   }
 });
+
+// ---- Section 10-12 additions: monetization, analytics, growth ---------------------------------------
+
+test("classifyRoute maps the section 10-12 surfaces (including a pricing-edit sub-path)", () => {
+  assert.equal(classifyRoute("/admin/monetization"), "monetization");
+  assert.equal(classifyRoute("/admin/monetization/pricing"), "monetization");
+  assert.equal(classifyRoute("/admin/analytics"), "analytics");
+  assert.equal(classifyRoute("/admin/analytics?dim=funnel"), "analytics");
+  assert.equal(classifyRoute("/admin/growth"), "growth");
+});
+
+test("monetization: read for all; pricing edit (write) only Finance/Admin/Owner", () => {
+  for (const role of ROLES) {
+    assert.equal(decide(role, "/admin/monetization", "GET").allow, true, `${role} reads monetization`);
+  }
+  for (const role of ["Finance", "Admin", "Owner"] as Role[]) {
+    assert.equal(decide(role, "/admin/monetization/pricing", "POST").allow, true, `${role} edits pricing`);
+  }
+  for (const role of ["Content", "Marketing", "Moderation", "Support", "ReadOnly"] as Role[]) {
+    const v = decide(role, "/admin/monetization/pricing", "POST");
+    assert.equal(v.allow, false, `${role} may not edit pricing`);
+    assert.equal(v.reason, "read_only_violation");
+  }
+});
+
+test("analytics is a broad-read surface: every role reads, and there is no analytics write capability", () => {
+  for (const role of ROLES) {
+    assert.equal(decide(role, "/admin/analytics", "GET").allow, true, `${role} reads analytics`);
+    // No role has write on analytics (it is a pure read surface): even Owner/Admin get read_only_violation.
+    assert.equal(decide(role, "/admin/analytics", "POST").allow, false, `${role} cannot write analytics`);
+    assert.equal(decide(role, "/admin/analytics", "POST").reason, "read_only_violation");
+  }
+});
+
+test("growth: read for all; write only Marketing/Admin/Owner", () => {
+  for (const role of ROLES) {
+    assert.equal(decide(role, "/admin/growth", "GET").allow, true, `${role} reads growth`);
+  }
+  for (const role of ["Marketing", "Admin", "Owner"] as Role[]) {
+    assert.equal(decide(role, "/admin/growth", "POST").allow, true, `${role} writes growth`);
+  }
+  for (const role of ["Content", "Finance", "Moderation", "Support", "ReadOnly"] as Role[]) {
+    assert.equal(decide(role, "/admin/growth", "POST").allow, false, `${role} may not write growth`);
+  }
+});

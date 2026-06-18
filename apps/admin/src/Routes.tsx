@@ -16,6 +16,9 @@ import { AccessibilityFactory } from "./pages/AccessibilityFactory";
 import { Brands } from "./pages/Brands";
 import { Users, UserDetailPage } from "./pages/Users";
 import { Creators, CreatorDetailPage } from "./pages/Creators";
+import { Monetization } from "./pages/Monetization";
+import { Analytics } from "./pages/Analytics";
+import { Growth } from "./pages/Growth";
 import { ComingSoon } from "./pages/ComingSoon";
 import { PageHead } from "./pages/Page";
 import { NAV_ITEMS } from "./shell/nav";
@@ -112,6 +115,16 @@ export function Routes() {
   const creatorDetail = matchPath("/admin/creators/:id", path);
   if (creatorDetail) return <CreatorDetailPage id={creatorDetail.id} />;
   if (path === "/admin/creators" || path === "/admin/creators/") return <Creators />;
+
+  // Section 10: Monetization (pricing-rules engine, read this wave; reward weights display-only).
+  if (path === "/admin/monetization" || path === "/admin/monetization/") return <Monetization />;
+
+  // Section 11: Analytics (dimension-switched reports; the dim query param selects the report, every lift is
+  // a band). Handled before the generic query-driven ReportStub fallthrough so ?dim= lands on the real view.
+  if (path === "/admin/analytics" || path === "/admin/analytics/") return <Analytics />;
+
+  // Section 12: Growth & UA (bandit win-rates, CAC/LTV/payback, referral-loop health).
+  if (path === "/admin/growth" || path === "/admin/growth/") return <Growth />;
 
   // The remaining not-yet-built sections (and any drill-through that targets them with a query): a real
   // report stub when there is a query (a drill target), otherwise the section coming-soon state.

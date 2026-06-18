@@ -12,9 +12,13 @@ import {
   type AdminContentList,
   type AdminCreators,
   type AdminDashboard,
+  type AdminGrowth,
   type AdminMe,
+  type AdminMonetization,
   type AdminPlacements,
   type AdminUsers,
+  type AnalyticsDim,
+  type AnalyticsReport,
   type CreatorDetail,
   type MediaFactoryJobs,
   type StoryGraph,
@@ -27,10 +31,13 @@ import {
   DEMO_CONTENT,
   DEMO_CREATORS,
   DEMO_DASHBOARD,
+  DEMO_GROWTH,
   DEMO_MEDIA_JOBS,
   DEMO_ME,
+  DEMO_MONETIZATION,
   DEMO_PLACEMENTS,
   DEMO_USERS,
+  demoAnalytics,
   demoContentDetail,
   demoCreatorDetail,
   demoStoryGraph,
@@ -149,4 +156,19 @@ export function useCreatorDetail(id: string): AsyncResult<CreatorDetail> {
     },
     [id],
   );
+}
+
+// Section 10: monetization (pricing-rules config + display-only reward weights).
+export function useMonetization(): AsyncResult<AdminMonetization> {
+  return useAsync<AdminMonetization>((api) => api.monetization(), () => DEMO_MONETIZATION, []);
+}
+
+// Section 11: analytics. Re-fetches when the dimension switches.
+export function useAnalytics(dim: AnalyticsDim): AsyncResult<AnalyticsReport> {
+  return useAsync<AnalyticsReport>((api) => api.analytics(dim), () => demoAnalytics(dim), [dim]);
+}
+
+// Section 12: growth & UA.
+export function useGrowth(): AsyncResult<AdminGrowth> {
+  return useAsync<AdminGrowth>((api) => api.growth(), () => DEMO_GROWTH, []);
 }

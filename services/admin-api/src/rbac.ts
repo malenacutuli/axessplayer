@@ -51,6 +51,14 @@ export type RouteKey =
   | "payouts"
   | "gdpr"
   | "moderation"
+  // Section 10-12 surfaces. monetization is the pricing-rules/config view (Finance/Admin/Owner write the
+  // pricing-edit seams; everyone reads). analytics is a BROAD READ surface (every operator role reads the
+  // dashboards; there is no analytics write). growth is the acquisition/referral/creative-test surface
+  // (Marketing/Admin/Owner write; everyone reads). A pricing edit classifies to monetization with a write
+  // method, which only the finance write roles pass; it is a 501 seam this slice.
+  | "monetization"
+  | "analytics"
+  | "growth"
   | "unknown";
 
 // Classify a request path into a policy RouteKey. Trailing-slash and id-suffix tolerant. An unrecognized
@@ -75,6 +83,11 @@ export function classifyRoute(path: string): RouteKey {
   if (clean === "/admin/payouts" || clean.startsWith("/admin/payouts/")) return "payouts";
   if (clean === "/admin/users" || clean.startsWith("/admin/users/")) return "users";
   if (clean === "/admin/creators" || clean.startsWith("/admin/creators/")) return "creators";
+  // Section 10-12. A pricing-edit path (e.g. /admin/monetization/pricing) still classifies to monetization;
+  // the write method gates it to the finance write roles, and the route is a 501 audit seam this slice.
+  if (clean === "/admin/monetization" || clean.startsWith("/admin/monetization")) return "monetization";
+  if (clean === "/admin/analytics" || clean.startsWith("/admin/analytics")) return "analytics";
+  if (clean === "/admin/growth" || clean.startsWith("/admin/growth")) return "growth";
   return "unknown";
 }
 
@@ -125,15 +138,25 @@ const NONE: Caps = { read: false, write: false };
 //     the first wired mutation inherits a reviewed gate rather than an implicit allow. Reads on these
 //     surfaces are not a thing (there is no GET /admin/gdpr); they exist only as write seams, so a GET
 //     classifies to the underlying read surface (users/creators) instead.
+//   - monetization (sections 10-12): the pricing-rules/config view. Owned by Finance for writes
+//     (monetization->Finance/Admin/Owner); everyone else reads. The only mutating routes are the 501
+//     pricing-edit seams, so write is dormant but real: the first wired pricing mutation inherits a
+//     finance-gated, audit-logged policy. Reward weights are NOT a writable capability anywhere; they are
+//     a display-only constant in the monetization payload, never a route.
+//   - analytics: a BROAD READ surface. Every operator role reads the dashboards (read-broad); there is no
+//     analytics write (the column stays dormant/READ_ONLY for all). Counterfactual lift is a band, never a
+//     point, but that is a payload concern, not an RBAC one.
+//   - growth: the acquisition/referral/creative-test surface. Owned by Marketing for writes
+//     (growth->Marketing/Admin/Owner); everyone else reads. Write is dormant this slice (read-only routes).
 const MATRIX: Record<Role, Record<Exclude<RouteKey, "unknown">, Caps>> = {
-  Owner: { me: ALL, dashboard: ALL, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: ALL, campaigns: ALL, placements: ALL, users: ALL, creators: ALL, payouts: ALL, gdpr: ALL, moderation: ALL },
-  Admin: { me: ALL, dashboard: ALL, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: ALL, campaigns: ALL, placements: ALL, users: ALL, creators: ALL, payouts: ALL, gdpr: ALL, moderation: ALL },
-  Content: { me: READ_ONLY, dashboard: READ_ONLY, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE },
-  Finance: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: ALL, gdpr: NONE, moderation: ALL },
-  Marketing: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: ALL, campaigns: ALL, placements: ALL, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE },
-  Moderation: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: ALL },
-  Support: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: ALL, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE },
-  ReadOnly: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE },
+  Owner: { me: ALL, dashboard: ALL, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: ALL, campaigns: ALL, placements: ALL, users: ALL, creators: ALL, payouts: ALL, gdpr: ALL, moderation: ALL, monetization: ALL, analytics: READ_ONLY, growth: ALL },
+  Admin: { me: ALL, dashboard: ALL, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: ALL, campaigns: ALL, placements: ALL, users: ALL, creators: ALL, payouts: ALL, gdpr: ALL, moderation: ALL, monetization: ALL, analytics: READ_ONLY, growth: ALL },
+  Content: { me: READ_ONLY, dashboard: READ_ONLY, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY },
+  Finance: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: ALL, gdpr: NONE, moderation: ALL, monetization: ALL, analytics: READ_ONLY, growth: READ_ONLY },
+  Marketing: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: ALL, campaigns: ALL, placements: ALL, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: ALL },
+  Moderation: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: ALL, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY },
+  Support: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: ALL, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY },
+  ReadOnly: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY },
 };
 
 export interface RbacDecision {
