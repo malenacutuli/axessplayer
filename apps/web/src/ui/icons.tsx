@@ -98,3 +98,14 @@ export function RotateIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+export function MapIcon(props: SVGProps<SVGSVGElement>) {
+  // A folded map: the Cuts browser affordance (see + switch the cuts available to you).
+  return (
+    <svg {...stroke(props)}>
+      <path d="M9 4 4 6v14l5-2 6 2 5-2V4l-5 2-6-2z" />
+      <path d="M9 4v14" />
+      <path d="M15 6v14" />
+    </svg>
+  );
+}

@@ -5,6 +5,7 @@
 import { loadConfig, type AppConfig } from "./config.js";
 import { createContentClient, type ContentClient } from "./api/content.js";
 import { createCatalogClient, type CatalogClient } from "./api/catalog.js";
+import { createCutsClient, type CutsClient } from "./api/cuts.js";
 import { createLibraryClient, type LibraryClient } from "./api/library.js";
 import { createEconomyClient, type EconomyClient } from "./api/economy.js";
 import { createRewardsClient, type RewardsClient } from "./api/rewards.js";
@@ -17,6 +18,8 @@ export interface Clients {
   content: ContentClient;
   // 20-V1 / 20-V3 catalog read + calibration surface (CATALOG API CONTRACT).
   catalog: CatalogClient;
+  // 20-V5 / 20-V6 premium-cut merchandising read surface (CUTS API CONTRACT).
+  cuts: CutsClient;
   // 20-V4 library: saved, favorites, downloads, history, channel-follows (LIBRARY API CONTRACT, authed).
   library: LibraryClient;
   economy: EconomyClient;
@@ -42,6 +45,12 @@ export function buildClients(opts: BuildClientsOptions): Clients {
       fetch: opts.fetch,
     }),
     catalog: createCatalogClient({
+      baseUrl: config.catalogBaseUrl,
+      session: opts.session,
+      fetch: opts.fetch,
+    }),
+    // The cuts catalog shares the catalog service origin (CUTS API CONTRACT, VITE_CATALOG_BASE_URL).
+    cuts: createCutsClient({
       baseUrl: config.catalogBaseUrl,
       session: opts.session,
       fetch: opts.fetch,

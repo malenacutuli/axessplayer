@@ -28,8 +28,14 @@ import {
 } from "../a11y/preferences.js";
 import { PaywallSheet, type PaywallChoice } from "../wallet/Paywall.js";
 import { useUnlock } from "../wallet/useUnlock.js";
+import { UnlockCutsSheet } from "../wallet/UnlockCutsSheet.js";
+import { CutsBrowser, type BrowsableCut } from "./CutsBrowser.js";
+import { BranchCountdown, type BranchChoiceOption } from "./BranchCountdown.js";
+import { LikeButton, ShareButton } from "./RailActions.js";
+import type { CutsClient, CutKind } from "../api/cuts.js";
+import type { ViewerAnalytics } from "../analytics/analytics.js";
 import { sceneVideoUrl, sceneA11y } from "../config.js";
-import { BackIcon, A11yIcon, HeartIcon, CommentIcon, RotateIcon } from "../ui/icons.js";
+import { BackIcon, A11yIcon, CommentIcon, RotateIcon, MapIcon, LockIcon } from "../ui/icons.js";
 import { useIsLandscape, requestLandscape, exitLandscape } from "./useOrientation.js";
 import { noopCapture, type CaptureClient } from "../capture/capture.js";
 import { WhyThisCut, type Adaptation } from "./WhyThisCut.js";
@@ -50,6 +56,12 @@ export interface PlayerProps {
   seriesId?: string;
   userId: string;
   startBeatId: string;
+  // 20-V5 / 20-V6: the cuts catalog client (CUTS API CONTRACT) and the viewer analytics seam. When
+  // present, the player merchandises the premium-cut sheet (the Unlock control + the Cuts browser) and
+  // emits the canonical premium_cut / unlock / cut_switched / branch / like / share events. Optional so
+  // the player still works standalone (no merchandising, no events).
+  cuts?: CutsClient;
+  analytics?: ViewerAnalytics;
   // Back to the feed.
   onBack: () => void;
   // Called when an unlock changes the balance so the shell can refresh the wallet.
@@ -77,6 +89,8 @@ export function Player({
   seriesId,
   userId,
   startBeatId,
+  cuts,
+  analytics,
   onBack,
   onBalanceChange,
   capture = noopCapture,
@@ -85,6 +99,33 @@ export function Player({
   const resolveBeatId = useMemo(() => variantToBeatResolver(graph), [graph]);
   const { state, advance, recordSignals } = usePlayer({ transport, userId, startBeatId, resolveBeatId });
   const unlock = useUnlock(economy);
+
+  // A safe analytics tracker: emits a canonical event when an analytics seam is wired, a no-op otherwise,
+  // so every 20-V6 control can call track() unconditionally (no dead ends, no guards per call site).
+  const track = useCallback<ViewerAnalytics["track"]>(
+    (name, props) => analytics?.track(name, props),
+    [analytics],
+  );
+
+  // Hydrate the owned premium cuts from the wallet entitlements ([{scope:'beat_variant', scope_id}]) so the
+  // Cuts browser marks owned cuts selectable. Best-effort: a failure leaves cuts locked, not dead-ended.
+  useEffect(() => {
+    let live = true;
+    void economy
+      .getWallet()
+      .then((w) => {
+        if (!live) return;
+        setOwnedVariants((prev) => {
+          const next = new Set(prev);
+          for (const e of w.entitlements ?? []) if (e.scope === "beat_variant") next.add(e.scope_id);
+          return next;
+        });
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [economy]);
 
   // Orientation: vertical 9:16 by default; rotate the phone (or tap the rotate button) for full-bleed
   // landscape. deviceLandscape follows the real orientation; manualLandscape is the explicit toggle.
@@ -176,6 +217,12 @@ export function Player({
   // picking a cut can never land on a seed placeholder with no media. If no real calm/tense cut exists, the
   // picker falls back to the engine's (real) cut rather than blackening the screen.
   const [branch, setBranch] = useState<Branch>("auto");
+  // The viewer's explicitly switched cut (a variant id) for the active beat, set from the Cuts browser.
+  // Overrides the branch override + engine cut while it matches the current beat. Cleared on advance.
+  const [switchedVariantId, setSwitchedVariantId] = useState<string | null>(null);
+  // Owned premium beat_variant scope ids, hydrated from the wallet so the Cuts browser marks owned cuts
+  // selectable. Seeded from the unlock hook's grant + any cut bought in the sheet.
+  const [ownedVariants, setOwnedVariants] = useState<Set<string>>(() => new Set());
   const calmVariant = useMemo(
     () =>
       graph.variants.find(
@@ -191,9 +238,17 @@ export function Player({
     [graph],
   );
 
-  // What is shown: the felt branch override if set, otherwise the engine's cut.
+  // An explicitly switched cut from the Cuts browser, valid only while it belongs to the active beat.
+  const switchedVariant = useMemo(() => {
+    if (!switchedVariantId) return undefined;
+    const v = graph.variants.find((x) => x.id === switchedVariantId);
+    return v && v.beat_id === activeBeatId ? v : undefined;
+  }, [switchedVariantId, graph, activeBeatId]);
+
+  // What is shown: an explicit cut switch wins, then the felt branch override, then the engine's cut.
   const shown: VariantNode | undefined =
-    branch === "calm" ? calmVariant ?? engineCut : branch === "tense" ? tenseVariant ?? engineCut : engineCut;
+    switchedVariant ??
+    (branch === "calm" ? calmVariant ?? engineCut : branch === "tense" ? tenseVariant ?? engineCut : engineCut);
 
   // A premium cut at the current beat the viewer has not unlocked gates playback behind the paywall.
   const premiumGate: VariantNode | undefined = useMemo(() => {
@@ -205,6 +260,9 @@ export function Player({
   const [showPaywall, setShowPaywall] = useState(false);
   const [showA11y, setShowA11y] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
+  // 20-V5 / 20-V6 sheets: the premium-cut merchandising sheet and the Cuts browser.
+  const [showUnlockCuts, setShowUnlockCuts] = useState(false);
+  const [showCutsBrowser, setShowCutsBrowser] = useState(false);
   // The DRAFT bandit's paywall presentation (path + coin packs + tiers + propensity, logged server-side).
   const [presentation, setPresentation] = useState<PaywallPresentation | null>(null);
   const [adBusy, setAdBusy] = useState(false);
@@ -456,13 +514,14 @@ export function Player({
       }
     }
     setBranch("auto");
+    setSwitchedVariantId(null);
     void advance();
   }, [currentBeatId, decisionId, onScreen?.id, capture, personalize, recordSignals, advance]);
 
   // Swipe-feed navigation: an upward swipe / wheel-down / ArrowDown advances to the next beat, inert while the
   // paywall is open, a switch is in flight, or the graph ended.
   useSwipeNavigation(playerEl, onContinue, {
-    enabled: !showPaywall && !state.advancing && !state.ended,
+    enabled: !showPaywall && !showUnlockCuts && !showCutsBrowser && !state.advancing && !state.ended,
   });
 
   // Always-available escape: Esc closes any open sheet so the player can never be trapped behind a modal.
@@ -472,6 +531,8 @@ export function Player({
         setShowWhy(false);
         setShowA11y(false);
         setShowPaywall(false);
+        setShowUnlockCuts(false);
+        setShowCutsBrowser(false);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -493,6 +554,175 @@ export function Player({
     void capture.flush();
     onBack();
   }, [capture, currentBeatId, onBack]);
+
+  // ---------- 20-V6: Cuts browser, Like / Share, branch countdown ----------
+
+  // Map a variant's substrate axis to a merchandised cut kind for the Cuts browser. Premium cuts carry a
+  // story axis; free engine/branch cuts are "base". Intensity is read off the variant's intensity column.
+  const cutKindFor = useCallback((v: VariantNode): CutKind | "base" => {
+    if (!v.is_premium) return "base";
+    // A premium cut with a high intensity is merchandised as Intensity+, otherwise as an alternate ending.
+    // POV is keyed off the tier/label convention when present; we keep this resolution conservative.
+    if (v.intensity >= 5) return "intensity";
+    return "alt_ending";
+  }, []);
+
+  // The cuts available to switch for the active beat: every real (qa passed) variant on the beat, plus the
+  // premium gate, labelled and marked owned/locked. The on-screen cut is flagged current.
+  const browsableCuts = useMemo<BrowsableCut[]>(() => {
+    const beatVariants = graph.variants.filter((v) => v.beat_id === activeBeatId);
+    const seen = new Set<string>();
+    const out: BrowsableCut[] = [];
+    for (const v of beatVariants) {
+      if (seen.has(v.id)) continue;
+      seen.add(v.id);
+      const kind = cutKindFor(v);
+      const label =
+        kind === "intensity"
+          ? "Darker, sharper"
+          : kind === "alt_ending"
+            ? "Alternate ending"
+            : kind === "pov"
+              ? "Other side"
+              : v.intensity <= 2
+                ? "Calm cut"
+                : "Tense cut";
+      out.push({
+        variantId: v.id,
+        label,
+        kind,
+        isPremium: v.is_premium,
+        owned: !v.is_premium || ownedVariants.has(v.id) || (unlocked && premiumGate?.id === v.id),
+        coinCost: v.coin_cost,
+        current: onScreen?.id === v.id,
+      });
+    }
+    return out;
+  }, [graph, activeBeatId, cutKindFor, ownedVariants, unlocked, premiumGate, onScreen?.id]);
+
+  // Switch to an owned / free cut from the Cuts browser. Emits cut_switched plus the axis-specific
+  // pov_selected / intensity_selected, then re-selects the on-screen variant (the existing player swap).
+  const onSwitchCut = useCallback(
+    (cut: BrowsableCut) => {
+      setSwitchedVariantId(cut.variantId);
+      track("cut_switched", {
+        ...(seriesId ? { seriesId } : {}),
+        beatId: activeBeatId,
+        variantId: cut.variantId,
+        props: { kind: cut.kind },
+      });
+      if (cut.kind === "pov") track("pov_selected", { ...(seriesId ? { seriesId } : {}), beatId: activeBeatId, variantId: cut.variantId });
+      if (cut.kind === "intensity") track("intensity_selected", { ...(seriesId ? { seriesId } : {}), beatId: activeBeatId, variantId: cut.variantId });
+      setShowCutsBrowser(false);
+    },
+    [track, seriesId, activeBeatId],
+  );
+
+  // A locked premium cut from the Cuts browser routes to the unlock sheet (no dead end).
+  const onUnlockFromBrowser = useCallback(() => {
+    setShowCutsBrowser(false);
+    setShowUnlockCuts(true);
+  }, []);
+
+  // A cut bought in the unlock sheet becomes playable immediately: record ownership and switch to it.
+  const onCutUnlocked = useCallback((variantId: string) => {
+    setOwnedVariants((prev) => {
+      const next = new Set(prev);
+      next.add(variantId);
+      return next;
+    });
+    onBalanceChange?.(0); // nudge the shell to refresh the wallet balance
+  }, [onBalanceChange]);
+
+  // Like: optimistic toggle + a lightweight count. The count is host-seeded (not the community layer); the
+  // toggle emits the canonical reaction event. Persistence is integration-time; the event is the signal.
+  const onLikeToggle = useCallback(
+    (liked: boolean) => {
+      track("post_liked", {
+        ...(seriesId ? { seriesId } : {}),
+        beatId: currentBeatId,
+        props: { liked },
+      });
+    },
+    [track, seriesId, currentBeatId],
+  );
+
+  // Share: a deep link to the series detail route. Emits share with the method used.
+  const shareUrl = useMemo(() => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    return seriesId ? `${origin}/series/${encodeURIComponent(seriesId)}` : origin;
+  }, [seriesId]);
+  const onShared = useCallback(
+    (method: "web_share" | "clipboard") => {
+      track("share", { ...(seriesId ? { seriesId } : {}), props: { method, surface: "player" } });
+    },
+    [track, seriesId],
+  );
+
+  // Is the active beat a branch point? The countdown ("YOUR MOVE") shows only on branch-point beats with
+  // at least two playable, non-premium cuts (the two sides of the choice).
+  const activeBeatNode = useMemo(() => graph.beats.find((b) => b.id === activeBeatId), [graph, activeBeatId]);
+  const branchChoices = useMemo<BranchChoiceOption[]>(() => {
+    if (!activeBeatNode?.is_branch_point) return [];
+    // Map the felt calm/tense cuts to the two choices. Stable ids drive the /decide signal.
+    const opts: BranchChoiceOption[] = [];
+    if (calmVariant) opts.push({ id: "calm", label: "Walk away" });
+    if (tenseVariant) opts.push({ id: "tense", label: "Hold the line" });
+    return opts.length >= 2 ? opts : [];
+  }, [activeBeatNode, calmVariant, tenseVariant]);
+  const showBranch = !unlocked && !showPaywall && !state.ended && branchChoices.length >= 2;
+
+  // Per-beat branch lifecycle: emit branch_shown once when the countdown appears, and guard the
+  // selected/expired so exactly one resolves per branch beat.
+  const branchShownFor = useRef<string | undefined>(undefined);
+  const branchResolved = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!showBranch || !currentBeatId || branchShownFor.current === currentBeatId) return;
+    branchShownFor.current = currentBeatId;
+    track("branch_shown", {
+      ...(seriesId ? { seriesId } : {}),
+      beatId: currentBeatId,
+      props: { choices: branchChoices.map((c) => c.id) },
+    });
+  }, [showBranch, currentBeatId, branchChoices, track, seriesId]);
+
+  // Viewer chose a branch: a high-information signal. Emit branch_selected, forward the choice to the
+  // decision service (recordSignals folds it into the next /decide), feel the re-cut, then advance.
+  const onBranchChoose = useCallback(
+    (choice: BranchChoiceOption, latencyMs: number) => {
+      const beat = currentBeatId;
+      if (!beat || branchResolved.current.has(beat)) return;
+      branchResolved.current.add(beat);
+      track("branch_selected", {
+        ...(seriesId ? { seriesId } : {}),
+        beatId: beat,
+        props: { choice: choice.id, latencyMs },
+      });
+      // Forward to the decision service so it changes the path (the recordSignals choice rides the next
+      // /decide). Also feel the re-cut locally via the existing branch override.
+      if (personalize) recordSignals({ choice: choice.id });
+      setBranch(choice.id === "calm" ? "calm" : "tense");
+      onContinue();
+    },
+    [currentBeatId, track, seriesId, personalize, recordSignals, onContinue],
+  );
+
+  // Timer lapsed with no choice: the engine picks the default. Emit countdown_expired, then advance so the
+  // engine's served cut continues the path (doing nothing is a valid path).
+  const onBranchExpire = useCallback(
+    (latencyMs: number) => {
+      const beat = currentBeatId;
+      if (!beat || branchResolved.current.has(beat)) return;
+      branchResolved.current.add(beat);
+      track("countdown_expired", {
+        ...(seriesId ? { seriesId } : {}),
+        beatId: beat,
+        props: { latencyMs },
+      });
+      onContinue();
+    },
+    [currentBeatId, track, seriesId, onContinue],
+  );
 
   // The Article 50 disclosure facts: what drove this cut.
   // Honest language: the cut actually on screen, not a preference guess that may not be offered.
@@ -597,16 +827,44 @@ export function Player({
         </div>
       </div>
 
-      {/* right rail */}
+      {/* right rail: Like (optimistic), comments (display), Cuts browser (map), Unlock cuts, Share, A11y */}
       <div className="prail" style={chromeStyle}>
-        <div className="rail">
-          <span className="c"><HeartIcon /></span>
-          12k
-        </div>
-        <div className="rail">
+        <LikeButton initialLiked={false} initialCount={12000} onToggle={onLikeToggle} />
+        <div className="rail" aria-hidden="true">
           <span className="c"><CommentIcon /></span>
           840
         </div>
+        {cuts && (
+          <button
+            type="button"
+            className="rail rail--cuts"
+            onClick={() => {
+              setShowUnlockCuts(false);
+              setShowCutsBrowser(true);
+            }}
+            aria-label="Cuts available to you"
+            data-testid="player-cuts-open"
+          >
+            <span className="c"><MapIcon /></span>
+            CUTS
+          </button>
+        )}
+        {cuts && analytics && seriesId && (
+          <button
+            type="button"
+            className="rail rail--unlock"
+            onClick={() => {
+              setShowCutsBrowser(false);
+              setShowUnlockCuts(true);
+            }}
+            aria-label="Unlock more of this story"
+            data-testid="player-unlock-open"
+          >
+            <span className="c"><LockIcon stroke="currentColor" /></span>
+            MORE
+          </button>
+        )}
+        <ShareButton title={graph.series.title} url={shareUrl} onShared={onShared} />
         <button
           type="button"
           className="rail"
@@ -622,8 +880,19 @@ export function Player({
       </div>
 
 
-      {/* branch picker pills: feel the per-viewer re-cut */}
-      {!unlocked && (
+      {/* Branch-point beat: the explicit "YOUR MOVE" countdown (ring timer + two choices). Doing nothing
+          lets the engine pick. Replaces the calm/tense picker on branch beats. */}
+      {showBranch && (
+        <BranchCountdown
+          choices={branchChoices}
+          prompt={beatLine}
+          onChoose={onBranchChoose}
+          onExpire={onBranchExpire}
+        />
+      )}
+
+      {/* branch picker pills: feel the per-viewer re-cut (non-branch beats only) */}
+      {!unlocked && !showBranch && (
         <div className="branchpick" role="group" aria-label="Pick the cut" style={chromeStyle}>
           <button
             type="button"
@@ -742,6 +1011,29 @@ export function Player({
       )}
 
       <WhyThisCut adaptation={adaptation} open={showWhy} onClose={() => setShowWhy(false)} />
+
+      {/* 20-V6: the Cuts browser (map icon). See + switch the cuts available to you. */}
+      {showCutsBrowser && cuts && (
+        <CutsBrowser
+          cuts={browsableCuts}
+          onSwitch={onSwitchCut}
+          onUnlock={onUnlockFromBrowser}
+          onClose={() => setShowCutsBrowser(false)}
+        />
+      )}
+
+      {/* 20-V5: the premium-cut merchandising sheet. Buying calls the EXISTING economy /spend. */}
+      {showUnlockCuts && cuts && analytics && seriesId && (
+        <UnlockCutsSheet
+          seriesId={seriesId}
+          cuts={cuts}
+          economy={economy}
+          analytics={analytics}
+          surface="player"
+          onClose={() => setShowUnlockCuts(false)}
+          onUnlocked={onCutUnlocked}
+        />
+      )}
     </div>
   );
 }

@@ -16,7 +16,10 @@ import {
 } from "@axessplayer/ui";
 import type { CatalogClient, SeriesDetail as SeriesDetailData, SeriesEpisode } from "../api/catalog.js";
 import type { LibraryClient } from "../api/library.js";
+import type { CutsClient } from "../api/cuts.js";
+import type { EconomyClient } from "../api/economy.js";
 import type { ViewerAnalytics } from "../analytics/analytics.js";
+import { UnlockCutsSheet } from "../wallet/UnlockCutsSheet.js";
 
 export interface SeriesDetailProps {
   seriesId: string;
@@ -24,6 +27,10 @@ export interface SeriesDetailProps {
   // 20-V4: the save control writes to POST /saved and reads its state back from GET /saved so the
   // "Add to list" / "Saved" toggle reflects what persisted (the Library Saved tab is the same source).
   library: LibraryClient;
+  // 20-V5: the cuts catalog + economy clients merchandise the "Unlock more of this story" sheet on
+  // detail. Optional so the page still renders without the merchandising surface wired.
+  cuts?: CutsClient;
+  economy?: EconomyClient;
   analytics: ViewerAnalytics;
   onBack: () => void;
   // Open the live adaptive player on this series (Play / unlocked episode).
@@ -35,9 +42,10 @@ type Load =
   | { status: "error"; message: string }
   | { status: "ready"; data: SeriesDetailData };
 
-export function SeriesDetail({ seriesId, catalog, library, analytics, onBack, onPlay }: SeriesDetailProps) {
+export function SeriesDetail({ seriesId, catalog, library, cuts, economy, analytics, onBack, onPlay }: SeriesDetailProps) {
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [saved, setSaved] = useState(false);
+  const [showUnlockCuts, setShowUnlockCuts] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
   // Download is an INTENT record (C12): a download is a fixed cut, not the live adaptive experience, and
   // the offline file itself is a client capability we are still building. This control POSTs /downloads to
@@ -214,6 +222,15 @@ export function SeriesDetail({ seriesId, catalog, library, analytics, onBack, on
           >
             {downloadState === "requested" ? "Download queued" : "Download"}
           </Button>
+          {cuts && economy && (
+            <Button
+              variant="ghost"
+              data-testid="series-unlock-cuts"
+              onClick={() => setShowUnlockCuts(true)}
+            >
+              Unlock more of this story
+            </Button>
+          )}
         </div>
         <p className="sd__download-note" data-testid="series-download-note">
           A download is a fixed cut, not the live adaptive experience. Downloads use wifi; find them under
@@ -267,6 +284,18 @@ export function SeriesDetail({ seriesId, catalog, library, analytics, onBack, on
           </ul>
         )}
       </div>
+
+      {/* 20-V5: the premium-cut merchandising sheet, also surfaced on series detail. */}
+      {showUnlockCuts && cuts && economy && (
+        <UnlockCutsSheet
+          seriesId={seriesId}
+          cuts={cuts}
+          economy={economy}
+          analytics={analytics}
+          surface="series_detail"
+          onClose={() => setShowUnlockCuts(false)}
+        />
+      )}
     </div>
   );
 }

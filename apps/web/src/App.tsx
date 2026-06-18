@@ -206,6 +206,8 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
             seriesId={seriesId}
             userId={userId}
             startBeatId={start.id}
+            cuts={clients.cuts}
+            analytics={analytics}
             onBack={() => setScreen("feed")}
             onBalanceChange={() => void refreshWallet()}
             capture={capture}
@@ -339,6 +341,8 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
             seriesId={seriesMatch.id}
             catalog={clients.catalog}
             library={clients.library}
+            cuts={clients.cuts}
+            economy={clients.economy}
             analytics={analytics}
             onBack={() => router.back()}
             onPlay={() => {

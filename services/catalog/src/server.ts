@@ -39,6 +39,7 @@ import {
   buildSearchCharactersQuery,
   buildSearchShowsQuery,
   buildSeriesA11yQuery,
+  buildSeriesCutsQuery,
   buildSeriesEpisodesQuery,
   buildSeriesHeaderQuery,
   buildTrendingFallbackQuery,
@@ -49,6 +50,7 @@ import {
   mapChannelRows,
   mapContinueRows,
   mapSearchResults,
+  mapSeriesCutsRows,
   mapTrendingRows,
   parseCalibrateInput,
   type Queryable,
@@ -155,6 +157,14 @@ async function handleSeriesDetail(db: Queryable, seriesId: string): Promise<Hand
   return { status: 200, body: detail };
 }
 
+async function handleSeriesCuts(db: Queryable, seriesId: string): Promise<HandlerResult> {
+  const spec = buildSeriesCutsQuery(seriesId);
+  const r = await db.query(spec.text, spec.values);
+  // Read-only: the player marks owned cuts client-side using the wallet entitlements. A series with no
+  // cut-bearing variants returns an empty array (not a 404): the resource exists, it just has no cuts.
+  return { status: 200, body: mapSeriesCutsRows(r.rows) };
+}
+
 async function handleSearch(db: Queryable, q: string): Promise<HandlerResult> {
   const trimmed = q.trim();
   if (trimmed.length === 0) {
@@ -197,6 +207,7 @@ async function handleChannelDetail(db: Queryable, channelId: string): Promise<Ha
 // ---------------------------------------------------------------------------------------------------
 
 const SERIES_DETAIL_RE = /^\/series\/([^/]+)\/detail$/;
+const SERIES_CUTS_RE = /^\/series\/([^/]+)\/cuts$/;
 const CHANNEL_DETAIL_RE = /^\/channel\/([^/]+)$/;
 
 export async function route(
@@ -245,6 +256,11 @@ export async function route(
   const detailMatch = method === "GET" ? SERIES_DETAIL_RE.exec(path) : null;
   if (detailMatch != null) {
     return handleSeriesDetail(db, decodeURIComponent(detailMatch[1]));
+  }
+
+  const cutsMatch = method === "GET" ? SERIES_CUTS_RE.exec(path) : null;
+  if (cutsMatch != null) {
+    return handleSeriesCuts(db, decodeURIComponent(cutsMatch[1]));
   }
 
   return { status: 404, body: { error: "not_found" } };

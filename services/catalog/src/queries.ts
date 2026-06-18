@@ -303,6 +303,120 @@ function toInt(v: unknown): number {
 }
 
 // ---------------------------------------------------------------------------------------------------
+// GET /series/:id/cuts : premium / alternate cuts per beat from the variant substrate.
+//
+// CUTS API CONTRACT: [{ beatId, beatLabel, cuts:[{ variantId, kind, label, coinCost, isPremium }] }].
+// We select from beat_variants joined through beats for the series, keeping only the cut-bearing variants:
+// those whose variant_kind is one of the alternate-cut kinds (alt_ending|pov|intensity) OR that are flagged
+// premium (is_premium). The master/dub/a11y/etc variants are NOT cuts and are excluded unless premium. Rows
+// are ordered by beat (beat_index) then variant id so grouping is stable; the mapper buckets them per beat.
+// Read-only, unqualified names so search_path=mobile resolves the overlay.
+// ---------------------------------------------------------------------------------------------------
+
+// The alternate-cut variant kinds the cuts endpoint surfaces. A variant qualifies as a cut when its
+// variant_kind is in this set OR it is premium (is_premium). Mirrors the contract's kind union.
+export const CUT_VARIANT_KINDS = ["alt_ending", "pov", "intensity"] as const;
+export type CutKind = (typeof CUT_VARIANT_KINDS)[number];
+
+export interface CutVariant {
+  variantId: string;
+  kind: CutKind;
+  label: string;
+  coinCost: number;
+  isPremium: boolean;
+}
+
+export interface BeatCuts {
+  beatId: string;
+  beatLabel: string;
+  cuts: CutVariant[];
+}
+
+// Select the cut-bearing variants for every beat of the series. The WHERE keeps a variant when its kind is
+// an alternate cut OR it is premium, so a premium variant of any kind still surfaces as a paid cut. Ordered
+// by beat_index then variant id for deterministic grouping. is_premium / coin_cost are coalesced to safe
+// defaults so a substrate row that left them null still maps cleanly.
+export function buildSeriesCutsQuery(seriesId: string): SqlSpec {
+  return {
+    text: `select b.id as beat_id,
+            b.beat_index as beat_index,
+            b.role as beat_role,
+            v.id as variant_id,
+            v.variant_kind as variant_kind,
+            v.axis as axis,
+            v.axis_value as axis_value,
+            coalesce(v.coin_cost, 0) as coin_cost,
+            coalesce(v.is_premium, false) as is_premium
+       from beat_variants v
+       join beats b on b.id = v.beat_id
+      where b.series_id = $1
+        and (v.variant_kind = any($2) or coalesce(v.is_premium, false) = true)
+      order by b.beat_index asc, v.id asc`,
+    values: [seriesId, Array.from(CUT_VARIANT_KINDS)],
+  };
+}
+
+// Map a raw row's variant_kind to the contract's CutKind. When the row qualified only by being premium and
+// its variant_kind is outside the cut union (e.g. master|dub|a11y|brand), we fall back to 'intensity' as the
+// neutral paid-cut kind so the contract's closed union is never violated. Pure.
+export function cutKindFromRow(variantKind: unknown): CutKind {
+  const k = typeof variantKind === "string" ? variantKind : "";
+  return (CUT_VARIANT_KINDS as readonly string[]).includes(k) ? (k as CutKind) : "intensity";
+}
+
+// Human label for a cut. Prefer the substrate axis_value (the character for a POV cut, the ending name for
+// an alt_ending, the intensity level, etc.); when absent, fall back to a title-cased variant_kind so the
+// UI always has something readable. Pure.
+export function cutLabelFromRow(axisValue: unknown, variantKind: unknown): string {
+  const v = typeof axisValue === "string" ? axisValue.trim() : "";
+  if (v.length > 0) return v;
+  const k = typeof variantKind === "string" ? variantKind : "";
+  return titleCaseKind(k);
+}
+
+// Title-case a snake/lower kind token for display ('alt_ending' -> 'Alt Ending'). Empty input -> 'Cut'.
+function titleCaseKind(kind: string): string {
+  const parts = kind.split("_").filter((p) => p.length > 0);
+  if (parts.length === 0) return "Cut";
+  return parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
+}
+
+// Human label for a beat. No dedicated label/title column exists on beats in the mobile overlay, so we
+// derive a stable label from role + beat_index ('Climax (Beat 4)'), falling back to 'Beat N' when role is
+// absent. Pure.
+export function beatLabelFromRow(role: unknown, beatIndex: unknown): string {
+  const n = toInt(beatIndex);
+  const r = typeof role === "string" ? role.trim() : "";
+  if (r.length > 0) return `${titleCaseKind(r)} (Beat ${n})`;
+  return `Beat ${n}`;
+}
+
+// Bucket the flat cut rows into per-beat groups, preserving the query's beat_index/variant ordering. The
+// first row seen for a beat sets its label; subsequent rows append their cut. Pure mapping; returns the
+// contract's BeatCuts[] shape.
+export function mapSeriesCutsRows(rows: Array<Record<string, unknown>>): BeatCuts[] {
+  const order: string[] = [];
+  const byBeat = new Map<string, BeatCuts>();
+  for (const r of rows) {
+    const beatId = String(r.beat_id);
+    let group = byBeat.get(beatId);
+    if (group == null) {
+      group = { beatId, beatLabel: beatLabelFromRow(r.beat_role, r.beat_index), cuts: [] };
+      byBeat.set(beatId, group);
+      order.push(beatId);
+    }
+    group.cuts.push({
+      variantId: String(r.variant_id),
+      kind: cutKindFromRow(r.variant_kind),
+      label: cutLabelFromRow(r.axis_value, r.variant_kind),
+      coinCost: toInt(r.coin_cost),
+      isPremium: r.is_premium === true,
+    });
+  }
+  return order.map((id) => byBeat.get(id) as BeatCuts);
+}
+
+// ---------------------------------------------------------------------------------------------------
 // GET /search?q= : series titles, character names (POV-cut axis values), and channels.
 // ---------------------------------------------------------------------------------------------------
 

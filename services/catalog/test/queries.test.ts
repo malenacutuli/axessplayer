@@ -17,7 +17,9 @@ import {
   buildSearchChannelsQuery,
   buildSearchCharactersQuery,
   buildSearchShowsQuery,
+  beatLabelFromRow,
   buildSeriesA11yQuery,
+  buildSeriesCutsQuery,
   buildSeriesEpisodesQuery,
   buildSeriesHeaderQuery,
   buildTrendingFallbackQuery,
@@ -26,11 +28,15 @@ import {
   calibrationVector,
   composeChannelDetail,
   composeSeriesDetail,
+  CUT_VARIANT_KINDS,
+  cutKindFromRow,
+  cutLabelFromRow,
   deriveAccessibilityRating,
   likePattern,
   mapChannelRows,
   mapContinueRows,
   mapSearchResults,
+  mapSeriesCutsRows,
   mapTrendingRows,
   parseCalibrateInput,
   TRENDING_EVENT_TYPES,
@@ -215,6 +221,111 @@ test("composeSeriesDetail defaults format to Series and a11y to all-false when a
   assert.deepEqual(detail.a11y, { cc: false, ad: false, sign: false, langs: 0 });
   assert.equal(detail.endingsCount, 0);
   assert.equal(detail.episodeCount, 0);
+});
+
+// --- series cuts: grouping + kind/label mapping + premium filter -----------------------------------
+
+test("buildSeriesCutsQuery filters to cut kinds OR premium, joins beats, orders for stable grouping", () => {
+  const spec = buildSeriesCutsQuery("s1");
+  assert.match(spec.text, /from beat_variants v/);
+  assert.match(spec.text, /join beats b on b\.id = v\.beat_id/);
+  // premium filter: keep cut-kind variants OR is_premium variants
+  assert.match(spec.text, /v\.variant_kind = any\(\$2\)/);
+  assert.match(spec.text, /coalesce\(v\.is_premium, false\) = true/);
+  assert.match(spec.text, /where b\.series_id = \$1/);
+  // deterministic ordering so the mapper can group in one pass
+  assert.match(spec.text, /order by b\.beat_index asc, v\.id asc/);
+  // coalesced cost/premium defaults
+  assert.match(spec.text, /coalesce\(v\.coin_cost, 0\) as coin_cost/);
+  assert.match(spec.text, /coalesce\(v\.is_premium, false\) as is_premium/);
+  assert.deepEqual(spec.values, ["s1", Array.from(CUT_VARIANT_KINDS)]);
+});
+
+test("CUT_VARIANT_KINDS is exactly the contract's alternate-cut union", () => {
+  assert.deepEqual(Array.from(CUT_VARIANT_KINDS), ["alt_ending", "pov", "intensity"]);
+});
+
+test("cutKindFromRow passes through cut kinds and falls back to intensity for premium-only non-cut kinds", () => {
+  assert.equal(cutKindFromRow("alt_ending"), "alt_ending");
+  assert.equal(cutKindFromRow("pov"), "pov");
+  assert.equal(cutKindFromRow("intensity"), "intensity");
+  // a premium master/dub/brand variant qualified by is_premium maps to the neutral paid-cut kind
+  assert.equal(cutKindFromRow("master"), "intensity");
+  assert.equal(cutKindFromRow("brand"), "intensity");
+  assert.equal(cutKindFromRow(null), "intensity");
+});
+
+test("cutLabelFromRow prefers axis_value, falls back to a title-cased kind", () => {
+  assert.equal(cutLabelFromRow("Maya", "pov"), "Maya");
+  assert.equal(cutLabelFromRow("  Diego  ", "pov"), "Diego");
+  assert.equal(cutLabelFromRow(null, "alt_ending"), "Alt Ending");
+  assert.equal(cutLabelFromRow("", "intensity"), "Intensity");
+  assert.equal(cutLabelFromRow(null, ""), "Cut");
+});
+
+test("beatLabelFromRow derives a label from role + beat_index, falling back to Beat N", () => {
+  assert.equal(beatLabelFromRow("climax", 4), "Climax (Beat 4)");
+  assert.equal(beatLabelFromRow("inciting_incident", 1), "Inciting Incident (Beat 1)");
+  assert.equal(beatLabelFromRow(null, 2), "Beat 2");
+  assert.equal(beatLabelFromRow("  ", 3), "Beat 3");
+});
+
+test("mapSeriesCutsRows groups variants per beat preserving order and maps each cut", () => {
+  const out = mapSeriesCutsRows([
+    {
+      beat_id: "b1",
+      beat_index: 1,
+      beat_role: "setup",
+      variant_id: "v1",
+      variant_kind: "pov",
+      axis: "pov",
+      axis_value: "Maya",
+      coin_cost: 20,
+      is_premium: false,
+    },
+    {
+      beat_id: "b1",
+      beat_index: 1,
+      beat_role: "setup",
+      variant_id: "v2",
+      variant_kind: "intensity",
+      axis: "intensity",
+      axis_value: null,
+      coin_cost: "0",
+      is_premium: false,
+    },
+    {
+      beat_id: "b2",
+      beat_index: 4,
+      beat_role: "climax",
+      variant_id: "v3",
+      variant_kind: "alt_ending",
+      axis: "ending",
+      axis_value: "Hopeful Ending",
+      coin_cost: 50,
+      is_premium: true,
+    },
+  ]);
+  assert.equal(out.length, 2);
+  assert.deepEqual(out[0], {
+    beatId: "b1",
+    beatLabel: "Setup (Beat 1)",
+    cuts: [
+      { variantId: "v1", kind: "pov", label: "Maya", coinCost: 20, isPremium: false },
+      { variantId: "v2", kind: "intensity", label: "Intensity", coinCost: 0, isPremium: false },
+    ],
+  });
+  assert.deepEqual(out[1], {
+    beatId: "b2",
+    beatLabel: "Climax (Beat 4)",
+    cuts: [
+      { variantId: "v3", kind: "alt_ending", label: "Hopeful Ending", coinCost: 50, isPremium: true },
+    ],
+  });
+});
+
+test("mapSeriesCutsRows returns an empty array when the series has no cut-bearing variants", () => {
+  assert.deepEqual(mapSeriesCutsRows([]), []);
 });
 
 // --- search across shows, characters (POV cuts), channels ------------------------------------------

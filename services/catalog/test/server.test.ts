@@ -144,6 +144,40 @@ test("GET /series/:id/detail is 404 when the series is unknown", async () => {
   assert.equal(res.status, 404);
 });
 
+test("GET /series/:id/cuts runs one query and returns grouped per-beat cuts (200, unauthed)", async () => {
+  const { db, calls } = fakePg([
+    [
+      {
+        beat_id: "b1",
+        beat_index: 4,
+        beat_role: "climax",
+        variant_id: "v1",
+        variant_kind: "alt_ending",
+        axis: "ending",
+        axis_value: "Hopeful Ending",
+        coin_cost: 50,
+        is_premium: true,
+      },
+    ],
+  ]);
+  const res = await route(db, verifiers, "GET", urlOf("/series/s1/cuts"), null, undefined);
+  assert.equal(res.status, 200);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].values[0], "s1");
+  const body = res.body as Array<{ beatId: string; beatLabel: string; cuts: unknown[] }>;
+  assert.equal(body.length, 1);
+  assert.equal(body[0].beatId, "b1");
+  assert.equal(body[0].beatLabel, "Climax (Beat 4)");
+  assert.equal(body[0].cuts.length, 1);
+});
+
+test("GET /series/:id/cuts returns an empty array when there are no cut-bearing variants", async () => {
+  const { db } = fakePg([[]]);
+  const res = await route(db, verifiers, "GET", urlOf("/series/s1/cuts"), null, undefined);
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body, []);
+});
+
 test("GET /search with an empty q short-circuits to empty arrays (no query)", async () => {
   const { db, calls } = fakePg([]);
   const res = await route(db, verifiers, "GET", urlOf("/search?q="), null, undefined);

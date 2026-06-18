@@ -591,3 +591,140 @@ button.toggle { border: 0; padding: 0; flex: none; cursor: pointer; appearance: 
 
 /* the adaptive badge is now a button that opens the "why this cut" disclosure */
 button.adapt { cursor: pointer; appearance: none; font: inherit; }
+
+/* ============================================================================
+   20-V5 / 20-V6: premium-cut merchandising, Cuts browser, rail actions, the
+   "YOUR MOVE" branch countdown. Rose is the focal accent; gold is reserved for
+   coins and premium. No em dashes.
+   ============================================================================ */
+
+/* Visually hidden but screen-reader available (the branch countdown live region). */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The premium-cut sheet + the Cuts browser share the .sheet bottom-sheet base, scrollable for long lists. */
+.cutsheet, .cutsbrowser { max-height: 78%; display: flex; flex-direction: column; }
+.cutsheet__head, .cutsbrowser .cutsheet__head {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+}
+.cutsheet__head h3 { margin: 0; font-size: 17px; color: var(--ink); }
+.cutsheet__close {
+  border: 0; background: transparent; color: var(--mut); cursor: pointer;
+  width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+}
+.cutsheet__close:hover { background: rgba(0,0,0,0.05); }
+.cutsheet__sub { color: var(--mut); font-size: 12.5px; margin: 0 0 12px; line-height: 1.45; }
+.cutsheet__body { overflow-y: auto; flex: 1; }
+
+.cutsheet__beat { margin-bottom: 16px; }
+.cutsheet__beat-label {
+  font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--mut); margin: 0 0 8px;
+}
+.cutsheet__cuts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.cutsheet__cut {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  border: 1px solid var(--line); border-radius: 14px; padding: 12px 13px; background: #fff;
+}
+.cutsheet__cut[data-owned="true"] { border-color: var(--rose); background: var(--rose-tint, #fff5f7); }
+.cutsheet__cut-info { flex: 1; min-width: 0; }
+.cutsheet__cut-title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.cutsheet__cut-kind { font-weight: 700; font-family: var(--font-display); font-size: 14px; color: var(--ink); }
+.cutsheet__cut-kind[data-kind="intensity"] { color: var(--rose); }
+.cutsheet__cut-kind[data-kind="alt_ending"] { color: var(--gold); }
+.cutsheet__cut-label { font-size: 12px; color: var(--mut); }
+.cutsheet__cut-blurb { font-size: 12.5px; color: var(--mut); margin: 5px 0 0; line-height: 1.4; }
+.cutsheet__cut-err { color: var(--error); font-size: 12px; margin: 6px 0 0; }
+.cutsheet__cut-action { flex: none; display: flex; align-items: center; }
+.cutsheet__buy {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--rose); color: #fff; border: 0; border-radius: 12px;
+  padding: 9px 13px; font-weight: 700; font-family: var(--font-display); font-size: 13px; cursor: pointer;
+}
+.cutsheet__buy svg { width: 14px; height: 14px; }
+.cutsheet__buy:disabled { opacity: 0.55; cursor: default; }
+.cutsheet__owned {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: var(--rose); font-weight: 700; font-size: 13px;
+}
+
+/* The Cuts browser list (switch the cut of this beat). */
+.cutsbrowser__list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+.cutsbrowser__list li { margin-bottom: 8px; }
+.cutsbrowser__item {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  border: 1px solid var(--line); border-radius: 14px; padding: 12px 13px; background: #fff;
+  cursor: pointer; text-align: left; font: inherit; color: var(--ink);
+}
+.cutsbrowser__item.is-current { border-color: var(--rose); background: var(--rose-tint, #fff5f7); cursor: default; }
+.cutsbrowser__item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cutsbrowser__axis {
+  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--mut);
+}
+.cutsbrowser__axis[data-kind="intensity"] { color: var(--rose); }
+.cutsbrowser__axis[data-kind="alt_ending"] { color: var(--gold); }
+.cutsbrowser__label { font-weight: 600; font-size: 14px; }
+.cutsbrowser__now { color: var(--rose); font-weight: 700; font-size: 12px; flex: none; }
+.cutsbrowser__switch { color: var(--mut); font-size: 12px; flex: none; }
+.cutsbrowser__locked { display: inline-flex; align-items: center; gap: 6px; color: var(--gold); flex: none; }
+.cutsbrowser__locked svg { width: 14px; height: 14px; }
+
+/* Rail action buttons (Like / Share / Cuts / More): match the existing .rail glyph chip, real buttons. */
+.rail--like, .rail--share, .rail--cuts, .rail--unlock { cursor: pointer; }
+.rail--like.is-liked .c { background: var(--rose); }
+.rail--like.is-liked svg { fill: #fff; stroke: #fff; }
+
+/* The "YOUR MOVE" branch countdown: a ring timer + two choices, over the player chrome. */
+.branchmove {
+  position: absolute;
+  left: 50%; bottom: 24vh; transform: translateX(-50%);
+  z-index: 40;
+  width: min(86%, 360px);
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  background: rgba(15, 12, 20, 0.62);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 20px;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  backdrop-filter: blur(8px);
+  color: #fff;
+}
+.branchmove__head { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.branchmove__title {
+  font-family: var(--font-display); font-weight: 800; letter-spacing: 0.14em;
+  font-size: 13px; color: #fff;
+}
+.branchmove__ring { position: relative; width: 92px; height: 92px; display: grid; place-items: center; }
+.branchmove__ring svg { width: 92px; height: 92px; }
+.branchmove__ring-track { fill: none; stroke: rgba(255,255,255,0.18); stroke-width: 8; }
+.branchmove__ring-arc {
+  fill: none; stroke: var(--rose); stroke-width: 8; stroke-linecap: round;
+  transition: stroke-dashoffset 0.1s linear;
+}
+.branchmove__seconds {
+  position: absolute; font-family: var(--font-mono); font-size: 26px; font-weight: 700; color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.branchmove__prompt { font-size: 13px; text-align: center; margin: 0; opacity: 0.9; line-height: 1.4; }
+.branchmove__choices { display: flex; gap: 10px; width: 100%; }
+.branchmove__choice {
+  flex: 1; border: 1px solid rgba(255,255,255,0.28); background: rgba(255,255,255,0.08);
+  color: #fff; border-radius: 14px; padding: 13px 10px; font-weight: 700;
+  font-family: var(--font-display); font-size: 14px; cursor: pointer;
+}
+.branchmove__choice:hover { background: var(--rose); border-color: var(--rose); }
+.branchmove__choice:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.branchmove__hint { font-size: 11px; opacity: 0.7; margin: 0; text-align: center; }
+
+/* Reduced motion: no ring sweep transition; the arc and the numeric readout still update at a coarse
+   cadence (driven by the slower timer interval). WCAG 2.2 AA. */
+@media (prefers-reduced-motion: reduce) {
+  .branchmove__ring-arc { transition: none; }
+}
+.branchmove--reduced .branchmove__ring-arc { transition: none; }
