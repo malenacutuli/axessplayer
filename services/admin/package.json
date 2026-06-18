@@ -1,5 +1,5 @@
 {
-  "name": "@axessplayer/admin",
+  "name": "@axessplayer/admin-core",
   "version": "0.0.0",
   "private": true,
   "type": "module",
