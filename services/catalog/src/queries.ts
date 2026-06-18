@@ -385,3 +385,156 @@ export function mapSearchResults(
     })),
   };
 }
+
+// ---------------------------------------------------------------------------------------------------
+// GET /channels : the channel rail. Each channel joined to series_channels for its showCount.
+// ---------------------------------------------------------------------------------------------------
+
+export interface ChannelSummary {
+  id: string;
+  slug: string;
+  name: string;
+  genres: string[];
+  heroUrl: string | null;
+  showCount: number;
+}
+
+// All channels with their show count. LEFT JOIN series_channels so a channel with zero mapped series
+// still appears (showCount 0). count(sc.series_id) counts only the joined rows (NULL on the empty side is
+// not counted), giving the real mapping count. hero_url is the channel's own art column on the mobile
+// overlay; genres is its text[] tag column. Ordered by name for a stable rail.
+export function buildChannelsQuery(): SqlSpec {
+  return {
+    text: `select c.id as id,
+            c.slug as slug,
+            c.name as name,
+            coalesce(c.genres, '{}') as genres,
+            c.hero_url as hero_url,
+            count(sc.series_id) as show_count
+       from channels c
+       left join series_channels sc on sc.channel_id = c.id
+      group by c.id, c.slug, c.name, c.genres, c.hero_url
+      order by c.name asc`,
+    values: [],
+  };
+}
+
+// Coerce a pg text[] / array-ish value into a string[]. node-postgres returns a JS array for text[]; we
+// also tolerate null (-> []) and defensively map non-array scalars to []. Pure helper.
+function toStringArray(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v.map((x) => String(x));
+}
+
+export function mapChannelRows(rows: Array<Record<string, unknown>>): ChannelSummary[] {
+  return rows.map((r) => ({
+    id: String(r.id),
+    slug: String(r.slug ?? ""),
+    name: String(r.name ?? ""),
+    genres: toStringArray(r.genres),
+    heroUrl: r.hero_url == null ? null : String(r.hero_url),
+    showCount: toInt(r.show_count),
+  }));
+}
+
+// ---------------------------------------------------------------------------------------------------
+// GET /channel/:id : channel header + its series, each with a derived rating/episode count + a11y badges.
+// ---------------------------------------------------------------------------------------------------
+
+export interface ChannelSeriesItem {
+  seriesId: string;
+  title: string;
+  poster: string | null;
+  rating: number;
+  episodes: number;
+  badges: { cc: boolean; ad: boolean; sign: boolean };
+}
+
+export interface ChannelDetail {
+  id: string;
+  name: string;
+  heroUrl: string | null;
+  showCount: number;
+  series: ChannelSeriesItem[];
+}
+
+// Channel header. Single row; the route answers 404 when it is absent.
+export function buildChannelHeaderQuery(channelId: string): SqlSpec {
+  return {
+    text: `select c.id as id,
+            c.name as name,
+            c.hero_url as hero_url
+       from channels c
+      where c.id = $1`,
+    values: [channelId],
+  };
+}
+
+// The series mapped to a channel, with the per-series derivations the card needs, computed in one pass:
+//   - poster from series.poster_url with cover_url fallback (mirrors the rest of the catalog),
+//   - episodes = count of distinct episodes in the series,
+//   - rating derived from accessibility coverage (no rating column exists in the overlay): a base of 3.5
+//     plus 0.5 per present a11y track (cc/ad/sign), capped at 5.0, so richer-access titles surface higher,
+//   - badges cc/ad/sign from beat_variants track-URL presence (same derivation as series detail), via the
+//     beats -> beat_variants join. LEFT JOINs so a series with no episodes/variants still appears.
+// Grouped per series; ordered by title for a stable grid.
+export function buildChannelSeriesQuery(channelId: string): SqlSpec {
+  return {
+    text: `select s.id as series_id,
+            s.title as title,
+            coalesce(s.poster_url, s.cover_url) as poster,
+            count(distinct e.id) as episode_count,
+            bool_or(v.caption_doc_url is not null) as has_cc,
+            bool_or(v.audio_description_url is not null) as has_ad,
+            bool_or(v.sign_video_url is not null) as has_sign
+       from series_channels sc
+       join series s on s.id = sc.series_id
+       left join episodes e on e.series_id = s.id
+       left join beats b on b.series_id = s.id
+       left join beat_variants v on v.beat_id = b.id
+      where sc.channel_id = $1
+      group by s.id, s.title, poster
+      order by s.title asc`,
+    values: [channelId],
+  };
+}
+
+// Derive a 0..5 rating from accessibility coverage. No rating column exists in the mobile overlay, so the
+// catalog derives a stable, deterministic rating that rewards access depth: base 3.5, +0.5 per present
+// track, capped at 5.0. Pure.
+export function deriveAccessibilityRating(cc: boolean, ad: boolean, sign: boolean): number {
+  const present = (cc ? 1 : 0) + (ad ? 1 : 0) + (sign ? 1 : 0);
+  const rating = 3.5 + present * 0.5;
+  return Math.min(5, rating);
+}
+
+// Compose the channel detail from the header + series result sets. Returns null when the header is absent
+// so the route can answer 404. showCount is the count of mapped series returned (the channel/:id payload's
+// own series array length), consistent with the rail's showCount derivation.
+export function composeChannelDetail(
+  headerRows: Array<Record<string, unknown>>,
+  seriesRows: Array<Record<string, unknown>>
+): ChannelDetail | null {
+  const h = headerRows[0];
+  if (h == null) return null;
+  const series = seriesRows.map((r) => {
+    const cc = r.has_cc === true;
+    const ad = r.has_ad === true;
+    const sign = r.has_sign === true;
+    return {
+      seriesId: String(r.series_id),
+      title: String(r.title ?? ""),
+      poster: r.poster == null ? null : String(r.poster),
+      rating: deriveAccessibilityRating(cc, ad, sign),
+      episodes: toInt(r.episode_count),
+      badges: { cc, ad, sign },
+    };
+  });
+  return {
+    id: String(h.id),
+    name: String(h.name ?? ""),
+    heroUrl: h.hero_url == null ? null : String(h.hero_url),
+    showCount: series.length,
+    series,
+  };
+}

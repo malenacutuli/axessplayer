@@ -28,7 +28,7 @@ function assertNoUserId(body: unknown): void {
 }
 
 export interface RequestOptions {
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
   // JSON body for POST. Validated against the F1 rule before serialization.
   body?: unknown;
   // Injectable for tests; defaults to the global fetch.

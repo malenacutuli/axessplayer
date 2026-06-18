@@ -97,12 +97,46 @@ export interface SearchResults {
   channels: SearchChannel[];
 }
 
+// ---- GET /channels ---------------------------------------------------------
+// The channels grid (20-V2). Contract: [{id,slug,name,genres[],heroUrl,showCount}].
+export interface ChannelSummary {
+  id: string;
+  slug: string;
+  name: string;
+  genres: string[];
+  heroUrl: string | null;
+  showCount: number;
+}
+
+// ---- GET /channel/:id ------------------------------------------------------
+// The channel detail page. Contract: {id,name,heroUrl,showCount,series:[{seriesId,title,poster,
+// rating,episodes,badges:{cc,ad,sign}}]}.
+export interface ChannelSeries {
+  seriesId: string;
+  title: string;
+  poster: string | null;
+  rating: number | null;
+  episodes: number;
+  badges: { cc: boolean; ad: boolean; sign: boolean };
+}
+
+export interface ChannelDetail {
+  id: string;
+  name: string;
+  heroUrl: string | null;
+  showCount: number;
+  series: ChannelSeries[];
+}
+
 export interface CatalogClient {
   calibrate(body: CalibrateBody): Promise<CalibrateResult>;
   getContinue(): Promise<ContinueItem[]>;
   getTrending(): Promise<TrendingItem[]>;
   getSeriesDetail(seriesId: string): Promise<SeriesDetail>;
   search(q: string): Promise<SearchResults>;
+  // 20-V2 channels.
+  getChannels(): Promise<ChannelSummary[]>;
+  getChannel(channelId: string): Promise<ChannelDetail>;
 }
 
 export interface CatalogClientOptions {
@@ -155,6 +189,50 @@ export function createCatalogClient(opts: CatalogClientOptions): CatalogClient {
         shows: raw.shows ?? [],
         characters: raw.characters ?? [],
         channels: raw.channels ?? [],
+      };
+    },
+    async getChannels(): Promise<ChannelSummary[]> {
+      const raw = await apiFetch<ChannelSummary[] | { channels: ChannelSummary[] }>(
+        baseUrl,
+        "/channels",
+        session,
+        { fetch: opts.fetch },
+      );
+      const list = Array.isArray(raw) ? raw : (raw.channels ?? []);
+      // Normalize so a sparse contract response still typechecks at the surface.
+      return list.map((c) => ({
+        id: c.id,
+        slug: c.slug,
+        name: c.name,
+        genres: c.genres ?? [],
+        heroUrl: c.heroUrl ?? null,
+        showCount: c.showCount ?? 0,
+      }));
+    },
+    async getChannel(channelId: string): Promise<ChannelDetail> {
+      const raw = await apiFetch<ChannelDetail>(
+        baseUrl,
+        `/channel/${encodeURIComponent(channelId)}`,
+        session,
+        { fetch: opts.fetch },
+      );
+      return {
+        id: raw.id,
+        name: raw.name,
+        heroUrl: raw.heroUrl ?? null,
+        showCount: raw.showCount ?? 0,
+        series: (raw.series ?? []).map((s) => ({
+          seriesId: s.seriesId,
+          title: s.title,
+          poster: s.poster ?? null,
+          rating: s.rating ?? null,
+          episodes: s.episodes ?? 0,
+          badges: {
+            cc: s.badges?.cc ?? false,
+            ad: s.badges?.ad ?? false,
+            sign: s.badges?.sign ?? false,
+          },
+        })),
       };
     },
   };

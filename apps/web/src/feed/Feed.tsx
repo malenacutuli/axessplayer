@@ -14,6 +14,8 @@ export interface FeedProps {
   onOpen: (seriesId: string) => void;
   // The live coin balance for the header pill (null while loading).
   coins: number | null;
+  // Open the channels grid route (20-V2). Optional so the feed still renders in isolation.
+  onOpenChannels?: () => void;
 }
 
 // A stable gradient per series id, so a series without a poster still gets a consistent card color.
@@ -24,7 +26,7 @@ function gradientFor(id: string): string {
   return GRADIENTS[h % GRADIENTS.length];
 }
 
-export function Feed({ feed, onOpen, coins }: FeedProps) {
+export function Feed({ feed, onOpen, coins, onOpenChannels }: FeedProps) {
   const [index, setIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -54,9 +56,16 @@ export function Feed({ feed, onOpen, coins }: FeedProps) {
     <>
       <div className="feedhead">
         <span className="t">For you</span>
-        <span className="coins" data-testid="feed-coins" aria-label={`${coins ?? 0} coins`}>
-          <span className="g" aria-hidden="true" />
-          {coins ?? "…"}
+        <span className="feedhead__actions">
+          {onOpenChannels && (
+            <button type="button" className="feedhead__channels" onClick={onOpenChannels} data-testid="feed-channels-open">
+              Channels
+            </button>
+          )}
+          <span className="coins" data-testid="feed-coins" aria-label={`${coins ?? 0} coins`}>
+            <span className="g" aria-hidden="true" />
+            {coins ?? "…"}
+          </span>
         </span>
       </div>
 

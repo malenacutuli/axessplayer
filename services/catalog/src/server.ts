@@ -31,6 +31,9 @@ import pg from "pg";
 import { parseBearer, testVerifiers, type Verifiers } from "./http/auth.js";
 import {
   buildCalibrateUpsert,
+  buildChannelHeaderQuery,
+  buildChannelSeriesQuery,
+  buildChannelsQuery,
   buildContinueQuery,
   buildSearchChannelsQuery,
   buildSearchCharactersQuery,
@@ -41,7 +44,9 @@ import {
   buildTrendingFallbackQuery,
   buildTrendingQuery,
   calibratePayoff,
+  composeChannelDetail,
   composeSeriesDetail,
+  mapChannelRows,
   mapContinueRows,
   mapSearchResults,
   mapTrendingRows,
@@ -166,12 +171,33 @@ async function handleSearch(db: Queryable, q: string): Promise<HandlerResult> {
   return { status: 200, body: mapSearchResults(sRes.rows, chRes.rows, clRes.rows) };
 }
 
+async function handleChannels(db: Queryable): Promise<HandlerResult> {
+  const spec = buildChannelsQuery();
+  const r = await db.query(spec.text, spec.values);
+  return { status: 200, body: mapChannelRows(r.rows) };
+}
+
+async function handleChannelDetail(db: Queryable, channelId: string): Promise<HandlerResult> {
+  const header = buildChannelHeaderQuery(channelId);
+  const series = buildChannelSeriesQuery(channelId);
+  const [hRes, sRes] = await Promise.all([
+    db.query(header.text, header.values),
+    db.query(series.text, series.values),
+  ]);
+  const detail = composeChannelDetail(hRes.rows, sRes.rows);
+  if (detail == null) {
+    return { status: 404, body: { error: "not_found" } };
+  }
+  return { status: 200, body: detail };
+}
+
 // ---------------------------------------------------------------------------------------------------
 // Request router. Dispatches by method + path, enforces the session trust boundary on the authed routes,
 // and returns a structured 401/404/400 with the same no-store cache posture the other services use.
 // ---------------------------------------------------------------------------------------------------
 
 const SERIES_DETAIL_RE = /^\/series\/([^/]+)\/detail$/;
+const CHANNEL_DETAIL_RE = /^\/channel\/([^/]+)$/;
 
 export async function route(
   db: Queryable,
@@ -205,6 +231,15 @@ export async function route(
 
   if (method === "GET" && path === "/search") {
     return handleSearch(db, url.searchParams.get("q") ?? "");
+  }
+
+  if (method === "GET" && path === "/channels") {
+    return handleChannels(db);
+  }
+
+  const channelMatch = method === "GET" ? CHANNEL_DETAIL_RE.exec(path) : null;
+  if (channelMatch != null) {
+    return handleChannelDetail(db, decodeURIComponent(channelMatch[1]));
   }
 
   const detailMatch = method === "GET" ? SERIES_DETAIL_RE.exec(path) : null;

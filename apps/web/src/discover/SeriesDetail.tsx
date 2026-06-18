@@ -15,11 +15,15 @@ import {
   ErrorState,
 } from "@axessplayer/ui";
 import type { CatalogClient, SeriesDetail as SeriesDetailData, SeriesEpisode } from "../api/catalog.js";
+import type { LibraryClient } from "../api/library.js";
 import type { ViewerAnalytics } from "../analytics/analytics.js";
 
 export interface SeriesDetailProps {
   seriesId: string;
   catalog: CatalogClient;
+  // 20-V4: the save control writes to POST /saved and reads its state back from GET /saved so the
+  // "Add to list" / "Saved" toggle reflects what persisted (the Library Saved tab is the same source).
+  library: LibraryClient;
   analytics: ViewerAnalytics;
   onBack: () => void;
   // Open the live adaptive player on this series (Play / unlocked episode).
@@ -31,9 +35,14 @@ type Load =
   | { status: "error"; message: string }
   | { status: "ready"; data: SeriesDetailData };
 
-export function SeriesDetail({ seriesId, catalog, analytics, onBack, onPlay }: SeriesDetailProps) {
+export function SeriesDetail({ seriesId, catalog, library, analytics, onBack, onPlay }: SeriesDetailProps) {
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [saved, setSaved] = useState(false);
+  const [saveBusy, setSaveBusy] = useState(false);
+  // Download is an INTENT record (C12): a download is a fixed cut, not the live adaptive experience, and
+  // the offline file itself is a client capability we are still building. This control POSTs /downloads to
+  // record the intent and flips status; it does not fake an offline player.
+  const [downloadState, setDownloadState] = useState<"idle" | "busy" | "requested">("idle");
 
   const fetchDetail = useCallback(() => {
     setLoad({ status: "loading" });
@@ -46,21 +55,64 @@ export function SeriesDetail({ seriesId, catalog, analytics, onBack, onPlay }: S
         if (live) setLoad({ status: "error", message: err instanceof Error ? err.message : "Could not load" });
       }
     })();
+    // Hydrate the saved state from the server so the toggle reflects what persisted. Best-effort: a
+    // failure leaves the control in its default (not saved) and never blocks the page.
+    void (async () => {
+      try {
+        const items = await library.getSaved();
+        if (live) setSaved(items.some((s) => s.seriesId === seriesId));
+      } catch {
+        // best-effort
+      }
+    })();
     return () => {
       live = false;
     };
-  }, [catalog, seriesId]);
+  }, [catalog, library, seriesId]);
 
   useEffect(() => fetchDetail(), [fetchDetail]);
 
-  // Optimistic add-to-list. Save / unsave are the canonical taxonomy events.
-  const toggleSave = useCallback(() => {
-    setSaved((prev) => {
-      const next = !prev;
-      analytics.track(next ? "save" : "unsave", { seriesId });
-      return next;
-    });
-  }, [analytics, seriesId]);
+  // Add-to-list, persisted via POST /saved (or DELETE /saved/:id). Optimistic, then re-read from the
+  // server so the control never lies about the persisted state. Save / unsave are the canonical events.
+  const toggleSave = useCallback(async () => {
+    if (saveBusy) return;
+    setSaveBusy(true);
+    const next = !saved;
+    setSaved(next);
+    try {
+      if (next) {
+        await library.saveSeries(seriesId);
+        analytics.track("save", { seriesId });
+      } else {
+        await library.unsaveSeries(seriesId);
+        analytics.track("unsave", { seriesId });
+      }
+      const items = await library.getSaved();
+      setSaved(items.some((s) => s.seriesId === seriesId));
+    } catch {
+      // Roll back on failure.
+      setSaved(!next);
+    } finally {
+      setSaveBusy(false);
+    }
+  }, [analytics, library, saveBusy, saved, seriesId]);
+
+  // Record download intent. Posts the current episode ids (a fixed cut) to /downloads and emits the
+  // canonical download_started event. The actual offline packaging is a client stub for now.
+  const requestDownload = useCallback(
+    async (episodeIds: string[]) => {
+      if (downloadState !== "idle") return;
+      setDownloadState("busy");
+      try {
+        await library.startDownload(seriesId, episodeIds);
+        analytics.track("download_started", { seriesId, props: { episodeIds } });
+        setDownloadState("requested");
+      } catch {
+        setDownloadState("idle");
+      }
+    },
+    [analytics, downloadState, library, seriesId],
+  );
 
   if (load.status === "loading") {
     return (
@@ -149,11 +201,24 @@ export function SeriesDetail({ seriesId, catalog, analytics, onBack, onPlay }: S
             variant={saved ? "secondary" : "ghost"}
             aria-pressed={saved}
             data-testid="series-save"
-            onClick={toggleSave}
+            disabled={saveBusy}
+            onClick={() => void toggleSave()}
           >
             {saved ? "Saved" : "Add to list"}
           </Button>
+          <Button
+            variant="ghost"
+            data-testid="series-download"
+            disabled={downloadState !== "idle" || d.episodes.length === 0}
+            onClick={() => void requestDownload(d.episodes.map((e) => e.id))}
+          >
+            {downloadState === "requested" ? "Download queued" : "Download"}
+          </Button>
         </div>
+        <p className="sd__download-note" data-testid="series-download-note">
+          A download is a fixed cut, not the live adaptive experience. Downloads use wifi; find them under
+          Library, Downloads.
+        </p>
 
         <h2 className="sd__episodes-title">Episodes</h2>
         {d.episodes.length === 0 ? (

@@ -26,6 +26,8 @@ import { Home as Discover } from "./discover/Home.js";
 import { SeriesDetail } from "./discover/SeriesDetail.js";
 import { Search } from "./discover/Search.js";
 import { Channel } from "./discover/Channel.js";
+import { Channels } from "./discover/Channels.js";
+import { Library, type LibraryTab } from "./library/Library.js";
 
 export interface AppProps {
   clients: Clients;
@@ -238,7 +240,12 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
           <div className="feedhead">
             <span className="t">You</span>
           </div>
-          <Profile name={viewerName} coins={coins} consent={consent} />
+          <Profile
+            name={viewerName}
+            coins={coins}
+            consent={consent}
+            onOpenLibrary={(tab) => router.navigate(`/library?tab=${tab}`)}
+          />
           <BottomNav active="you" onNavigate={onNavigate} />
         </div>
       );
@@ -248,7 +255,12 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
     return (
       <div className="scr" data-testid="screen-feed">
         <StatusBar />
-        <Feed feed={feed} coins={coins} onOpen={(id) => void openSeries(id)} />
+        <Feed
+          feed={feed}
+          coins={coins}
+          onOpen={(id) => void openSeries(id)}
+          onOpenChannels={() => router.navigate("/channels")}
+        />
         <BottomNav active="home" onNavigate={onNavigate} />
       </div>
     );
@@ -295,6 +307,7 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
             }}
             onOpenSeries={openSeriesDetail}
             onOpenSearch={() => router.navigate("/search")}
+            onOpenChannels={() => router.navigate("/channels")}
           />
           <BottomNav active="home" onNavigate={onNavigate} />
         </div>
@@ -325,6 +338,7 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
           <SeriesDetail
             seriesId={seriesMatch.id}
             catalog={clients.catalog}
+            library={clients.library}
             analytics={analytics}
             onBack={() => router.back()}
             onPlay={() => {
@@ -336,12 +350,55 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
       );
     }
 
+    if (path === "/channels") {
+      return (
+        <div className="scr" data-testid="route-channels">
+          <StatusBar />
+          <Channels
+            catalog={clients.catalog}
+            onOpenChannel={(id) => router.navigate(`/channel/${encodeURIComponent(id)}`)}
+          />
+          <BottomNav active="home" onNavigate={onNavigate} />
+        </div>
+      );
+    }
+
     const channelMatch = matchPath("/channel/:id", path);
     if (channelMatch) {
       return (
         <div className="scr" data-testid="route-channel">
           <StatusBar />
-          <Channel channelId={channelMatch.id} analytics={analytics} onBack={() => router.back()} />
+          <Channel
+            channelId={channelMatch.id}
+            catalog={clients.catalog}
+            library={clients.library}
+            analytics={analytics}
+            onBack={() => router.back()}
+            onOpenSeries={openSeriesDetail}
+          />
+        </div>
+      );
+    }
+
+    if (path === "/library") {
+      const tabParam = router.query.get("tab");
+      const validTabs: LibraryTab[] = ["saved", "downloads", "history", "favorites"];
+      const initialTab = validTabs.includes(tabParam as LibraryTab) ? (tabParam as LibraryTab) : "saved";
+      return (
+        <div className="scr" data-testid="route-library">
+          <StatusBar />
+          <Library
+            library={clients.library}
+            analytics={analytics}
+            initialTab={initialTab}
+            onBack={() => router.back()}
+            onOpenSeries={openSeriesDetail}
+            onResume={(id) => {
+              router.navigate("/");
+              void openSeries(id);
+            }}
+          />
+          <BottomNav active="you" onNavigate={onNavigate} />
         </div>
       );
     }

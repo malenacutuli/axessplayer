@@ -18,6 +18,8 @@ function stubCatalog(calibrate = vi.fn(async () => ({ summary: "slow burn, your 
     getTrending: vi.fn(async () => []),
     getSeriesDetail: vi.fn(),
     search: vi.fn(async () => ({ shows: [], characters: [], channels: [] })),
+    getChannels: vi.fn(async () => []),
+    getChannel: vi.fn(),
   };
   return { client, calibrate };
 }

@@ -5,6 +5,7 @@
 import { loadConfig, type AppConfig } from "./config.js";
 import { createContentClient, type ContentClient } from "./api/content.js";
 import { createCatalogClient, type CatalogClient } from "./api/catalog.js";
+import { createLibraryClient, type LibraryClient } from "./api/library.js";
 import { createEconomyClient, type EconomyClient } from "./api/economy.js";
 import { createRewardsClient, type RewardsClient } from "./api/rewards.js";
 import { createWebTransport } from "./player/webTransport.js";
@@ -16,6 +17,8 @@ export interface Clients {
   content: ContentClient;
   // 20-V1 / 20-V3 catalog read + calibration surface (CATALOG API CONTRACT).
   catalog: CatalogClient;
+  // 20-V4 library: saved, favorites, downloads, history, channel-follows (LIBRARY API CONTRACT, authed).
+  library: LibraryClient;
   economy: EconomyClient;
   // Server-side reward callbacks (rewarded ad, check-in, follow). The browser never mints coins.
   rewards: RewardsClient;
@@ -40,6 +43,11 @@ export function buildClients(opts: BuildClientsOptions): Clients {
     }),
     catalog: createCatalogClient({
       baseUrl: config.catalogBaseUrl,
+      session: opts.session,
+      fetch: opts.fetch,
+    }),
+    library: createLibraryClient({
+      baseUrl: config.libraryBaseUrl,
       session: opts.session,
       fetch: opts.fetch,
     }),

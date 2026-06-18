@@ -14,6 +14,9 @@ export interface AppConfig {
   // 20-V1 / 20-V3 catalog service (calibrate, continue, trending, series detail, search). Base from
   // VITE_CATALOG_BASE_URL. Defaults to the same-origin "/catalog" prefix forwarded by the Vite dev proxy.
   catalogBaseUrl: string;
+  // 20-V4 library service (saved, favorites, downloads, history, channel-follows). All authed. Base from
+  // VITE_LIBRARY_BASE_URL. Defaults to the same-origin "/library" prefix forwarded by the Vite dev proxy.
+  libraryBaseUrl: string;
 }
 
 // import.meta.env is typed by vite/client; we read defensively so tests and SSR-less builds work.
@@ -39,6 +42,9 @@ export function loadConfig(env: EnvBag = readEnv()): AppConfig {
     // Default to the same-origin "/catalog" prefix forwarded by the Vite dev proxy. A deployed build
     // overrides this with the absolute catalog origin (VITE_CATALOG_BASE_URL).
     catalogBaseUrl: env.VITE_CATALOG_BASE_URL ?? "/catalog",
+    // Default to the same-origin "/library" prefix forwarded by the Vite dev proxy. A deployed build
+    // overrides this with the absolute library origin (VITE_LIBRARY_BASE_URL).
+    libraryBaseUrl: env.VITE_LIBRARY_BASE_URL ?? "/library",
   };
 }
 

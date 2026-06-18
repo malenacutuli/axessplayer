@@ -10,6 +10,9 @@ import assert from "node:assert/strict";
 import {
   ACCOUNT_SERIES_SENTINEL,
   buildCalibrateUpsert,
+  buildChannelHeaderQuery,
+  buildChannelSeriesQuery,
+  buildChannelsQuery,
   buildContinueQuery,
   buildSearchChannelsQuery,
   buildSearchCharactersQuery,
@@ -21,8 +24,11 @@ import {
   buildTrendingQuery,
   calibratePayoff,
   calibrationVector,
+  composeChannelDetail,
   composeSeriesDetail,
+  deriveAccessibilityRating,
   likePattern,
+  mapChannelRows,
   mapContinueRows,
   mapSearchResults,
   mapTrendingRows,
@@ -253,6 +259,96 @@ test("mapSearchResults maps the three result sets into the contract shape", () =
 });
 
 // --- builders run against the fake pg (smoke: the spec round-trips through query()) ----------------
+
+// --- channels rail: showCount join ------------------------------------------------------------------
+
+test("buildChannelsQuery left-joins series_channels and counts mapped series per channel", () => {
+  const spec = buildChannelsQuery();
+  assert.match(spec.text, /from channels c/);
+  assert.match(spec.text, /left join series_channels sc on sc\.channel_id = c\.id/);
+  assert.match(spec.text, /count\(sc\.series_id\) as show_count/);
+  assert.match(spec.text, /group by c\.id/);
+  assert.match(spec.text, /order by c\.name asc/);
+  assert.deepEqual(spec.values, []);
+});
+
+test("mapChannelRows maps the rail fields, coerces genres[] and showCount, tolerates nulls", () => {
+  const out = mapChannelRows([
+    { id: "c1", slug: "crime", name: "Crime", genres: ["Crime", "Thriller"], hero_url: "h1", show_count: "4" },
+    { id: "c2", slug: "doc", name: "Docs", genres: null, hero_url: null, show_count: 0 },
+  ]);
+  assert.deepEqual(out, [
+    { id: "c1", slug: "crime", name: "Crime", genres: ["Crime", "Thriller"], heroUrl: "h1", showCount: 4 },
+    { id: "c2", slug: "doc", name: "Docs", genres: [], heroUrl: null, showCount: 0 },
+  ]);
+});
+
+// --- channel detail: series join + rating/episodes + badge derivation -------------------------------
+
+test("buildChannelHeaderQuery selects the single channel header", () => {
+  const spec = buildChannelHeaderQuery("c1");
+  assert.match(spec.text, /from channels c/);
+  assert.match(spec.text, /where c\.id = \$1/);
+  assert.deepEqual(spec.values, ["c1"]);
+});
+
+test("buildChannelSeriesQuery joins series_channels->series, counts episodes, derives a11y badges", () => {
+  const spec = buildChannelSeriesQuery("c1");
+  assert.match(spec.text, /from series_channels sc/);
+  assert.match(spec.text, /join series s on s\.id = sc\.series_id/);
+  assert.match(spec.text, /left join episodes e on e\.series_id = s\.id/);
+  assert.match(spec.text, /left join beats b on b\.series_id = s\.id/);
+  assert.match(spec.text, /left join beat_variants v on v\.beat_id = b\.id/);
+  assert.match(spec.text, /count\(distinct e\.id\) as episode_count/);
+  assert.match(spec.text, /bool_or\(v\.caption_doc_url is not null\) as has_cc/);
+  assert.match(spec.text, /bool_or\(v\.audio_description_url is not null\) as has_ad/);
+  assert.match(spec.text, /bool_or\(v\.sign_video_url is not null\) as has_sign/);
+  assert.match(spec.text, /coalesce\(s\.poster_url, s\.cover_url\) as poster/);
+  assert.match(spec.text, /where sc\.channel_id = \$1/);
+  assert.deepEqual(spec.values, ["c1"]);
+});
+
+test("deriveAccessibilityRating starts at 3.5 and adds 0.5 per track, capped at 5", () => {
+  assert.equal(deriveAccessibilityRating(false, false, false), 3.5);
+  assert.equal(deriveAccessibilityRating(true, false, false), 4);
+  assert.equal(deriveAccessibilityRating(true, true, false), 4.5);
+  assert.equal(deriveAccessibilityRating(true, true, true), 5);
+});
+
+test("composeChannelDetail builds the header + series with badges, rating, episodes, showCount", () => {
+  const detail = composeChannelDetail(
+    [{ id: "c1", name: "Crime", hero_url: "h1" }],
+    [
+      { series_id: "s1", title: "Show A", poster: "p1", episode_count: 6, has_cc: true, has_ad: true, has_sign: false },
+      { series_id: "s2", title: "Show B", poster: null, episode_count: "0", has_cc: false, has_ad: false, has_sign: false },
+    ]
+  );
+  assert.ok(detail);
+  assert.equal(detail.id, "c1");
+  assert.equal(detail.name, "Crime");
+  assert.equal(detail.heroUrl, "h1");
+  assert.equal(detail.showCount, 2);
+  assert.deepEqual(detail.series[0], {
+    seriesId: "s1",
+    title: "Show A",
+    poster: "p1",
+    rating: 4.5,
+    episodes: 6,
+    badges: { cc: true, ad: true, sign: false },
+  });
+  assert.deepEqual(detail.series[1], {
+    seriesId: "s2",
+    title: "Show B",
+    poster: null,
+    rating: 3.5,
+    episodes: 0,
+    badges: { cc: false, ad: false, sign: false },
+  });
+});
+
+test("composeChannelDetail returns null when the channel header is absent (404 path)", () => {
+  assert.equal(composeChannelDetail([], []), null);
+});
 
 test("a builder spec round-trips through the fake pg query() unchanged", async () => {
   const { db, calls } = fakePg([[{ id: "s1", title: "Show", poster: null, genre: null, format: "Film" }]]);

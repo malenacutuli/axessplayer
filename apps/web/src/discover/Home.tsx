@@ -19,11 +19,13 @@ export interface HomeProps {
   onOpenSeries: (seriesId: string) => void;
   // Open the search route.
   onOpenSearch: () => void;
+  // Open the channels grid route (20-V2).
+  onOpenChannels: () => void;
 }
 
 type Load<T> = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; data: T };
 
-export function Home({ catalog, analytics, coins, onResume, onOpenSeries, onOpenSearch }: HomeProps) {
+export function Home({ catalog, analytics, coins, onResume, onOpenSeries, onOpenSearch, onOpenChannels }: HomeProps) {
   const [cont, setCont] = useState<Load<ContinueItem[]>>({ status: "loading" });
   const [trend, setTrend] = useState<Load<TrendingItem[]>>({ status: "loading" });
 
@@ -60,6 +62,13 @@ export function Home({ catalog, analytics, coins, onResume, onOpenSeries, onOpen
       <button type="button" className="dsc__searchbar" onClick={onOpenSearch} data-testid="discover-search-open">
         <SearchGlyph />
         <span>Search shows, characters, channels</span>
+      </button>
+
+      <button type="button" className="dsc__channels-link" onClick={onOpenChannels} data-testid="discover-channels-open">
+        <span>Browse channels</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
 
       <section className="dsc__rail" aria-labelledby="rail-continue">
