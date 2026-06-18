@@ -1,12 +1,27 @@
-# Render Blueprint for the full Axessplayer stack: the Node/Hono services (Docker) bound to the hosted
-# Supabase mobile schema, plus the consumer + Studio static sites. Connect once: Render dashboard -> New ->
-# Blueprint -> pick the github.com/malenacutuli/axessplayer repo -> Apply. Then set the sync:false secrets in
-# the dashboard (DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ECONOMY_SERVICE_SECRET) and the VITE_*_BASE_URL on
-# the static sites to the assigned service URLs (or the api.humanaaxess.com subdomains once DNS is mapped).
-# Server secrets NEVER ship to the browser; only VITE_ public vars are in the static-site env. No em dashes.
+# Render Blueprint for the Axessplayer backend (Node services on Docker, bound to the hosted Supabase mobile
+# schema). The frontends (viewer, studio, admin, gallery) are on Vercel, not Render. After a Blueprint sync,
+# set ONE secret in the dashboard: the axessplayer-shared env group's DATABASE_URL (the Supabase SESSION
+# pooler string), plus the per-service sync:false secrets on the 5 original services. Server secrets never
+# ship to a browser. No em dashes.
+
+envVarGroups:
+  # Shared by the newer services (all read the hosted mobile schema with the same pooler + staging verifier).
+  # Set DATABASE_URL once here and every linked service inherits it.
+  - name: axessplayer-shared
+    envVars:
+      # staging, NOT production: the newer services hard-stop under NODE_ENV=production (the real JWKS verifier
+      # is a flagged cutover gate); staging uses the session-token verifier the apps send. QA-grade auth.
+      - key: NODE_ENV
+        value: staging
+      - key: DB_OPTIONS
+        value: "-c search_path=mobile,public"
+      - key: SUPABASE_URL
+        value: https://faeyekynudyzeotbjfsj.supabase.co
+      - key: DATABASE_URL
+        sync: false
 
 services:
-  # ---------------- backend services (Docker, bound to hosted Supabase mobile schema) ----------------
+  # ================= original 5 services (unchanged, already live) =================
   - type: web
     name: axessplayer-content
     runtime: docker
@@ -36,11 +51,6 @@ services:
     plan: starter
     region: oregon
     envVars:
-      # staging, NOT production: decision/economy hard-stop under NODE_ENV=production because real JWKS auth
-      # is a flagged cutover gate that is not implemented (services/decision/src/server.ts selectVerifiers).
-      # staging uses the session-token verifier the app actually sends (VITE_SESSION_TOKEN=session:<uuid>).
-      # This is a QA deployment with demo auth, not a production-secure launch. Flip to production only once a
-      # real JWKS verifier is wired and injected. No em dashes.
       - key: NODE_ENV
         value: staging
       - key: DB_OPTIONS
@@ -56,10 +66,6 @@ services:
     plan: starter
     region: oregon
     envVars:
-      # staging, NOT production: same JWKS cutover gate as decision (services/economy/src/server.ts). staging
-      # uses the session-token verifier so the ledger is reachable for QA. The economy service guards the coin
-      # ledger; under the demo verifier any session:<uuid> is accepted, so this is QA-grade auth only. Stripe
-      # stays TEST and revenue extraction is off regardless. Flip to production only with a real JWKS verifier.
       - key: NODE_ENV
         value: staging
       - key: DB_OPTIONS
@@ -96,7 +102,6 @@ services:
         value: production
       - key: ECONOMY_SERVICE_SECRET
         sync: false
-      # Service-to-service over Render internal networking.
       - key: ECONOMY_BASE_URL
         fromService:
           type: web
@@ -108,38 +113,93 @@ services:
           name: axessplayer-content
           property: hostport
 
-  # ---------------- frontends (static, built from the monorepo) ----------------
+  # ================= new services (QA wiring; share the axessplayer-shared env group) =================
   - type: web
-    name: axessplayer-web
-    runtime: static
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm gen && pnpm --filter @axessplayer/web build
-    staticPublishPath: ./apps/web/dist
+    name: axessplayer-identity
+    runtime: docker
+    dockerfilePath: ./services/identity/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
     envVars:
-      # Set these to the assigned backend URLs (or api.humanaaxess.com subdomains after DNS). Public only.
-      - key: VITE_CONTENT_BASE_URL
-        sync: false
-      - key: VITE_ECONOMY_BASE_URL
-        sync: false
-      - key: VITE_DECISION_BASE_URL
-        sync: false
-      - key: VITE_MANIFEST_BASE_URL
-        sync: false
-      - key: VITE_SESSION_TOKEN
-        sync: false
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
+      - fromGroup: axessplayer-shared
 
   - type: web
-    name: axessplayer-studio
-    runtime: static
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm gen && pnpm --filter @axessplayer/studio build
-    staticPublishPath: ./apps/studio/dist
+    name: axessplayer-catalog
+    runtime: docker
+    dockerfilePath: ./services/catalog/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
     envVars:
-      - key: VITE_CONTENT_BASE_URL
-        sync: false
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
+      - fromGroup: axessplayer-shared
+
+  - type: web
+    name: axessplayer-library
+    runtime: docker
+    dockerfilePath: ./services/library/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    envVars:
+      - fromGroup: axessplayer-shared
+
+  - type: web
+    name: axessplayer-experiment
+    runtime: docker
+    dockerfilePath: ./services/experiment/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    envVars:
+      - fromGroup: axessplayer-shared
+
+  - type: web
+    name: axessplayer-ingestion
+    runtime: docker
+    dockerfilePath: ./services/ingestion/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    envVars:
+      - fromGroup: axessplayer-shared
+
+  - type: web
+    name: axessplayer-admin-api
+    runtime: docker
+    dockerfilePath: ./services/admin-api/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    envVars:
+      - fromGroup: axessplayer-shared
+
+  - type: web
+    name: axessplayer-brand
+    runtime: docker
+    dockerfilePath: ./services/brand/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    envVars:
+      - fromGroup: axessplayer-shared
+
+  - type: web
+    name: axessplayer-recap
+    runtime: docker
+    dockerfilePath: ./services/recap/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    envVars:
+      - fromGroup: axessplayer-shared
+
+  - type: web
+    name: axessplayer-events
+    runtime: docker
+    dockerfilePath: ./services/events/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    envVars:
+      - fromGroup: axessplayer-shared

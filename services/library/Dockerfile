@@ -1,7 +1,6 @@
 # syntax=docker/dockerfile:1
-# Multi-stage image for @axessplayer/experiment. Runs the ONLINE serving tier (src/online/serve.ts): A/B
-# assignment, creative + poster CTR bandit, ending tests. Built from the REPO ROOT context so pnpm resolves
-# the whole workspace. Mirrors services/recap/Dockerfile with WORKDIR /app/services/experiment. No em dashes.
+# Multi-stage image for @axessplayer/library. Built from the REPO ROOT context so pnpm resolves the whole
+# workspace. Mirrors services/recap/Dockerfile with WORKDIR /app/services/library. No em dashes.
 
 FROM node:20-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm
@@ -21,12 +20,12 @@ RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
 RUN pnpm gen
-RUN pnpm --filter @axessplayer/experiment typecheck
+RUN pnpm --filter @axessplayer/library typecheck
 
 FROM base AS runtime
 ENV NODE_ENV=production
 COPY --from=build /app /app
-ENV PORT=8098
-EXPOSE 8098
-WORKDIR /app/services/experiment
-CMD ["node", "--import", "tsx", "src/online/serve.ts"]
+ENV PORT=8101
+EXPOSE 8101
+WORKDIR /app/services/library
+CMD ["node", "--import", "tsx", "src/serve.ts"]
