@@ -23,16 +23,29 @@ import { DEFAULT_EPSILON } from "../config.js";
 import {
   REWARD_WEIGHTS_SIGNED_OFF,
   getWeights,
-  armFromStats,
+  ctr,
   type Arm,
 } from "../bandit-core.js";
 import { assignDeterministic, assignBandit, type Variant } from "../assign.js";
 import { type ExperimentStore } from "../store.js";
+import {
+  type PosterCandidateStore,
+  type PosterSet,
+  UnwiredPosterCandidateStore,
+  candidateArms,
+  posterArmId,
+  posterIdFromArm,
+  fallbackCandidate,
+  type PosterCandidate,
+} from "../poster-candidates.js";
 import { parseBearer, type SessionVerifier } from "./auth.js";
 
 export interface AppDeps {
   store: ExperimentStore;
   session: SessionVerifier;
+  // The 25-D2 poster candidate store. Optional: when absent the UNWIRED store is used, so the candidate
+  // read is empty (source "unwired") and /poster/select falls back to the single series poster_url.
+  posterCandidates?: PosterCandidateStore;
 }
 
 // A framework-free result: status, JSON body. The node:http bridge writes it out. Keeping the router a
@@ -48,24 +61,30 @@ function isAccessibilityFirst(id: string): boolean {
   return id.startsWith("a11y:");
 }
 
-// Build the poster arm set from the requested ids plus the store's measured stats, pinning the
-// accessibility-first variant alwaysEligible. Reward (CTR) is carried but gated downstream.
-async function posterArms(
-  store: ExperimentStore,
-  experiment: string,
-  ids: string[]
-): Promise<Arm[]> {
-  const arms: Arm[] = [];
-  for (const id of ids) {
-    const s = await store.stats(experiment, id);
-    arms.push(
-      armFromStats(id, s, {
-        eligible: true,
-        ...(isAccessibilityFirst(id) ? { alwaysEligible: true } : {}),
-      })
-    );
-  }
-  return arms;
+// The shipped (unwired) poster candidate store, used when AppDeps does not inject one. Resolves every
+// series to an empty set with source "unwired", so /poster/select falls back to the single series poster.
+const UNWIRED_CANDIDATES = new UnwiredPosterCandidateStore();
+
+// Build the per-arm reward (CTR) lookup for a poster SET from the store's measured stats, and prime the
+// bandit arm set with accessibility-first candidates pinned alwaysEligible. Reward is carried but GATED:
+// epsilonGreedy ignores rewardEstimate while unsigned, so a measured CTR never moves the choice. Stats are
+// read once up front so candidateArms() can map each arm id to its smoothed CTR synchronously.
+function posterRewardLookup(store: ExperimentStore, experiment: string) {
+  return {
+    async prime(set: PosterSet): Promise<Arm[]> {
+      const reward = new Map<string, number>();
+      for (const c of set.candidates) {
+        const id = posterArmId(set.seriesId, c);
+        reward.set(id, ctr(await store.stats(experiment, id)));
+      }
+      return candidateArms(set, (id) => reward.get(id) ?? ctr(emptyArmStats()));
+    },
+  };
+}
+
+// A zero-impression stats reads as the neutral smoothed prior. Local to avoid importing emptyStats twice.
+function emptyArmStats() {
+  return { impressions: 0, clicks: 0, conversions: 0, cost: 0 };
 }
 
 // Route a parsed request to a result. Pure over (method, path, query, body, deps): no socket, no clock.
@@ -86,16 +105,61 @@ export async function route(
     return json(200, { signedOff: REWARD_WEIGHTS_SIGNED_OFF, weights: getWeights() });
   }
 
-  // GET /poster/select?set=a,b,c&experiment=...  choose a poster, accessibility-first always eligible.
+  // GET /poster/candidates/:seriesId  read the poster SET for a series. Empty + source "unwired" until the
+  // additive mobile.poster_candidates table is applied. NEVER fabricated.
+  if (method === "GET" && pathname.startsWith("/poster/candidates/")) {
+    const seriesId = decodeURIComponent(pathname.slice("/poster/candidates/".length)).trim();
+    if (seriesId.length === 0) {
+      return json(400, { error: "invalid_request", detail: "seriesId is required" });
+    }
+    const candidateStore = deps.posterCandidates ?? UNWIRED_CANDIDATES;
+    const set = await candidateStore.resolve(seriesId);
+    return json(200, { seriesId, candidates: set.candidates, source: set.source });
+  }
+
+  // GET /poster/select?set=<seriesId>&unit=<viewerId>  choose ONE poster from the series' candidate SET via
+  // the learned-CTR epsilon-greedy bandit (25-D2). The accessibility-first candidate is ALWAYS eligible and
+  // is the guaranteed fallback. Until the candidate table is applied the SET is empty, so we fall back to the
+  // single series poster_url (passed as posterUrl, treated as the accessibility-first variant).
   if (method === "GET" && pathname === "/poster/select") {
-    const set = (query.get("set") ?? "").split(",").map((s) => s.trim()).filter((s) => s.length > 0);
-    const experiment = query.get("experiment") ?? "poster-default";
-    const unit = query.get("unit") ?? "anon";
-    if (set.length === 0) return json(400, { error: "invalid_request", detail: "set is required" });
-    const arms = await posterArms(deps.store, experiment, set);
+    const seriesId = (query.get("set") ?? query.get("series") ?? "").trim();
+    const unit = (query.get("unit") ?? "anon").trim() || "anon";
+    if (seriesId.length === 0) {
+      return json(400, { error: "invalid_request", detail: "set (seriesId) is required" });
+    }
+    // The bandit namespace for this series' poster test. CTR is keyed on (seriesId, posterId, viewer) via
+    // this experiment id plus the per-candidate arm id, so two series never share a poster's counters.
+    const experiment = query.get("experiment") ?? `poster:${seriesId}`;
+    const candidateStore = deps.posterCandidates ?? UNWIRED_CANDIDATES;
+    let set = await candidateStore.resolve(seriesId);
+
+    // Fallback: no candidate SET (table unwired or series has none). Serve the single series poster_url as
+    // the accessibility-first candidate. posterUrl is supplied by the caller (this tier has no series DB);
+    // when absent the fallback candidate still resolves with an empty url, flagged source "fallback".
+    if (set.candidates.length === 0) {
+      const posterUrl = (query.get("posterUrl") ?? "").trim();
+      set = {
+        seriesId,
+        candidates: [fallbackCandidate(seriesId, posterUrl)],
+        source: "fallback",
+      };
+    }
+
+    // Reward (CTR) per arm from the store. Gated downstream: epsilonGreedy ignores it while unsigned.
+    const rewardFor = posterRewardLookup(deps.store, experiment);
+    const arms = await rewardFor.prime(set);
     const sel = assignBandit(unit, experiment, arms, epsilonOf(query.get("epsilon")));
+    const posterId = posterIdFromArm(seriesId, sel.chosen);
+    const chosen = set.candidates.find((c) => posterArmId(seriesId, c) === sel.chosen) ?? null;
+
     return json(200, {
-      poster: sel.chosen,
+      seriesId,
+      // The chosen poster, mapped back to the candidate the caller serves.
+      posterId,
+      url: chosen?.url ?? null,
+      armId: sel.chosen,
+      accessibilityFirst: chosen?.accessibilityFirst ?? false,
+      source: set.source,
       propensity: sel.propensity,
       explored: sel.explored,
       rewardApplied: sel.rewardApplied,
@@ -154,18 +218,29 @@ export async function route(
     return json(200, { ...a, ending: a.variant });
   }
 
-  // Creative + poster event logging. armId is the creative/poster id. experiment namespaces the bandit.
-  if (pathname === "/creative/impression" || pathname === "/poster/impression") {
+  // Creative event logging. armId is the creative id. experiment namespaces the bandit.
+  if (pathname === "/creative/impression") {
     const { experiment, armId, err } = eventArgs(b);
     if (err) return err;
     await deps.store.recordImpression(experiment, armId);
     return json(200, { ok: true });
   }
-  if (pathname === "/poster/click") {
-    const { experiment, armId, err } = eventArgs(b);
-    if (err) return err;
-    await deps.store.recordClick(experiment, armId);
-    return json(200, { ok: true });
+
+  // Poster event logging (25-D2). Keys on (seriesId, posterId, viewer): the bandit experiment namespace is
+  // poster:<seriesId> and the arm id is the per-candidate arm derived from (seriesId, posterId), so a
+  // poster's CTR never leaks across series. The viewer is logged for propensity-honest off-policy eval (the
+  // counter itself is per-arm; per-viewer dedupe is the caller's idempotency concern). Feeds the same
+  // epsilon-greedy bandit /poster/select reads.
+  if (pathname === "/poster/impression" || pathname === "/poster/click") {
+    const candidateStore = deps.posterCandidates ?? UNWIRED_CANDIDATES;
+    const args = await posterEventArgs(b, candidateStore);
+    if (args.err) return args.err;
+    if (pathname === "/poster/impression") {
+      await deps.store.recordImpression(args.experiment, args.armId);
+    } else {
+      await deps.store.recordClick(args.experiment, args.armId);
+    }
+    return json(200, { ok: true, experiment: args.experiment, armId: args.armId });
   }
   if (pathname === "/creative/outcome") {
     const { experiment, armId, err } = eventArgs(b);
@@ -202,6 +277,48 @@ function eventArgs(b: Record<string, unknown>): { experiment: string; armId: str
     return { experiment: "", armId: "", err: json(400, { error: "invalid_request", detail: "experiment and armId required" }) };
   }
   return { experiment, armId, err: null };
+}
+
+// Validate a poster impression/click event and derive its bandit key, keyed on (seriesId, posterId,
+// viewer). The experiment namespace is poster:<seriesId>; the arm id is the per-candidate arm derived from
+// (seriesId, posterId, accessibilityFirst). The arm MUST match the one /poster/select chose so the CTR
+// feeds the right counter, so the accessibility-first flag is resolved from the candidate store when the
+// series has a SET (the viewer-side client need not echo it). The body flag is honored as a fallback (e.g.
+// the unwired fallback candidate). Backward-compatible: an explicit experiment + armId still works.
+async function posterEventArgs(
+  b: Record<string, unknown>,
+  candidateStore: PosterCandidateStore
+): Promise<{ experiment: string; armId: string; err: HttpResult | null }> {
+  // Legacy/explicit path: experiment + armId supplied verbatim.
+  const explicitExperiment = str(b.experiment);
+  const explicitArm = str(b.armId ?? b.arm_id);
+  if (explicitExperiment != null && explicitArm != null) {
+    return { experiment: explicitExperiment, armId: explicitArm, err: null };
+  }
+  // 25-D2 path: derive from (seriesId, posterId).
+  const seriesId = str(b.seriesId ?? b.series ?? b.set);
+  const posterId = str(b.posterId ?? b.poster);
+  if (seriesId == null || posterId == null) {
+    return {
+      experiment: "",
+      armId: "",
+      err: json(400, { error: "invalid_request", detail: "seriesId and posterId required" }),
+    };
+  }
+  // Resolve the accessibility-first flag from the stored SET so the arm id matches selection exactly. Fall
+  // back to the request flag when the series has no candidate row for this posterId.
+  const set = await candidateStore.resolve(seriesId);
+  const stored = set.candidates.find((c) => c.posterId === posterId);
+  const accessibilityFirst = stored?.accessibilityFirst ?? b.accessibilityFirst === true;
+  const candidate: PosterCandidate = {
+    posterId,
+    url: "",
+    emotion: null,
+    character: null,
+    language: null,
+    accessibilityFirst,
+  };
+  return { experiment: `poster:${seriesId}`, armId: posterArmId(seriesId, candidate), err: null };
 }
 
 function parseVariants(raw: unknown): Variant[] | null {

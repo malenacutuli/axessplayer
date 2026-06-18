@@ -33,6 +33,7 @@ function clientsFor(server: ReturnType<typeof createMockServer>) {
       identityBaseUrl: BASE,
       catalogBaseUrl: BASE,
       libraryBaseUrl: BASE,
+      experimentBaseUrl: BASE,
     },
   });
 }

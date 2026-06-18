@@ -6,6 +6,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FeedItem } from "../api/content.js";
+import type { ExperimentClient } from "../api/experiment.js";
+import { useAdaptivePoster } from "../experiment/useAdaptivePoster.js";
 
 export interface FeedProps {
   // Published series from GET /feed (newest first).
@@ -16,6 +18,12 @@ export interface FeedProps {
   coins: number | null;
   // Open the channels grid route (20-V2). Optional so the feed still renders in isolation.
   onOpenChannels?: () => void;
+  // 25-D2: the experiment client serves a per-viewer poster from the series poster SET and logs the
+  // impression/click. Optional so the feed still renders in isolation (tests, no experiment plane); when
+  // absent, the existing series.poster_url is used unchanged.
+  experiment?: ExperimentClient;
+  // The session or viewer unit the poster selection is served to and logged against.
+  unit?: string;
 }
 
 // A stable gradient per series id, so a series without a poster still gets a consistent card color.
@@ -26,7 +34,7 @@ function gradientFor(id: string): string {
   return GRADIENTS[h % GRADIENTS.length];
 }
 
-export function Feed({ feed, onOpen, coins, onOpenChannels }: FeedProps) {
+export function Feed({ feed, onOpen, coins, onOpenChannels, experiment, unit }: FeedProps) {
   const [index, setIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -83,56 +91,107 @@ export function Feed({ feed, onOpen, coins, onOpenChannels }: FeedProps) {
           tabIndex={0}
           data-testid="feed"
         >
-          {feed.map((item, i) => {
-            const caption = capCase(item.genre ?? "") || "Series";
-            return (
-              <div
-                key={item.id}
-                id={`feed-item-${item.id}`}
-                role="option"
-                aria-selected={i === index}
-                className="card"
-                onMouseEnter={() => setIndex(i)}
-              >
-                <button
-                  type="button"
-                  className="card"
-                  onClick={() => {
-                    setIndex(i);
-                    onOpen(item.id);
-                  }}
-                  data-testid={`feed-open-${item.id}`}
-                  aria-label={`${item.title}. ${caption}`}
-                >
-                  <div
-                    className={`ph ${item.poster_url ? "" : gradientFor(item.id)}`}
-                    style={
-                      item.poster_url
-                        ? { backgroundImage: `url(${item.poster_url})`, backgroundSize: "cover", backgroundPosition: "center" }
-                        : undefined
-                    }
-                    data-testid={`feed-poster-${item.id}`}
-                    data-poster-url={item.poster_url ?? ""}
-                  >
-                    <div className="badge">
-                      <span className="dot" aria-hidden="true" />
-                      Adapts to you
-                    </div>
-                    <div className="meta">
-                      <div className="ti">{item.title}</div>
-                    </div>
-                  </div>
-                  <div className="cap">
-                    <span className="g">{caption}</span>
-                    <span className="g">▶ live</span>
-                  </div>
-                </button>
-              </div>
-            );
-          })}
+          {feed.map((item, i) => (
+            <FeedCard
+              key={item.id}
+              item={item}
+              selected={i === index}
+              onHover={() => setIndex(i)}
+              onOpen={() => {
+                setIndex(i);
+                onOpen(item.id);
+              }}
+              experiment={experiment}
+              unit={unit}
+            />
+          ))}
         </div>
       )}
     </>
+  );
+}
+
+// A no-op experiment client so FeedCard can call the adaptive-poster hook unconditionally (Rules of
+// Hooks) even when the feed is rendered without an experiment plane. It resolves to the fallback poster
+// and swallows logging, so the card behaves exactly as before. No em dashes.
+const NOOP_EXPERIMENT: ExperimentClient = {
+  async selectPoster() {
+    return null;
+  },
+  async logImpression() {
+    /* no-op */
+  },
+  async logClick() {
+    /* no-op */
+  },
+};
+
+interface FeedCardProps {
+  item: FeedItem;
+  selected: boolean;
+  onHover: () => void;
+  onOpen: () => void;
+  experiment?: ExperimentClient;
+  unit?: string;
+}
+
+function FeedCard({ item, selected, onHover, onOpen, experiment, unit }: FeedCardProps) {
+  const caption = capCase(item.genre ?? "") || "Series";
+  // 25-D2: request the per-viewer poster for this series, falling back to item.poster_url. The hook is
+  // always called (Rules of Hooks); without an experiment plane it resolves to the fallback unchanged.
+  const poster = useAdaptivePoster<HTMLDivElement>({
+    experiment: experiment ?? NOOP_EXPERIMENT,
+    seriesId: item.id,
+    unit: unit ?? "",
+    fallbackUrl: item.poster_url,
+  });
+
+  return (
+    <div
+      id={`feed-item-${item.id}`}
+      role="option"
+      aria-selected={selected}
+      className="card"
+      onMouseEnter={onHover}
+    >
+      <button
+        type="button"
+        className="card"
+        onClick={() => {
+          poster.onActivate();
+          onOpen();
+        }}
+        data-testid={`feed-open-${item.id}`}
+        aria-label={`${item.title}. ${caption}`}
+      >
+        <div
+          ref={poster.ref}
+          className={`ph ${poster.posterUrl ? "" : gradientFor(item.id)}`}
+          style={
+            poster.posterUrl
+              ? { backgroundImage: `url(${poster.posterUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
+              : undefined
+          }
+          data-testid={`feed-poster-${item.id}`}
+          data-poster-url={poster.posterUrl ?? ""}
+          data-poster-id={poster.posterId ?? ""}
+        >
+          <div className="badge">
+            <span className="dot" aria-hidden="true" />
+            Adapts to you
+          </div>
+          <div className="meta">
+            <div className="ti">{item.title}</div>
+          </div>
+        </div>
+        <div className="cap">
+          <span className="g">{caption}</span>
+          <span className="g" aria-hidden="true">
+            ▶ live
+          </span>
+        </div>
+      </button>
+    </div>
   );
 }
 

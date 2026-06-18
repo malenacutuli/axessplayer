@@ -17,6 +17,10 @@ export interface AppConfig {
   // 20-V4 library service (saved, favorites, downloads, history, channel-follows). All authed. Base from
   // VITE_LIBRARY_BASE_URL. Defaults to the same-origin "/library" prefix forwarded by the Vite dev proxy.
   libraryBaseUrl: string;
+  // 25-D2 decision/experiment plane (per-viewer poster selection + impression/click logging). Base from
+  // VITE_EXPERIMENT_BASE_URL. Defaults to the same-origin "/experiment" prefix forwarded by the Vite dev
+  // proxy; the UI falls back to series.poster_url whenever the service is unreachable or the set is empty.
+  experimentBaseUrl: string;
 }
 
 // import.meta.env is typed by vite/client; we read defensively so tests and SSR-less builds work.
@@ -45,6 +49,9 @@ export function loadConfig(env: EnvBag = readEnv()): AppConfig {
     // Default to the same-origin "/library" prefix forwarded by the Vite dev proxy. A deployed build
     // overrides this with the absolute library origin (VITE_LIBRARY_BASE_URL).
     libraryBaseUrl: env.VITE_LIBRARY_BASE_URL ?? "/library",
+    // Default to the same-origin "/experiment" prefix forwarded by the Vite dev proxy. A deployed build
+    // overrides this with the absolute experiment origin (VITE_EXPERIMENT_BASE_URL).
+    experimentBaseUrl: env.VITE_EXPERIMENT_BASE_URL ?? "/experiment",
   };
 }
 

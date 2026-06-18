@@ -21,6 +21,7 @@ import pg from "pg";
 import { DEFAULT_PORT } from "./config.js";
 import { route, readJsonBody, parseUrl, type AppDeps } from "./http/app.js";
 import { InMemoryExperimentStore } from "./store.js";
+import { UnwiredPosterCandidateStore } from "./poster-candidates.js";
 import { testSessionVerifier } from "./http/auth.js";
 
 export interface ExperimentServerConfig {
@@ -39,7 +40,15 @@ export function readConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Experim
 // and the in-memory store. The pool is accepted so a pg-backed store can replace the in-memory one
 // without touching the bridge.
 export function buildDeps(_pool?: pg.Pool): AppDeps {
-  return { store: new InMemoryExperimentStore(), session: testSessionVerifier() };
+  // The poster candidate store is the UNWIRED store until 09_poster_candidates.sql is applied: the candidate
+  // read returns an empty set (source "unwired") and /poster/select falls back to the single series poster.
+  // A pg-backed store reading mobile.poster_candidates replaces this once the table is applied, without
+  // touching the router or the bandit core.
+  return {
+    store: new InMemoryExperimentStore(),
+    session: testSessionVerifier(),
+    posterCandidates: new UnwiredPosterCandidateStore(),
+  };
 }
 
 async function writeResult(res: ServerResponse, status: number, body: unknown): Promise<void> {

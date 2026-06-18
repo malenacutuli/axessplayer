@@ -22,6 +22,7 @@ import {
 import { assignDeterministic, assignBandit } from "./assign.js";
 import { route, type AppDeps } from "./http/app.js";
 import { InMemoryExperimentStore } from "./store.js";
+import { InMemoryPosterCandidateStore } from "./poster-candidates.js";
 import { testSessionVerifier } from "./http/auth.js";
 
 // ---- the gate: weights are NOT signed off, and are display-only ----
@@ -177,20 +178,28 @@ test("a11y: an accessibility-first variant is always eligible even when marked i
   assert.equal(pool[0].id, "a11y:high-contrast");
 });
 
-test("a11y: poster select keeps the accessibility-first variant in the running", async () => {
-  const deps = mkDeps();
+test("a11y: poster select keeps the accessibility-first variant in the running (25-D2 contract)", async () => {
+  // 25-D2: /poster/select takes set=<seriesId> and resolves the candidate SET from the candidate store.
+  const store = new InMemoryExperimentStore();
+  const posterCandidates = new InMemoryPosterCandidateStore();
+  posterCandidates.set("series-x", [
+    { posterId: "glossy", url: "https://cdn/glossy.jpg", emotion: null, character: null, language: null, accessibilityFirst: false },
+    { posterId: "hc", url: "https://cdn/hc.jpg", emotion: null, character: null, language: null, accessibilityFirst: true },
+  ]);
+  const deps: AppDeps = { store, posterCandidates, session: testSessionVerifier() };
   // Give the glossy poster a huge measured CTR; while unsigned it must not be able to evict the a11y one.
   for (let i = 0; i < 100; i++) {
-    await deps.store.recordImpression("poster-exp", "glossy");
-    await deps.store.recordClick("poster-exp", "glossy");
+    await deps.store.recordImpression("poster:series-x", "series-x:glossy");
+    await deps.store.recordClick("poster:series-x", "series-x:glossy");
   }
-  const q = new URLSearchParams({ set: "a11y:hc,glossy", experiment: "poster-exp", unit: "u1", epsilon: "0" });
+  const q = new URLSearchParams({ set: "series-x", unit: "u1", epsilon: "0" });
   const res = await route("GET", "/poster/select", q, undefined, null, deps);
   assert.equal(res.status, 200);
-  const body = res.body as { poster: string; rewardApplied: boolean };
-  // Exploit branch, reward not applied while unsigned -> lowest id wins -> "a11y:hc".
+  const body = res.body as { posterId: string; accessibilityFirst: boolean; rewardApplied: boolean };
+  // Exploit branch, reward not applied while unsigned -> lowest arm id wins -> the a11y candidate.
   assert.equal(body.rewardApplied, false);
-  assert.equal(body.poster, "a11y:hc");
+  assert.equal(body.posterId, "hc");
+  assert.equal(body.accessibilityFirst, true);
 });
 
 // ---- ctr / cpa helpers ----

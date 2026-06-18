@@ -18,8 +18,25 @@ import type { CatalogClient, SeriesDetail as SeriesDetailData, SeriesEpisode } f
 import type { LibraryClient } from "../api/library.js";
 import type { CutsClient } from "../api/cuts.js";
 import type { EconomyClient } from "../api/economy.js";
+import type { ExperimentClient } from "../api/experiment.js";
 import type { ViewerAnalytics } from "../analytics/analytics.js";
+import { useAdaptivePoster } from "../experiment/useAdaptivePoster.js";
 import { UnlockCutsSheet } from "../wallet/UnlockCutsSheet.js";
+
+// A no-op experiment client so the hero can call the adaptive-poster hook unconditionally (Rules of
+// Hooks) even when the page is rendered without an experiment plane. Resolves to the fallback hero and
+// swallows logging, so the hero behaves exactly as before. No em dashes.
+const NOOP_EXPERIMENT: ExperimentClient = {
+  async selectPoster() {
+    return null;
+  },
+  async logImpression() {
+    /* no-op */
+  },
+  async logClick() {
+    /* no-op */
+  },
+};
 
 export interface SeriesDetailProps {
   seriesId: string;
@@ -32,6 +49,11 @@ export interface SeriesDetailProps {
   cuts?: CutsClient;
   economy?: EconomyClient;
   analytics: ViewerAnalytics;
+  // 25-D2: per-viewer poster selection + impression/click logging for the merchandising hero. Optional so
+  // the page still renders in isolation; when absent, the catalog hero is used unchanged.
+  experiment?: ExperimentClient;
+  // The session or viewer unit the poster selection is served to and logged against.
+  unit?: string;
   onBack: () => void;
   // Open the live adaptive player on this series (Play / unlocked episode).
   onPlay: (episode: SeriesEpisode) => void;
@@ -42,7 +64,7 @@ type Load =
   | { status: "error"; message: string }
   | { status: "ready"; data: SeriesDetailData };
 
-export function SeriesDetail({ seriesId, catalog, library, cuts, economy, analytics, onBack, onPlay }: SeriesDetailProps) {
+export function SeriesDetail({ seriesId, catalog, library, cuts, economy, analytics, experiment, unit, onBack, onPlay }: SeriesDetailProps) {
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [saved, setSaved] = useState(false);
   const [showUnlockCuts, setShowUnlockCuts] = useState(false);
@@ -122,6 +144,17 @@ export function SeriesDetail({ seriesId, catalog, library, cuts, economy, analyt
     [analytics, downloadState, library, seriesId],
   );
 
+  // 25-D2: request the per-viewer poster for the merchandising hero, falling back to the catalog hero. The
+  // hook is called unconditionally (Rules of Hooks); the fallback url is the loaded hero, or null while the
+  // detail is still loading. Without an experiment plane it resolves to the catalog hero unchanged.
+  const heroFallback = load.status === "ready" ? load.data.hero : null;
+  const heroPoster = useAdaptivePoster<HTMLDivElement>({
+    experiment: experiment ?? NOOP_EXPERIMENT,
+    seriesId,
+    unit: unit ?? "",
+    fallbackUrl: heroFallback,
+  });
+
   if (load.status === "loading") {
     return (
       <div className="scr sd" data-testid="series-detail-loading">
@@ -162,11 +195,13 @@ export function SeriesDetail({ seriesId, catalog, library, cuts, economy, analyt
       <DetailHeader onBack={onBack} />
 
       <div
-        className={`sd__hero ${d.hero ? "" : "sd__hero--blank"}`}
+        ref={heroPoster.ref}
+        className={`sd__hero ${heroPoster.posterUrl ? "" : "sd__hero--blank"}`}
         role="img"
         aria-label={d.title ?? "Series artwork"}
-        style={d.hero ? { backgroundImage: `url(${d.hero})` } : undefined}
+        style={heroPoster.posterUrl ? { backgroundImage: `url(${heroPoster.posterUrl})` } : undefined}
         data-testid="series-hero"
+        data-poster-id={heroPoster.posterId ?? ""}
       >
         <div className="sd__hero-grad" aria-hidden />
         <h1 className="sd__title">{d.title ?? "Untitled series"}</h1>
@@ -198,6 +233,8 @@ export function SeriesDetail({ seriesId, catalog, library, cuts, economy, analyt
             data-testid="series-play"
             onClick={() => {
               const first = d.episodes[0];
+              // 25-D2: opening the series from the merchandising hero is the poster click for this view.
+              heroPoster.onActivate();
               analytics.track("series_opened", { seriesId, props: { source: "detail_play" } });
               if (first) onPlay(first);
             }}

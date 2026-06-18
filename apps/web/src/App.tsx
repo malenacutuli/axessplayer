@@ -262,6 +262,8 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
           coins={coins}
           onOpen={(id) => void openSeries(id)}
           onOpenChannels={() => router.navigate("/channels")}
+          experiment={clients.experiment}
+          unit={userId}
         />
         <BottomNav active="home" onNavigate={onNavigate} />
       </div>
@@ -303,6 +305,8 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
             catalog={clients.catalog}
             analytics={analytics}
             coins={coins}
+            experiment={clients.experiment}
+            unit={userId}
             onResume={(item) => {
               router.navigate("/");
               void openSeries(item.seriesId);
@@ -344,6 +348,8 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
             cuts={clients.cuts}
             economy={clients.economy}
             analytics={analytics}
+            experiment={clients.experiment}
+            unit={userId}
             onBack={() => router.back()}
             onPlay={() => {
               router.navigate("/");

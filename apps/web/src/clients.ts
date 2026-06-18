@@ -7,6 +7,7 @@ import { createContentClient, type ContentClient } from "./api/content.js";
 import { createCatalogClient, type CatalogClient } from "./api/catalog.js";
 import { createCutsClient, type CutsClient } from "./api/cuts.js";
 import { createLibraryClient, type LibraryClient } from "./api/library.js";
+import { createExperimentClient, type ExperimentClient } from "./api/experiment.js";
 import { createEconomyClient, type EconomyClient } from "./api/economy.js";
 import { createRewardsClient, type RewardsClient } from "./api/rewards.js";
 import { createWebTransport } from "./player/webTransport.js";
@@ -22,6 +23,8 @@ export interface Clients {
   cuts: CutsClient;
   // 20-V4 library: saved, favorites, downloads, history, channel-follows (LIBRARY API CONTRACT, authed).
   library: LibraryClient;
+  // 25-D2 decision/experiment plane: per-viewer poster selection + impression/click logging.
+  experiment: ExperimentClient;
   economy: EconomyClient;
   // Server-side reward callbacks (rewarded ad, check-in, follow). The browser never mints coins.
   rewards: RewardsClient;
@@ -57,6 +60,11 @@ export function buildClients(opts: BuildClientsOptions): Clients {
     }),
     library: createLibraryClient({
       baseUrl: config.libraryBaseUrl,
+      session: opts.session,
+      fetch: opts.fetch,
+    }),
+    experiment: createExperimentClient({
+      baseUrl: config.experimentBaseUrl,
       session: opts.session,
       fetch: opts.fetch,
     }),

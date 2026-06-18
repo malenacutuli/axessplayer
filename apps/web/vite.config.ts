@@ -27,6 +27,10 @@ export default defineConfig({
       // 20-V1 / 20-V3 catalog service (calibrate, continue, trending, series detail, search). The prefix
       // is stripped so same-origin /catalog/* forwards here in dev (see api/catalog.ts + config.ts).
       "/catalog": { target: "http://127.0.0.1:8096", changeOrigin: true, rewrite: (p) => p.replace(/^\/catalog/, "") },
+      // 25-D2 decision/experiment plane (per-viewer poster selection + impression/click logging). The
+      // prefix is stripped so same-origin /experiment/* forwards here in dev (see api/experiment.ts +
+      // config.ts). Port matches the local decision/experiment service.
+      "/experiment": { target: "http://127.0.0.1:8092", changeOrigin: true, rewrite: (p) => p.replace(/^\/experiment/, "") },
     },
   },
   test: {

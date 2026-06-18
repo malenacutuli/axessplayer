@@ -6,7 +6,9 @@
 import { useEffect, useState } from "react";
 import { CreditsPill, Skeleton, EmptyState, ErrorState } from "@axessplayer/ui";
 import type { CatalogClient, ContinueItem, TrendingItem } from "../api/catalog.js";
+import type { ExperimentClient } from "../api/experiment.js";
 import type { ViewerAnalytics } from "../analytics/analytics.js";
+import { useAdaptivePoster } from "../experiment/useAdaptivePoster.js";
 
 export interface HomeProps {
   catalog: CatalogClient;
@@ -21,11 +23,16 @@ export interface HomeProps {
   onOpenSearch: () => void;
   // Open the channels grid route (20-V2).
   onOpenChannels: () => void;
+  // 25-D2: per-viewer poster selection + impression/click logging for the rails. Optional so the home
+  // surface still renders in isolation; when absent, the catalog poster is used unchanged.
+  experiment?: ExperimentClient;
+  // The session or viewer unit the poster selection is served to and logged against.
+  unit?: string;
 }
 
 type Load<T> = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; data: T };
 
-export function Home({ catalog, analytics, coins, onResume, onOpenSeries, onOpenSearch, onOpenChannels }: HomeProps) {
+export function Home({ catalog, analytics, coins, onResume, onOpenSeries, onOpenSearch, onOpenChannels, experiment, unit }: HomeProps) {
   const [cont, setCont] = useState<Load<ContinueItem[]>>({ status: "loading" });
   const [trend, setTrend] = useState<Load<TrendingItem[]>>({ status: "loading" });
 
@@ -87,23 +94,16 @@ export function Home({ catalog, analytics, coins, onResume, onOpenSeries, onOpen
         {cont.status === "ready" && cont.data.length > 0 && (
           <div className="dsc__row" role="list" data-testid="continue-row">
             {cont.data.map((item) => (
-              <button
+              <ContinueTile
                 key={item.seriesId + item.beatId}
-                type="button"
-                role="listitem"
-                className="dsc__tile dsc__tile--wide"
-                data-testid={`continue-tile-${item.seriesId}`}
-                onClick={() => {
+                item={item}
+                experiment={experiment}
+                unit={unit}
+                onResume={() => {
                   analytics.track("continue_resumed", { seriesId: item.seriesId, beatId: item.beatId });
                   onResume(item);
                 }}
-              >
-                <Poster url={item.poster} alt={item.title} />
-                <span className="dsc__tile-progress" aria-hidden>
-                  <span style={{ width: `${Math.round((item.progress ?? 0) * 100)}%` }} />
-                </span>
-                <span className="dsc__tile-title">{item.title}</span>
-              </button>
+              />
             ))}
           </div>
         )}
@@ -121,21 +121,16 @@ export function Home({ catalog, analytics, coins, onResume, onOpenSeries, onOpen
         {trend.status === "ready" && trend.data.length > 0 && (
           <div className="dsc__row" role="list" data-testid="trending-row">
             {trend.data.map((item) => (
-              <button
+              <TrendingTile
                 key={item.seriesId}
-                type="button"
-                role="listitem"
-                className="dsc__tile"
-                data-testid={`trending-tile-${item.seriesId}`}
-                onClick={() => {
+                item={item}
+                experiment={experiment}
+                unit={unit}
+                onOpen={() => {
                   analytics.track("series_opened", { seriesId: item.seriesId, props: { source: "trending" } });
                   onOpenSeries(item.seriesId);
                 }}
-              >
-                <Poster url={item.poster} alt={item.title} />
-                <span className="dsc__tile-title">{item.title}</span>
-                {item.genre && <span className="dsc__tile-genre">{item.genre}</span>}
-              </button>
+              />
             ))}
           </div>
         )}
@@ -144,18 +139,125 @@ export function Home({ catalog, analytics, coins, onResume, onOpenSeries, onOpen
   );
 }
 
-function Poster({ url, alt }: { url: string | null; alt: string }) {
+// A no-op experiment client so the rail tiles can call the adaptive-poster hook unconditionally (Rules of
+// Hooks) even when Home is rendered without an experiment plane. Resolves to the fallback and swallows
+// logging, so a tile behaves exactly as before. No em dashes.
+const NOOP_EXPERIMENT: ExperimentClient = {
+  async selectPoster() {
+    return null;
+  },
+  async logImpression() {
+    /* no-op */
+  },
+  async logClick() {
+    /* no-op */
+  },
+};
+
+function ContinueTile({
+  item,
+  experiment,
+  unit,
+  onResume,
+}: {
+  item: ContinueItem;
+  experiment?: ExperimentClient;
+  unit?: string;
+  onResume: () => void;
+}) {
+  const poster = useAdaptivePoster<HTMLSpanElement>({
+    experiment: experiment ?? NOOP_EXPERIMENT,
+    seriesId: item.seriesId,
+    unit: unit ?? "",
+    fallbackUrl: item.poster,
+  });
+  return (
+    <button
+      type="button"
+      role="listitem"
+      className="dsc__tile dsc__tile--wide"
+      data-testid={`continue-tile-${item.seriesId}`}
+      onClick={() => {
+        poster.onActivate();
+        onResume();
+      }}
+    >
+      <Poster posterRef={poster.ref} url={poster.posterUrl} alt={item.title} posterId={poster.posterId} />
+      <span className="dsc__tile-progress" aria-hidden>
+        <span style={{ width: `${Math.round((item.progress ?? 0) * 100)}%` }} />
+      </span>
+      <span className="dsc__tile-title">{item.title}</span>
+    </button>
+  );
+}
+
+function TrendingTile({
+  item,
+  experiment,
+  unit,
+  onOpen,
+}: {
+  item: TrendingItem;
+  experiment?: ExperimentClient;
+  unit?: string;
+  onOpen: () => void;
+}) {
+  const poster = useAdaptivePoster<HTMLSpanElement>({
+    experiment: experiment ?? NOOP_EXPERIMENT,
+    seriesId: item.seriesId,
+    unit: unit ?? "",
+    fallbackUrl: item.poster,
+  });
+  return (
+    <button
+      type="button"
+      role="listitem"
+      className="dsc__tile"
+      data-testid={`trending-tile-${item.seriesId}`}
+      onClick={() => {
+        poster.onActivate();
+        onOpen();
+      }}
+    >
+      <Poster posterRef={poster.ref} url={poster.posterUrl} alt={item.title} posterId={poster.posterId} />
+      <span className="dsc__tile-title">{item.title}</span>
+      {item.genre && <span className="dsc__tile-genre">{item.genre}</span>}
+    </button>
+  );
+}
+
+function Poster({
+  url,
+  alt,
+  posterRef,
+  posterId,
+}: {
+  url: string | null;
+  alt: string;
+  posterRef?: (node: HTMLSpanElement | null) => void;
+  posterId?: string | null;
+}) {
   if (url) {
     return (
       <span
+        ref={posterRef}
         className="dsc__poster"
         role="img"
         aria-label={alt}
+        data-poster-id={posterId ?? ""}
         style={{ backgroundImage: `url(${url})` }}
       />
     );
   }
-  return <span className="dsc__poster dsc__poster--blank" role="img" aria-label={alt} />;
+  return (
+    <span
+      ref={posterRef}
+      className="dsc__poster dsc__poster--blank"
+      role="img"
+      aria-label={alt}
+      data-poster-id={posterId ?? ""}
+    />
+  );
 }
 
 function RailSkeleton({ testid }: { testid: string }) {
