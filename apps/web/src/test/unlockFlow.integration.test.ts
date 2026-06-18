@@ -30,6 +30,7 @@ function clientsFor(server: ReturnType<typeof createMockServer>) {
       economyBaseUrl: BASE,
       decisionBaseUrl: BASE,
       manifestBaseUrl: BASE,
+      identityBaseUrl: BASE,
     },
   });
 }

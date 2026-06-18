@@ -8,9 +8,15 @@ import { createRoot } from "react-dom/client";
 import { Root } from "./Root.js";
 import { buildClients } from "./clients.js";
 import { staticSession } from "./api/session.js";
-// Brand tokens FIRST (the official guideline variables + fonts), then the app styles that consume them.
+import { AuthProvider } from "./auth/index.js";
+// Shared design-system fonts + tokens (the --axp-* set), imported ALONGSIDE the existing brand tokens so
+// both --bg/--ink and --axp-* are available. Order: design-system fonts/tokens first, then the brand
+// tokens (the official guideline variables), then the app styles that consume them, then auth styles.
+import "@axessplayer/ui/fonts.css";
+import "@axessplayer/ui/tokens.css";
 import "./styles/brand-tokens.css";
 import "./styles.css";
+import "./auth/auth.css";
 
 const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {};
 // Series id and viewing identity are per-deployment. They default to the local walking-skeleton seed
@@ -26,7 +32,9 @@ const rootEl = document.getElementById("root");
 if (rootEl) {
   createRoot(rootEl).render(
     <StrictMode>
-      <Root clients={clients} seriesId={SERIES_ID} userId={DEMO_USER} />
+      <AuthProvider>
+        <Root clients={clients} seriesId={SERIES_ID} userId={DEMO_USER} />
+      </AuthProvider>
     </StrictMode>,
   );
 }

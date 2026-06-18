@@ -21,6 +21,9 @@ export default defineConfig({
       "/reward": "http://127.0.0.1:8100",
       "/paywall": "http://127.0.0.1:8100",
       "/admin": "http://127.0.0.1:8093",
+      // 20-V0 identity service (auth + profile + consent). Local default port; the prefix is stripped by
+      // the client so same-origin /identity/* forwards here in dev (see api/identity.ts).
+      "/identity": { target: "http://127.0.0.1:8095", changeOrigin: true, rewrite: (p) => p.replace(/^\/identity/, "") },
     },
   },
   test: {

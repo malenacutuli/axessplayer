@@ -4,6 +4,7 @@
 
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
 import { persistEvents, userFromAuthorization, type RawEvent, type SqlClient } from "./collector.js";
+import { persistAxpEvent, isAxpEventBody } from "./axp-collector.js";
 
 const CORS: Record<string, string> = {
   "access-control-allow-origin": "*",
@@ -34,14 +35,23 @@ export function createEventsServer(sql: SqlClient): Server {
         if (req.url === "/healthz") return send(res, 200, { ok: true });
         if (method === "POST" && (req.url ?? "").startsWith("/events")) {
           const raw = await readBody(req);
-          let parsed: { events?: RawEvent[] };
+          let parsed: unknown;
           try {
             parsed = raw ? JSON.parse(raw) : {};
           } catch {
             return send(res, 400, { error: "invalid json" });
           }
-          const events = Array.isArray(parsed.events) ? parsed.events : [];
           const userId = userFromAuthorization(req.headers["authorization"]);
+          // Canonical AxpEvent single-event ingest (analytics-sdk emit client wire shape). Validated
+          // against the closed taxonomy, idempotent on (session_id, event_id).
+          if (isAxpEventBody(parsed)) {
+            const r = await persistAxpEvent(sql, userId, parsed);
+            if (!r.ok) return send(res, 400, { error: r.reason });
+            return send(res, 202, { accepted: 1, deduped: r.deduped });
+          }
+          // Legacy events.md batch path: { events: [...] }.
+          const batch = (parsed ?? {}) as { events?: RawEvent[] };
+          const events = Array.isArray(batch.events) ? batch.events : [];
           const result = await persistEvents(sql, userId, events);
           return send(res, 200, result);
         }

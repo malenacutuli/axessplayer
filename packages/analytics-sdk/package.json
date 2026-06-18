@@ -5,16 +5,18 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./events": "./src/events.ts"
+    "./events": "./src/events.ts",
+    "./emit": "./src/emit.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo lint ok",
-    "test": "echo test ok"
+    "test": "node --import tsx --test $(find test -name '*.test.ts' 2>/dev/null)"
   },
   "devDependencies": {
     "typescript": "^5.5.0",
+    "tsx": "^4.19.0",
     "@types/node": "^20.0.0"
   }
 }

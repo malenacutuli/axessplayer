@@ -1,0 +1,234 @@
+/* Auth surface styles (20-V0). Additive: consumes BOTH the existing brand tokens (--bg/--ink etc) and the
+   shared design-system tokens (--axp-*), so the auth screens sit inside the existing phone frame without
+   touching the live feed/player/wallet styles. WCAG AA: visible focus, adequate contrast, 44px targets.
+   No em dashes. */
+
+.auth-scr {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 28px 22px 32px;
+  min-height: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.auth-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.auth-title {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0;
+  color: var(--ink, #14110f);
+}
+
+.auth-sub {
+  font-size: 14px;
+  line-height: 1.45;
+  margin: 0;
+  color: var(--muted, #6b6661);
+}
+
+.auth-providers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.auth-provider-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line, #e6e1da);
+  background: var(--surface, #ffffff);
+  color: var(--ink, #14110f);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-provider-btn:hover {
+  background: #faf8f5;
+}
+
+.auth-provider-btn:focus-visible {
+  outline: 3px solid var(--axp-rose, #FF2E6E);
+  outline-offset: 2px;
+}
+
+.auth-provider-btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted, #6b6661);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line, #e6e1da);
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink, #14110f);
+}
+
+.auth-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line, #e6e1da);
+  background: var(--surface, #ffffff);
+  color: var(--ink, #14110f);
+  font-size: 15px;
+}
+
+.auth-input:focus-visible {
+  outline: 3px solid var(--axp-rose, #FF2E6E);
+  outline-offset: 1px;
+  border-color: var(--axp-rose, #FF2E6E);
+}
+
+.auth-input[aria-invalid="true"] {
+  border-color: #c0392b;
+}
+
+.auth-hint {
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 0;
+  color: var(--muted, #6b6661);
+}
+
+.auth-hint--error {
+  color: #c0392b;
+}
+
+.auth-hint--ok {
+  color: #1b7f47;
+}
+
+/* The reusable sign-in prompt: a sheet over the phone frame for gated actions. */
+.auth-prompt-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(20, 17, 15, 0.45);
+  z-index: 50;
+}
+
+.auth-prompt-sheet {
+  width: 100%;
+  max-height: 92%;
+  overflow-y: auto;
+  background: var(--bg, #fffdf9);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.25);
+}
+
+/* Pick grid for "What do you love?" */
+.auth-pickgrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.auth-pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line, #e6e1da);
+  background: var(--surface, #ffffff);
+  color: var(--ink, #14110f);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.auth-pick[aria-pressed="true"] {
+  border-color: var(--rose, #e85d75);
+  background: rgba(232, 93, 117, 0.08);
+}
+
+.auth-pick:focus-visible {
+  outline: 3px solid var(--axp-rose, #FF2E6E);
+  outline-offset: 2px;
+}
+
+.auth-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.auth-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--line, #e6e1da);
+  border: 1px solid var(--line, #e6e1da);
+}
+
+.auth-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.auth-linkbtn {
+  background: none;
+  border: none;
+  color: var(--rose, #e85d75);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px;
+  align-self: center;
+}
+
+.auth-linkbtn:focus-visible {
+  outline: 3px solid var(--axp-rose, #FF2E6E);
+  outline-offset: 2px;
+  border-radius: 6px;
+}

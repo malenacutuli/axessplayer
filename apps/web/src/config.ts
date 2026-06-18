@@ -7,6 +7,10 @@ export interface AppConfig {
   economyBaseUrl: string;
   decisionBaseUrl: string;
   manifestBaseUrl: string;
+  // 20-V0 identity service (auth token verify, profile, consent). In dev it defaults to the same-origin
+  // "/identity" prefix that the Vite proxy forwards to the local identity service; in production set
+  // VITE_IDENTITY_BASE_URL to the deployed origin. Empty/same-origin is the dev default.
+  identityBaseUrl: string;
 }
 
 // import.meta.env is typed by vite/client; we read defensively so tests and SSR-less builds work.
@@ -26,7 +30,25 @@ export function loadConfig(env: EnvBag = readEnv()): AppConfig {
     economyBaseUrl: env.VITE_ECONOMY_BASE_URL ?? DEFAULT_GATEWAY,
     decisionBaseUrl: env.VITE_DECISION_BASE_URL ?? DEFAULT_GATEWAY,
     manifestBaseUrl: env.VITE_MANIFEST_BASE_URL ?? DEFAULT_GATEWAY,
+    // Default to the same-origin "/identity" prefix forwarded by the Vite dev proxy. A deployed build
+    // overrides this with the absolute identity origin.
+    identityBaseUrl: env.VITE_IDENTITY_BASE_URL ?? "/identity",
   };
+}
+
+export interface SupabaseConfig {
+  url: string;
+  anonKey: string;
+}
+
+// Supabase Auth project config for the browser auth client. When either value is missing (for example a
+// local build with no auth project wired yet), the auth UI renders a graceful "backend not ready" state
+// rather than crashing. Read defensively so tests and SSR-less builds work.
+export function supabaseConfig(env: EnvBag = readEnv()): SupabaseConfig | null {
+  const url = env.VITE_SUPABASE_URL?.trim();
+  const anonKey = env.VITE_SUPABASE_ANON_KEY?.trim();
+  if (!url || !anonKey) return null;
+  return { url, anonKey };
 }
 
 // Optional real video clip for the player poster surface. When VITE_SCENE_VIDEO_URL is set, the player

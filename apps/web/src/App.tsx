@@ -17,6 +17,8 @@ import { Profile } from "./profile/Profile.js";
 import { BottomNav, type Tab } from "./ui/BottomNav.js";
 import { StatusBar } from "./ui/StatusBar.js";
 import type { ConsentControls } from "./consent/useConsent.js";
+import { useAuth } from "./auth/AuthProvider.js";
+import { SignInPrompt } from "./auth/SignInPrompt.js";
 
 export interface AppProps {
   clients: Clients;
@@ -101,12 +103,30 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
     [personalize, seriesId],
   );
 
+  // The C12 auth boundary, applied at the app shell. Browsing the feed needs NO auth; the wallet and
+  // profile ("You") tabs require a signed-in viewer, so first navigation there prompts sign in via the
+  // reusable gate. The feed is always reachable. Identity is the session subject, never a body field (F1).
+  const auth = useAuth();
   const onNavigate = useCallback(
     (tab: Tab) => {
-      setScreen(tab === "home" ? "feed" : tab === "you" ? "profile" : "wallet");
-      if (tab === "home") void refreshFeed();
+      if (tab === "home") {
+        setScreen("feed");
+        void refreshFeed();
+        return;
+      }
+      const target: Screen = tab === "you" ? "profile" : "wallet";
+      // When auth is not configured in this environment, preserve the existing live experience: the wallet
+      // and profile remain reachable (the demo session drives them). When auth IS configured, enforce the
+      // C12 boundary and resume to the target on a successful sign in.
+      if (!auth.configured) {
+        setScreen(target);
+        return;
+      }
+      void auth.requireAuth(target).then((ok) => {
+        if (ok) setScreen(target);
+      });
     },
-    [refreshFeed],
+    [refreshFeed, auth],
   );
 
   const content = () => {
@@ -199,6 +219,8 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
       <div className="phone">
         <div className="notch" />
         {content()}
+        {/* C12 reusable sign-in gate. Renders nothing until a gated action calls requireAuth(). */}
+        <SignInPrompt seriesId={seriesId} />
       </div>
     </div>
   );
