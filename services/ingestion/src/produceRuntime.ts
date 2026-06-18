@@ -50,7 +50,9 @@ export function makeEdgeClient(cfg: RuntimeConfig, fetchFn: FetchFn = fetch): Ed
     return res.json();
   };
   return {
-    transcribe: (videoUrl) => postJson("transcribe-with-deepgram", { videoUrl, url: videoUrl }),
+    // AssemblyAI ASR via the `transcribe` edge fn. The Deepgram key is dead (Invalid credentials); AssemblyAI
+    // does the same job and is keyed. Returns { text, segments, utterances, words, language }. No em dashes.
+    transcribe: (videoUrl) => postJson("transcribe", { videoUrl, url: videoUrl, language: "en" }),
     dub: async (text, targetLanguage) =>
       (await postJson("generate-dubbing", { text, targetLanguage })) as { translatedText?: string; audioBase64?: string },
     audioDescriptions: (videoUrl) => postJson("twelve-labs-audio-descriptions", { videoUrl, url: videoUrl }),
