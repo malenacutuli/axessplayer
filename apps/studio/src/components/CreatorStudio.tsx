@@ -20,6 +20,9 @@ import { StudioRail } from "./StudioRail.js";
 import { DashboardHome } from "./DashboardHome.js";
 import { ComingSoon } from "./ComingSoon.js";
 import { SettingsPanel } from "./SettingsPanel.js";
+import { CreateWithAiPanel } from "./studio/CreateWithAiPanel.js";
+import { UploadPanel } from "./studio/UploadPanel.js";
+import { ProcessPanel } from "./studio/ProcessPanel.js";
 import { sectionById, type SectionId } from "../sections.js";
 import { useStudioRoute } from "../router.js";
 import { useCreatorAuth } from "../auth/creatorAuth.js";
@@ -27,8 +30,8 @@ import { AuthShell } from "./AuthShell.js";
 import type { PanelId } from "./studio/SideRail.js";
 
 // Sections that are served by the existing StudioPage authoring workflow, mapped to its internal panel id.
+// Sections 3-5 (create, upload, process) are NOT in here: they render dedicated panels below.
 const WORKFLOW_PANEL: Partial<Record<SectionId, PanelId>> = {
-  create: "produce",
   library: "library",
   branch: "branch",
   media: "media",
@@ -36,6 +39,10 @@ const WORKFLOW_PANEL: Partial<Record<SectionId, PanelId>> = {
   analytics: "operator",
   monetization: "pricing",
 };
+
+// Sections that render their own dedicated panel here (not the StudioPage workflow, not coming-soon). The
+// coming-soon fallback must skip these so a built section never shows a coming-soon surface.
+const DEDICATED_SECTIONS = new Set<SectionId>(["dashboard", "settings", "create", "upload", "process"]);
 
 export function CreatorStudio(): JSX.Element {
   const { session, mode } = useCreatorAuth();
@@ -85,10 +92,25 @@ export function CreatorStudio(): JSX.Element {
                 <SettingsPanel />
               </div>
             )}
+            {active.id === "create" && (
+              <div className="smain">
+                <CreateWithAiPanel onNavigate={onSelect} />
+              </div>
+            )}
+            {active.id === "upload" && (
+              <div className="smain">
+                <UploadPanel proMode={mode === "pro"} onNavigate={onSelect} />
+              </div>
+            )}
+            {active.id === "process" && (
+              <div className="smain">
+                <ProcessPanel />
+              </div>
+            )}
             {workflow && (
               <StudioPage hideRail panel={workflow} onPanelChange={onWorkflowPanelChange} />
             )}
-            {!workflow && active.id !== "dashboard" && active.id !== "settings" && (
+            {!workflow && !DEDICATED_SECTIONS.has(active.id) && (
               <div className="smain">
                 <ComingSoon section={active} onNavigate={onSelect} />
               </div>

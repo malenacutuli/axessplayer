@@ -1,0 +1,163 @@
+/* Styles for Creator Studio sections 3-5 (Create with AI, Upload, Process). Built on the existing studio
+   tokens (--ink, --mut, --line, --bg, --fill, --rose). These classes are additive: they do not override the
+   shared .spanel / .sbar / .fld / .chip / .btn rules. No em dashes. */
+
+/* Textarea + a single-column inspector card (the shared .insp is a 2-col grid; new surfaces want a stack). */
+.ta {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 10px 12px;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  background: var(--bg);
+  color: var(--ink);
+  resize: vertical;
+}
+.scaption {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mut);
+  margin-bottom: 8px;
+}
+/* A single-column inspector card for the new sections (the shared .insp is a 2-col grid). */
+.inspcard {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: #fff;
+  display: block;
+}
+.btnrow { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Provenance label (C2PA + Article 50). */
+.provlabel { display: inline-flex; align-items: center; gap: 8px; }
+.provlabel__a50 {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 9px;
+  color: var(--mut);
+  background: var(--fill);
+}
+
+/* Create with AI: pipeline stage list. */
+.stagelist { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.stagerow {
+  display: grid;
+  grid-template-columns: 28px 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 10px 12px;
+  background: #fff;
+}
+.stagerow.off { opacity: 0.55; }
+.stagerow__num {
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  background: var(--fill);
+  font-size: 12px; font-weight: 700;
+}
+.stagerow__body { display: grid; gap: 2px; }
+.stagerow__label { font-size: 13.5px; font-weight: 600; }
+.stagerow__blurb { font-size: 12px; }
+.stagerow__cost { font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+
+/* Create with AI: adjacent entry cards (live-action, upload handoff) + reused on Upload/Process. */
+.create-entries { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+@media (max-width: 760px) { .create-entries { grid-template-columns: 1fr; } }
+.entrycard {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  background: #fff;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+.entrycard h3 { font-size: 15px; }
+.entrycard .btn { justify-self: start; }
+
+/* Upload: dropzone + upload list. */
+.dropzone {
+  border: 1.5px dashed #d5d5dc;
+  border-radius: 14px;
+  padding: 28px;
+  text-align: center;
+  color: var(--mut);
+  font-size: 13px;
+  background: var(--bg);
+  cursor: pointer;
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  margin-top: 12px;
+}
+.dropzone.dragging { border-color: var(--rose); background: var(--rose-tint); color: var(--ink); }
+.dropzone[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+.dropzone b { color: var(--ink); }
+.uploadlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.uploadrow {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 10px 12px;
+  background: #fff;
+  font-size: 13px;
+}
+.uploadrow__beat { font-size: 12px; }
+.uploadrow__state { font-size: 12.5px; }
+.uploadrow[data-state="done"] .uploadrow__state { color: #16a34a; font-weight: 600; }
+.uploadrow[data-state="error"] .uploadrow__state { color: var(--rose); font-weight: 600; }
+
+/* Process: CWI attribution. */
+.cwilist { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.cwirow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cwirow__name { font-size: 13.5px; font-weight: 600; }
+.cwirow__swatches { display: inline-flex; gap: 6px; }
+.swatch {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.swatch.on { border-color: var(--ink); box-shadow: 0 0 0 2px #fff inset; }
+
+/* Process: live dashboard + review queue. */
+.stagestatus { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.stagestatus__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 13px;
+}
+.stagestatus__cost { font-size: 12px; }
+.reviewqueue { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.reviewrow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #fff;
+}
+.reviewrow__name { font-size: 13.5px; font-weight: 600; }
+.reviewrow__prov { grid-column: 1 / -1; }
+.reviewrow__actions { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+.reviewrow__actions .btn { display: inline-flex; align-items: center; cursor: pointer; }

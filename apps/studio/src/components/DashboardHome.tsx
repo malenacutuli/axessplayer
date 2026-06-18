@@ -225,7 +225,7 @@ function NextBestAction({
         <p className="muted">
           Accessibility coverage is at {gap}%. Add the missing tracks so every viewer gets a great cut.
         </p>
-        <Button variant="primary" data-testid="nba-action" onClick={() => onNavigate("media")}>
+        <Button variant="primary" data-testid="nba-action" onClick={() => onNavigate("process")}>
           Improve accessibility
         </Button>
       </>

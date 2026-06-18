@@ -8,3 +8,10 @@ export * from "./signTier.js";
 export * from "./executors.js";
 export * from "./costModel.js";
 export * from "./trustRegistrar.js";
+// The JOB API CONTRACT layer (POST /produce, GET /jobs, GET /jobs/:id): the fan-out plan + cost preview,
+// the produce-job store + stage state machine (unwired until mobile.produce_jobs is applied), the pure HTTP
+// handlers, and the node:http server bridge.
+export * from "./produceCost.js";
+export * from "./jobsStore.js";
+export * from "./jobApi.js";
+export * from "./httpServer.js";

@@ -7,6 +7,8 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ContentClient, type AdminOverview, type FeedSeries } from "../src/api/client.js";
 import { ContentClientContext } from "../src/api/useContentClient.js";
+import { IngestionClient } from "../src/api/ingestion.js";
+import { IngestionClientContext } from "../src/api/useIngestionClient.js";
 import { CreatorAuthProvider, type CreatorSession } from "../src/auth/creatorAuth.js";
 import { CreatorStudio } from "../src/components/CreatorStudio.js";
 
@@ -61,11 +63,16 @@ function makeFetch(opts?: { failOverview?: boolean; emptyOverview?: boolean; emp
 
 function renderStudio(opts?: { session?: CreatorSession | null; fetchOpts?: Parameters<typeof makeFetch>[0] }) {
   const client = new ContentClient({ baseUrl: "http://content.test", fetchImpl: makeFetch(opts?.fetchOpts) });
+  // The ingestion client only needs to exist for the Process panel; its reads 404 against the stub, which the
+  // panel handles gracefully. The shell renders ProcessPanel for nav-process, so the provider must be present.
+  const ingestion = new IngestionClient({ baseUrl: "http://ingest.test", fetchImpl: makeFetch(opts?.fetchOpts) });
   render(
     <ContentClientContext.Provider value={client}>
-      <CreatorAuthProvider initialSession={opts && "session" in opts ? opts.session ?? null : { name: "Test Studio", tier: "solo" }}>
-        <CreatorStudio />
-      </CreatorAuthProvider>
+      <IngestionClientContext.Provider value={ingestion}>
+        <CreatorAuthProvider initialSession={opts && "session" in opts ? opts.session ?? null : { name: "Test Studio", tier: "solo" }}>
+          <CreatorStudio />
+        </CreatorAuthProvider>
+      </IngestionClientContext.Provider>
     </ContentClientContext.Provider>,
   );
 }
@@ -121,19 +128,31 @@ describe("CreatorStudio", () => {
     expect(screen.getByTestId("dashboard-retry")).toBeInTheDocument();
   });
 
-  it("lists all 14 sections and routes to a reachable coming-soon route", async () => {
+  it("lists every section and routes to a reachable coming-soon route", async () => {
     const user = userEvent.setup();
     renderStudio();
     await screen.findByTestId("dashboard-loaded");
-    for (const id of ["dashboard", "create", "library", "branch", "media", "accessibility", "poster", "analytics", "monetization", "channel", "settings"]) {
+    for (const id of ["dashboard", "create", "upload", "library", "branch", "media", "process", "poster", "analytics", "monetization", "channel", "settings"]) {
       expect(screen.getByTestId(`nav-${id}`)).toBeInTheDocument();
     }
-    // Accessibility is not built yet: reachable coming-soon, with a back action (no dead end).
-    await user.click(screen.getByTestId("nav-accessibility"));
-    expect(await screen.findByTestId("panel-accessibility")).toBeInTheDocument();
+    // Channel is not built yet: reachable coming-soon, with a back action (no dead end).
+    await user.click(screen.getByTestId("nav-channel"));
+    expect(await screen.findByTestId("panel-channel")).toBeInTheDocument();
     expect(screen.getByTestId("coming-soon-back")).toBeInTheDocument();
     await user.click(screen.getByTestId("coming-soon-back"));
     expect(await screen.findByTestId("panel-dashboard")).toBeInTheDocument();
+  });
+
+  it("routes Create with AI, Upload, and Make Accessible to their dedicated panels", async () => {
+    const user = userEvent.setup();
+    renderStudio();
+    await screen.findByTestId("dashboard-loaded");
+    await user.click(screen.getByTestId("nav-create"));
+    expect(await screen.findByTestId("panel-create-ai")).toBeInTheDocument();
+    await user.click(screen.getByTestId("nav-upload"));
+    expect(await screen.findByTestId("panel-upload")).toBeInTheDocument();
+    await user.click(screen.getByTestId("nav-process"));
+    expect(await screen.findByTestId("panel-process")).toBeInTheDocument();
   });
 
   it("hides pro-only sections in Simple mode and reveals them in Pro mode", async () => {

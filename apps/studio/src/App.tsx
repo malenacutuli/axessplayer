@@ -5,16 +5,21 @@ import { useMemo } from "react";
 import { ContentClient } from "./api/client.js";
 import { ContentClientContext } from "./api/useContentClient.js";
 import { resolveContentBaseUrl } from "./api/config.js";
+import { IngestionClient, resolveIngestionBaseUrl } from "./api/ingestion.js";
+import { IngestionClientContext } from "./api/useIngestionClient.js";
 import { CreatorStudio } from "./components/CreatorStudio.js";
 import { CreatorAuthProvider } from "./auth/creatorAuth.js";
 
 export function App(): JSX.Element {
   const client = useMemo(() => new ContentClient({ baseUrl: resolveContentBaseUrl() }), []);
+  const ingestion = useMemo(() => new IngestionClient({ baseUrl: resolveIngestionBaseUrl() }), []);
   return (
     <ContentClientContext.Provider value={client}>
-      <CreatorAuthProvider>
-        <CreatorStudio />
-      </CreatorAuthProvider>
+      <IngestionClientContext.Provider value={ingestion}>
+        <CreatorAuthProvider>
+          <CreatorStudio />
+        </CreatorAuthProvider>
+      </IngestionClientContext.Provider>
     </ContentClientContext.Provider>
   );
 }

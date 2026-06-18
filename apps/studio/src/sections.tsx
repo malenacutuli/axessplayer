@@ -6,9 +6,11 @@
 export type SectionId =
   | "dashboard"
   | "create"
+  | "upload"
   | "library"
   | "branch"
   | "media"
+  | "process"
   | "accessibility"
   | "brand"
   | "poster"
@@ -32,15 +34,16 @@ export interface StudioSection {
 
 export const STUDIO_SECTIONS: StudioSection[] = [
   { id: "dashboard", label: "Dashboard", built: true, blurb: "Your channel at a glance." },
-  { id: "create", label: "Create", built: true, blurb: "Start a new series or upload a master." },
+  { id: "create", label: "Create with AI", built: true, blurb: "Prompt to series: the writers-room showrunner." },
+  { id: "upload", label: "Upload", built: true, blurb: "Drop 9:16 masters; we encode and register them." },
   { id: "library", label: "Library", built: true, blurb: "Every series you have authored." },
   { id: "branch", label: "Branch", built: true, blurb: "Edit the branching story graph." },
-  { id: "media", label: "Media", built: true, blurb: "Upload, encode, and manage variants." },
+  { id: "media", label: "Media", built: true, blurb: "Manual per-variant authoring (Pro override)." },
   {
-    id: "accessibility",
-    label: "Accessibility",
-    built: false,
-    blurb: "Captions, audio description, sign language, and dubs, on by default.",
+    id: "process",
+    label: "Make Accessible",
+    built: true,
+    blurb: "Set targets once; the factory fans out captions, audio description, sign, and dubs.",
   },
   { id: "brand", label: "Brand", built: false, proOnly: true, blurb: "Brand offers and sponsorship, firewalled from content decisions." },
   { id: "poster", label: "Poster", built: true, blurb: "Generate and set the series poster." },
@@ -70,6 +73,18 @@ export const SECTION_ICONS: Record<SectionId, JSX.Element> = {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
       <circle cx="12" cy="12" r="9" />
       <path d="M12 8v8M8 12h8" />
+    </svg>
+  ),
+  upload: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+      <path d="M12 16V4M7 9l5-5 5 5" />
+      <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+    </svg>
+  ),
+  process: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" />
     </svg>
   ),
   library: (

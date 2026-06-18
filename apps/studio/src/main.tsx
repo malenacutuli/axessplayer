@@ -10,6 +10,7 @@ import "@axessplayer/ui/tokens.css";
 import "./styles/brand-tokens.css";
 import "./styles/studio.css";
 import "./styles/creator-studio.css";
+import "./styles/studio-sections.css";
 import { App } from "./App.js";
 
 const container = document.getElementById("root");
