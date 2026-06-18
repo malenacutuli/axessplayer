@@ -22,7 +22,9 @@ import { createServer, type IncomingMessage, type ServerResponse, type Server } 
 import type { AddressInfo } from "node:net";
 
 import { handle, testSessionVerifier, type ApiDeps, type ApiRequest, type SessionVerifier } from "./jobApi.js";
-import { UnwiredJobsStore, type JobsStore } from "./jobsStore.js";
+import { UnwiredJobsStore, RealProduceStore, type JobsStore } from "./jobsStore.js";
+import { readRuntimeConfig } from "./produceRuntime.js";
+import { makeProductionRunner } from "./produceRunner.js";
 
 export interface IngestionServerConfig {
   nodeEnv: string | undefined;
@@ -45,10 +47,15 @@ export function selectVerifier(cfg: IngestionServerConfig): SessionVerifier {
   return testSessionVerifier();
 }
 
-// Choose the store. Default is the unwired in-memory store until mobile.produce_jobs is applied (CUTOVER
-// GATE 2). A PgJobsStore over the additive table is injected here once the table is live.
-export function selectStore(): JobsStore {
-  return new UnwiredJobsStore();
+// Choose the store. When the produce runtime is configured (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY +
+// CONTENT_BASE_URL set), POST /produce runs a REAL accessibility-factory job over the live edge functions
+// (RealProduceStore). Without those env vars the service stays in the unwired preview mode (cost-before-
+// commit only), which is the safe default for a deploy that has not yet had the service-role key configured.
+// Durable cross-process persistence remains the mobile.produce_jobs cutover (CUTOVER GATE 2).
+export function selectStore(env: NodeJS.ProcessEnv = process.env): JobsStore {
+  const cfg = readRuntimeConfig(env);
+  if ("error" in cfg) return new UnwiredJobsStore();
+  return new RealProduceStore(makeProductionRunner(cfg));
 }
 
 export function buildDeps(cfg: IngestionServerConfig): ApiDeps {

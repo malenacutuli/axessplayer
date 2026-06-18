@@ -15,3 +15,8 @@ export * from "./produceCost.js";
 export * from "./jobsStore.js";
 export * from "./jobApi.js";
 export * from "./httpServer.js";
+// The REAL produce executor (the accessibility factory over the existing Supabase edge functions) + its
+// runtime adapters + the store runner bridge.
+export * from "./produceExecutor.js";
+export * from "./produceRuntime.js";
+export * from "./produceRunner.js";

@@ -38,6 +38,9 @@ export interface CreateJobInput {
   episodeId?: string | null;
   targets: ProduceTargets;
   beats?: number;
+  // The variant to produce: its PUBLIC video URL (the edge functions read it) + the variant id the produced
+  // tracks register onto. Present when POST /produce can run a REAL job; absent for a preview-only request.
+  variant?: { variantId: string; videoUrl: string };
 }
 
 // Build the per-stage list for a plan: only the stages the plan actually includes (a track the creator did
@@ -147,6 +150,69 @@ export class UnwiredJobsStore implements JobsStore {
 
   // Within-process read-back of a just-created job (so a POST then GET /jobs/:id in the same process works);
   // returns null across processes, consistent with nothing being persisted yet.
+  async get(jobId: string): Promise<ProduceJob | null> {
+    return this.mem.get(jobId) ?? null;
+  }
+}
+
+// The REAL produce store. On create it computes the plan/estimate (the same preview the unwired store
+// returns) AND, when the request carries a variant with a public video URL, enqueues a REAL async run: it
+// drives the accessibility factory (transcribe / captions / AD / dub / poster / register) by the injected
+// runner and mutates the in-process job as stages complete, so GET /jobs/:id reflects real progress. The job
+// is held in process memory (GET /jobs lists active runs); durable cross-process persistence remains the
+// produce_jobs-table cutover (this store reports wired:true because it runs real production). The runner +
+// the per-variant runtime (edge/storage/content ports) are injected so this stays testable. No em dashes.
+export interface RealStoreRunner {
+  // Drive a job to completion / clean stop over the REAL stages, mutating the job in place. Injected so the
+  // store has no network dependency of its own (the runtime adapters live in produceRuntime.ts).
+  run(job: ProduceJob, input: CreateJobInput): Promise<void>;
+}
+
+export class RealProduceStore implements JobsStore {
+  readonly wired = true;
+  private readonly mem = new Map<string, ProduceJob>();
+  // Track in-flight runs so a duplicate POST does not launch a second run of the same job.
+  private readonly running = new Set<string>();
+
+  constructor(private readonly runner: RealStoreRunner) {}
+
+  async create(input: CreateJobInput): Promise<{ job: ProduceJob; plan: ProducePlan }> {
+    const plan = computePlan(input.targets, input.beats ?? 1);
+    const jobId = deriveJobId(input, plan);
+    let job = this.mem.get(jobId);
+    if (!job) {
+      job = {
+        jobId,
+        seriesId: input.seriesId,
+        episodeId: input.episodeId ?? null,
+        kind: "produce",
+        stages: stagesForPlan(plan),
+        state: "queued",
+        estimatedUsd: plan.estimatedUsd,
+      };
+      this.mem.set(jobId, job);
+    }
+    // Launch a REAL run only when a variant (public video URL) is supplied and not already running. Fire and
+    // forget: POST /produce enqueues; the executor advances stages async and GET /jobs/:id observes progress.
+    if (input.variant && !this.running.has(jobId)) {
+      this.running.add(jobId);
+      const j = job;
+      void this.runner
+        .run(j, input)
+        .catch((e) => {
+          j.state = "failed";
+          // eslint-disable-next-line no-console
+          console.error(`produce run ${jobId} failed`, e);
+        })
+        .finally(() => this.running.delete(jobId));
+    }
+    return { job, plan };
+  }
+
+  async list(): Promise<ProduceJob[]> {
+    return [...this.mem.values()];
+  }
+
   async get(jobId: string): Promise<ProduceJob | null> {
     return this.mem.get(jobId) ?? null;
   }

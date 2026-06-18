@@ -126,7 +126,15 @@ async function produce(req: ApiRequest, store: JobsStore): Promise<ApiResponse> 
   const parsed = parseTargets(b);
   if ("error" in parsed) return json(400, { error: parsed.error });
 
-  const { job, plan } = await store.create({ seriesId, episodeId, targets: parsed.targets, beats });
+  // Optional variant: a public video URL + the variant id the produced tracks register onto. When present,
+  // POST /produce enqueues a REAL run; absent, it returns the cost-before-commit preview only.
+  const rawVariant = b.variant as Record<string, unknown> | undefined;
+  let variant: { variantId: string; videoUrl: string } | undefined;
+  if (rawVariant && typeof rawVariant.variantId === "string" && typeof rawVariant.videoUrl === "string") {
+    variant = { variantId: rawVariant.variantId, videoUrl: rawVariant.videoUrl };
+  }
+
+  const { job, plan } = await store.create({ seriesId, episodeId, targets: parsed.targets, beats, variant });
   return json(200, {
     jobId: job.jobId,
     plan,

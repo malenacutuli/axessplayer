@@ -105,6 +105,9 @@ importers:
       '@axessplayer/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@supabase/supabase-js':
+        specifier: ^2.108.2
+        version: 2.108.2
       hls.js:
         specifier: ^1.6.16
         version: 1.6.16
