@@ -26,8 +26,22 @@ import {
   episodesBySeriesSql,
   beatsBySeriesSql,
   variantsBySeriesSql,
+  graphBeatsSql,
+  graphVariantFlagsBySeriesSql,
+  graphEdgesBySeriesSql,
+  accessibilityCoverageSql,
   type Sql,
 } from "./queries.js";
+import {
+  labelNodeKind,
+  graphVersion,
+  scoreReadiness,
+  type StoryGraph,
+  type GraphNode,
+  type GraphEdge,
+  type SeriesReadiness,
+  type TrackCoverage,
+} from "./storygraph.js";
 
 export type QueryPort = Pick<pg.Pool, "query">;
 
@@ -284,5 +298,232 @@ export async function buildContentDetail(db: QueryPort, seriesId: string): Promi
       hasAudioDescription: vr.audio_description_url != null,
       hasSign: vr.sign_video_url != null,
     })),
+  };
+}
+
+// ---- Story graph (GET /admin/story-graph/:seriesId) ------------------------------------------------
+//
+// Compose the versioned graph JSON from the hosted content graph. Nodes are beats labeled by their flags
+// and their variants' substrate flags (branch/ending/premium/pov/intensity). Edges are beat_edges, with a
+// default-fallback flag derived from an empty/missing condition (the canon path). Pricing is the per-beat
+// minimum premium coin_cost. memoryVars are read from beats.canon_facts when present (the only place the
+// hosted schema carries declared story state), and otherwise an empty list with a TODO is returned rather
+// than fabricating variables. Returns null when the series does not exist.
+
+interface GraphBeatRow {
+  id: string;
+  episode_id: string;
+  beat_index: number;
+  role: string;
+  is_branch_point: boolean;
+}
+interface GraphFlagRow {
+  beat_id: string;
+  any_premium: boolean | null;
+  any_branch: boolean | null;
+  any_ending: boolean | null;
+  min_premium_cost: number | null;
+  variant_kind: string | null;
+}
+interface GraphEdgeRow {
+  from_beat_id: string;
+  to_beat_id: string;
+  condition: unknown;
+}
+
+// An edge is the canon default-fallback when its condition is null or an empty object. A populated
+// condition is a guarded branch edge. The condition is reduced to a short display label.
+function edgeConditionLabel(condition: unknown): string | null {
+  if (condition == null) return null;
+  if (typeof condition === "object") {
+    const keys = Object.keys(condition as Record<string, unknown>);
+    if (keys.length === 0) return null;
+    return keys.join(",");
+  }
+  return String(condition);
+}
+
+// Map the substrate variant_kind to a node axis label. Only pov/intensity participate in the axis
+// labeling; other kinds (dub, a11y, alt_ending, ...) do not change the node's graph kind here.
+function axisOf(variantKind: string | null): string | null {
+  if (variantKind === "pov") return "pov";
+  if (variantKind === "intensity") return "intensity";
+  return null;
+}
+
+export async function buildStoryGraph(db: QueryPort, seriesId: string): Promise<StoryGraph | null> {
+  // Existence gate: reuse the series-by-id read so an unknown series is a clean null (the route maps it to
+  // 404) rather than an empty-but-present graph.
+  const series = await run<{ id: string }>(db, seriesByIdSql(seriesId));
+  if (series[0] == null) return null;
+
+  const [beats, flags, edges] = await Promise.all([
+    run<GraphBeatRow>(db, graphBeatsSql(seriesId)),
+    run<GraphFlagRow>(db, graphVariantFlagsBySeriesSql(seriesId)),
+    run<GraphEdgeRow>(db, graphEdgesBySeriesSql(seriesId)),
+  ]);
+
+  const flagByBeat = new Map<string, GraphFlagRow>();
+  for (const f of flags) flagByBeat.set(f.beat_id, f);
+
+  const nodes: GraphNode[] = beats.map((b) => {
+    const f = flagByBeat.get(b.id);
+    const isEnding = Boolean(f?.any_ending) || b.role === "ending";
+    const isBranchPoint = Boolean(b.is_branch_point) || Boolean(f?.any_branch);
+    const locked = Boolean(f?.any_premium);
+    const axis = axisOf(f?.variant_kind ?? null);
+    const coinCost = locked ? num(f?.min_premium_cost) : 0;
+    const kind = labelNodeKind({ isEnding, isBranchPoint, locked, axis });
+    return {
+      id: b.id,
+      kind,
+      episodeId: b.episode_id,
+      beatIndex: num(b.beat_index),
+      role: b.role,
+      isBranchPoint,
+      isEnding,
+      locked,
+      coinCost,
+      axis,
+    };
+  });
+
+  const graphEdges: GraphEdge[] = edges.map((e) => {
+    const label = edgeConditionLabel(e.condition);
+    return { from: e.from_beat_id, to: e.to_beat_id, isDefault: label == null, condition: label };
+  });
+
+  // memoryVars: derive declared variable names from beats.canon_facts keys when that column carries any.
+  // The hosted schema has no dedicated story-graph memory table yet, so when nothing is found we return an
+  // empty list plus a TODO rather than inventing variables. canon_facts is not selected by graphBeatsSql
+  // (it can be large); this wave does not read it, so memoryVars is empty with a TODO and a followup wires
+  // a real memory-variable source.
+  const memoryVars = [] as StoryGraph["memoryVars"];
+
+  const pricing = nodes
+    .filter((n) => n.locked && n.coinCost > 0)
+    .map((n) => ({ nodeId: n.id, kind: n.kind, coinCost: n.coinCost }));
+
+  return {
+    seriesId,
+    version: graphVersion(nodes, graphEdges),
+    nodes,
+    edges: graphEdges,
+    memoryVars,
+    pricing,
+    memoryVarsTodo:
+      "memory variables are not modeled in the hosted schema yet; wire the prompt-02 storygraph memoryVars source",
+  };
+}
+
+// ---- Media factory jobs (GET /admin/media-factory/jobs) --------------------------------------------
+//
+// Read produce-DAG job state IF a jobs table/structure exists. The hosted schema has NO media-factory
+// jobs table (the prompt-13 orchestrator state is not yet persisted), so this returns an empty list with
+// a clear, stable shape and a `source: "unwired"` marker so the console renders a real empty state rather
+// than fabricating jobs. The route attaches a followup to wire the orchestrator state.
+
+export interface MediaFactoryJobStage {
+  name: string;
+  status: "pending" | "running" | "succeeded" | "failed";
+  cost: number;
+  assetId: string | null;
+}
+export interface MediaFactoryJob {
+  jobId: string;
+  seriesId: string;
+  stages: MediaFactoryJobStage[];
+  state: "queued" | "running" | "succeeded" | "failed";
+}
+export interface MediaFactoryJobs {
+  jobs: MediaFactoryJob[];
+  // "unwired" until the prompt-13 orchestrator state is persisted and read here. No fabricated jobs.
+  source: "unwired" | "hosted";
+  note: string;
+}
+
+export async function buildMediaFactoryJobs(_db: QueryPort): Promise<MediaFactoryJobs> {
+  // No jobs table exists in the hosted schema or the additive scripts, so there is nothing to read. Return
+  // the empty-but-typed shape; do NOT invent jobs. _db is accepted so the signature is stable once a real
+  // jobs read is wired.
+  void _db;
+  return {
+    jobs: [],
+    source: "unwired",
+    note: "produce-DAG job state is not persisted yet; wire the prompt-13 media-factory orchestrator state",
+  };
+}
+
+// ---- Accessibility readiness (GET /admin/accessibility) --------------------------------------------
+//
+// Per-series readiness from track presence (cc/ad/sign/dub coverage as a 0..100 score + blockers),
+// per-track QA placeholders, and a review-queue read. There is no review-queue table in the hosted schema
+// yet, so the queue is empty with a `source: "unwired"` marker and a followup, never fabricated.
+
+export interface AccessibilityReport {
+  readiness: SeriesReadiness[];
+  // Per-track QA rollup placeholders. The four tracks with their summed coverage across all series, so the
+  // console can render per-track meters. QA pass/fail per track is a later slice (flagged, not faked).
+  perTrack: Array<{ track: "cc" | "ad" | "sign" | "dub"; covered: number; total: number; qaNote: string }>;
+  reviewQueue: Array<{ seriesId: string; track: string; reason: string }>;
+  reviewQueueSource: "unwired" | "hosted";
+  reviewQueueNote: string;
+}
+
+interface CoverageRow {
+  series_id: string;
+  total: number;
+  with_captions: number;
+  with_ad: number;
+  with_sign: number;
+  with_dub: number;
+}
+
+export async function buildAccessibility(db: QueryPort): Promise<AccessibilityReport> {
+  const [coverage, seriesRows] = await Promise.all([
+    run<CoverageRow>(db, accessibilityCoverageSql()),
+    run<{ id: string; title: string }>(db, seriesListSql()),
+  ]);
+
+  const titleById = new Map<string, string>();
+  for (const s of seriesRows) titleById.set(s.id, s.title);
+
+  const readiness: SeriesReadiness[] = coverage.map((c) => {
+    const cov: TrackCoverage = {
+      total: num(c.total),
+      withCaptions: num(c.with_captions),
+      withAudioDescription: num(c.with_ad),
+      withSign: num(c.with_sign),
+      withDub: num(c.with_dub),
+    };
+    return scoreReadiness(c.series_id, titleById.get(c.series_id) ?? null, cov);
+  });
+
+  // Per-track totals summed across every series, for the global per-track meters.
+  let total = 0;
+  let cc = 0;
+  let ad = 0;
+  let sign = 0;
+  let dub = 0;
+  for (const c of coverage) {
+    total += num(c.total);
+    cc += num(c.with_captions);
+    ad += num(c.with_ad);
+    sign += num(c.with_sign);
+    dub += num(c.with_dub);
+  }
+  const perTrack: AccessibilityReport["perTrack"] = [
+    { track: "cc", covered: cc, total, qaNote: "coverage only; per-track QA verdicts are a later slice" },
+    { track: "ad", covered: ad, total, qaNote: "coverage only; per-track QA verdicts are a later slice" },
+    { track: "sign", covered: sign, total, qaNote: "coverage only; per-track QA verdicts are a later slice" },
+    { track: "dub", covered: dub, total, qaNote: "coverage only; per-track QA verdicts are a later slice" },
+  ];
+
+  return {
+    readiness,
+    perTrack,
+    reviewQueue: [],
+    reviewQueueSource: "unwired",
+    reviewQueueNote: "no accessibility review-queue table in the hosted schema yet; wire the QA review queue read",
   };
 }

@@ -10,15 +10,15 @@ import { matchPath, useRouter } from "./router/router";
 import { Dashboard } from "./pages/Dashboard";
 import { Content } from "./pages/Content";
 import { ContentDetail } from "./pages/ContentDetail";
+import { StoryGraph } from "./pages/StoryGraph";
+import { MediaFactory } from "./pages/MediaFactory";
+import { AccessibilityFactory } from "./pages/AccessibilityFactory";
 import { ComingSoon } from "./pages/ComingSoon";
 import { PageHead } from "./pages/Page";
 import { NAV_ITEMS } from "./shell/nav";
 
 // Sections built this wave handle their own route; the rest fall through to ComingSoon by label.
 const SECTION_SUBTITLE: Record<string, string> = {
-  storygraph: "Versioned adaptive graph: beats, choices, POVs, endings, and per-viewer memory variables.",
-  media: "Upload once, everything automatic. The auto-produce DAG with per-stage cost and the cost gate.",
-  accessibility: "Captions, audio description, sign, and dubs across every variant, with coverage.",
   brands: "Brand integrations behind the content and ad firewall. Content never blends with paid placement.",
   users: "Accounts, sessions, consent, and GDPR data-subject actions. No biometric data leaves the plane.",
   creators: "Creator accounts, revenue share, and content portfolios.",
@@ -82,6 +82,20 @@ export function Routes() {
 
   const detail = matchPath("/admin/content/:id", path);
   if (detail) return <ContentDetail id={detail.id} />;
+
+  // Section 4: Story graph (a series-scoped node editor view). A bare /admin/story-graph redirects to the
+  // default demo series so the rail item always lands on a real graph (no dead end).
+  const graph = matchPath("/admin/story-graph/:seriesId", path);
+  if (graph) return <StoryGraph seriesId={graph.seriesId} />;
+  if (path === "/admin/story-graph" || path === "/admin/story-graph/") {
+    return <StoryGraph seriesId="ser_shadow" />;
+  }
+
+  // Section 5: Media factory (produce DAG).
+  if (path === "/admin/media-factory" || path === "/admin/media-factory/") return <MediaFactory />;
+
+  // Section 6: Accessibility factory.
+  if (path === "/admin/accessibility" || path === "/admin/accessibility/") return <AccessibilityFactory />;
 
   // The thirteen not-yet-built sections (and any drill-through that targets them with a query): a real
   // report stub when there is a query (a drill target), otherwise the section coming-soon state.

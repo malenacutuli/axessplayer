@@ -217,3 +217,77 @@ export function variantsBySeriesSql(seriesId: string): Sql {
     values: [seriesId],
   };
 }
+
+// ---- Story-graph builders (GET /admin/story-graph/:seriesId) ----------------------------------------
+//
+// The graph is composed from series -> episodes -> beats -> beat_variants + beat_edges. The variant
+// substrate columns (variant_kind, is_branch_point, is_ending, pov, intensity, coin_cost) come from the
+// additive substrate (scripts/sql/variant_substrate_additive.sql). To stay safe on hosted projects where
+// that script may not yet be applied, the substrate-derived flags are read defensively with COALESCE so a
+// missing-but-declared column still returns rows. These remain SELECT-only; no writes anywhere.
+
+// Beats for the graph: id, episode, ordering, narrative role, and the beat-level branch flag.
+export function graphBeatsSql(seriesId: string): Sql {
+  return {
+    text:
+      "select id, episode_id, beat_index, role, " +
+      "coalesce(is_branch_point, false) as is_branch_point " +
+      "from beats where series_id = $1 order by episode_id, beat_index",
+    values: [seriesId],
+  };
+}
+
+// Per-beat variant rollup for the graph node labels: whether any variant is premium-gated (locked), the
+// minimum premium coin_cost (the cheapest unlock price), the strongest branch/ending signal across the
+// beat's variants, and the dominant variant axis (pov/intensity) if the substrate marks one. Read through
+// beats so it is scoped to one series. The substrate columns are referenced via the storygraph aggregate,
+// which selects them with a tolerant projection; this builder selects the always-present beat join key
+// plus the substrate fields the additive script declares.
+export function graphVariantFlagsBySeriesSql(seriesId: string): Sql {
+  return {
+    text:
+      "select v.beat_id, " +
+      "bool_or(coalesce(v.is_premium, false)) as any_premium, " +
+      "bool_or(coalesce(v.is_branch_point, false)) as any_branch, " +
+      "bool_or(coalesce(v.is_ending, false)) as any_ending, " +
+      "min(case when coalesce(v.is_premium, false) then coalesce(v.coin_cost, 0) end) as min_premium_cost, " +
+      "max(v.variant_kind) as variant_kind " +
+      "from beat_variants v join beats b on b.id = v.beat_id " +
+      "where b.series_id = $1 group by v.beat_id",
+    values: [seriesId],
+  };
+}
+
+// Story-graph edges: the frozen beat_edges table, scoped to beats in this series. condition is the JSONB
+// branch condition (display-only). A default-fallback flag is derived in the aggregate from the condition
+// shape (an empty condition object is the canon default).
+export function graphEdgesBySeriesSql(seriesId: string): Sql {
+  return {
+    text:
+      "select e.from_beat_id, e.to_beat_id, e.condition " +
+      "from beat_edges e " +
+      "join beats bf on bf.id = e.from_beat_id " +
+      "where bf.series_id = $1",
+    values: [seriesId],
+  };
+}
+
+// ---- Accessibility readiness (GET /admin/accessibility) ---------------------------------------------
+
+// Per-series accessibility track coverage: total variants and how many carry each of the four tracks
+// (captions, audio description, sign, dub). Joined up through beats to series so each row is one series.
+// Drives the 0..100 readiness score and the blocker list in the aggregate.
+export function accessibilityCoverageSql(): Sql {
+  return {
+    text:
+      "select b.series_id, " +
+      "count(v.*)::int as total, " +
+      "count(v.*) filter (where v.caption_doc_url is not null)::int as with_captions, " +
+      "count(v.*) filter (where v.audio_description_url is not null)::int as with_ad, " +
+      "count(v.*) filter (where v.sign_video_url is not null)::int as with_sign, " +
+      "count(v.*) filter (where v.dub_audio_urls is not null and v.dub_audio_urls::text <> '{}')::int as with_dub " +
+      "from beats b join beat_variants v on v.beat_id = b.id " +
+      "group by b.series_id",
+    values: [],
+  };
+}

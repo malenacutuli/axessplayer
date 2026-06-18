@@ -32,15 +32,27 @@ export function isRole(value: unknown): value is Role {
 // The policy-level route key. A concrete path like /admin/content/abc-123 classifies to "content". The
 // matrix is keyed on these stable surfaces, not on raw paths, so adding a sibling path under a surface
 // does not require touching the matrix.
-export type RouteKey = "me" | "dashboard" | "content" | "unknown";
+export type RouteKey =
+  | "me"
+  | "dashboard"
+  | "content"
+  | "storyGraph"
+  | "mediaFactory"
+  | "accessibility"
+  | "unknown";
 
 // Classify a request path into a policy RouteKey. Trailing-slash and id-suffix tolerant. An unrecognized
-// path is "unknown", which the matrix denies for every role.
+// path is "unknown", which the matrix denies for every role. story-graph covers the GET read and its
+// validate/simulate POST sub-paths (the constraint solver and the journey walker are pure but are POSTs,
+// so they resolve through the storyGraph write capability and are audit-logged as mutation seams).
 export function classifyRoute(path: string): RouteKey {
   const clean = path.replace(/\/+$/, "");
   if (clean === "/admin/me") return "me";
   if (clean === "/admin/dashboard") return "dashboard";
   if (clean === "/admin/content" || clean.startsWith("/admin/content/")) return "content";
+  if (clean === "/admin/story-graph" || clean.startsWith("/admin/story-graph/")) return "storyGraph";
+  if (clean === "/admin/media-factory/jobs" || clean.startsWith("/admin/media-factory")) return "mediaFactory";
+  if (clean === "/admin/accessibility" || clean.startsWith("/admin/accessibility/")) return "accessibility";
   return "unknown";
 }
 
@@ -70,15 +82,19 @@ const NONE: Caps = { read: false, write: false };
 //
 // This wave is read-only end to end, so the write column is dormant. It is populated deliberately so the
 // first mutating route added inherits a real, reviewed policy rather than an implicit allow.
+// storyGraph mirrors content (Content/Owner/Admin write the validate/simulate seams; everyone else reads
+// the graph). mediaFactory and accessibility are read surfaces this wave (no write entry shipped, so the
+// write column is dormant for them); Content/Owner/Admin keep write so the first produce/QA mutation
+// inherits a real policy, everyone else reads. Reward weights never appear on any of these surfaces.
 const MATRIX: Record<Role, Record<Exclude<RouteKey, "unknown">, Caps>> = {
-  Owner: { me: ALL, dashboard: ALL, content: ALL },
-  Admin: { me: ALL, dashboard: ALL, content: ALL },
-  Content: { me: READ_ONLY, dashboard: READ_ONLY, content: ALL },
-  Finance: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY },
-  Marketing: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY },
-  Moderation: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY },
-  Support: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY },
-  ReadOnly: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY },
+  Owner: { me: ALL, dashboard: ALL, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL },
+  Admin: { me: ALL, dashboard: ALL, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL },
+  Content: { me: READ_ONLY, dashboard: READ_ONLY, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL },
+  Finance: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY },
+  Marketing: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY },
+  Moderation: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY },
+  Support: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY },
+  ReadOnly: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY },
 };
 
 export interface RbacDecision {

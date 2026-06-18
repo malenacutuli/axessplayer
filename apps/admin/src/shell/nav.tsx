@@ -44,8 +44,8 @@ export const NAV: NavGroup[] = [
     group: "Content",
     items: [
       { key: "content", label: "Content CMS", path: "/admin/content", icon: s(<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M9 4v16" /></>) },
-      { key: "storygraph", label: "Adaptive story graph", path: "/admin/storygraph", icon: s(<><circle cx="6" cy="6" r="2.5" /><circle cx="18" cy="6" r="2.5" /><circle cx="12" cy="18" r="2.5" /><path d="M6 8.5v3a2 2 0 002 2h8a2 2 0 002-2v-3M12 13.5v2" /></>) },
-      { key: "media", label: "Media factory", path: "/admin/media", icon: s(<><path d="M3 5h18v14H3z" /><path d="M10 9l5 3-5 3z" /></>) },
+      { key: "storygraph", label: "Adaptive story graph", path: "/admin/story-graph/ser_shadow", icon: s(<><circle cx="6" cy="6" r="2.5" /><circle cx="18" cy="6" r="2.5" /><circle cx="12" cy="18" r="2.5" /><path d="M6 8.5v3a2 2 0 002 2h8a2 2 0 002-2v-3M12 13.5v2" /></>) },
+      { key: "media", label: "Media factory", path: "/admin/media-factory", icon: s(<><path d="M3 5h18v14H3z" /><path d="M10 9l5 3-5 3z" /></>) },
       { key: "accessibility", label: "Accessibility factory", path: "/admin/accessibility", icon: s(<><circle cx="12" cy="4" r="2" /><path d="M5 8h14M12 8v8M12 16l-3 4M12 16l3 4" /></>) },
       { key: "brands", label: "Brand integration", path: "/admin/brands", icon: s(<path d="M3 9l2-5h14l2 5M3 9v10a1 1 0 001 1h16a1 1 0 001-1V9M3 9h18M9 13h6" />) },
     ],

@@ -77,3 +77,96 @@ test("GET /admin/content/:id with a malformed id is 400 before DB access", async
   assert.equal(res.status, 400);
   assert.deepEqual(await res.json(), { error: "invalid_id" });
 });
+
+const VALID_UUID = "11111111-1111-1111-1111-111111111111";
+
+test("GET /admin/story-graph/:id with a malformed id is 400 before DB access", async () => {
+  const res = await app().request("/admin/story-graph/not-a-uuid", { headers: { authorization: "Bearer operator:Content:c1" } });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: "invalid_id" });
+});
+
+test("GET /admin/story-graph/:id for an unknown series is 404", async () => {
+  const db = {
+    async query() {
+      return { rows: [] }; // series-by-id read returns no row
+    },
+  } as unknown as QueryPort;
+  const res = await app(db).request(`/admin/story-graph/${VALID_UUID}`, {
+    headers: { authorization: "Bearer operator:Content:c1" },
+  });
+  assert.equal(res.status, 404);
+});
+
+test("POST story-graph validate: ReadOnly is 403 (write seam), Content is allowed and audited", async () => {
+  // A DB that answers the series existence + empty graph reads.
+  const db = {
+    async query(text: string) {
+      if (/from series where id/.test(text)) return { rows: [{ id: VALID_UUID }] };
+      return { rows: [] };
+    },
+  } as unknown as QueryPort;
+
+  const audit = new InMemoryAuditSink();
+  const a = createAdminApp({ db, verifier: testOperatorVerifier(), audit });
+
+  const denied = await a.request(`/admin/story-graph/${VALID_UUID}/validate`, {
+    method: "POST",
+    headers: { authorization: "Bearer operator:ReadOnly:r1", "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(denied.status, 403);
+  assert.equal((await denied.json() as { reason: string }).reason, "read_only_violation");
+
+  const ok = await a.request(`/admin/story-graph/${VALID_UUID}/validate`, {
+    method: "POST",
+    headers: { authorization: "Bearer operator:Content:c1", "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(ok.status, 200);
+  const body = (await ok.json()) as { valid: boolean; issues: unknown[] };
+  // An empty graph is invalid (empty_graph), proving the solver ran.
+  assert.equal(body.valid, false);
+  // The write seam was audit-logged.
+  assert.equal(audit.entries().length, 1);
+  assert.equal(audit.entries()[0].action, "story_graph.validate");
+});
+
+test("POST story-graph simulate is RBAC-gated and audited; empty body is a default walk", async () => {
+  const db = {
+    async query(text: string) {
+      if (/from series where id/.test(text)) return { rows: [{ id: VALID_UUID }] };
+      return { rows: [] };
+    },
+  } as unknown as QueryPort;
+  const audit = new InMemoryAuditSink();
+  const a = createAdminApp({ db, verifier: testOperatorVerifier(), audit });
+
+  const ok = await a.request(`/admin/story-graph/${VALID_UUID}/simulate`, {
+    method: "POST",
+    headers: { authorization: "Bearer operator:Admin:a1", "content-type": "application/json" },
+    body: JSON.stringify({ signals: [] }),
+  });
+  assert.equal(ok.status, 200);
+  const body = (await ok.json()) as { stoppedReason: string };
+  assert.equal(body.stoppedReason, "empty_graph"); // no beats -> empty graph walk
+  assert.equal(audit.entries()[0].action, "story_graph.simulate");
+});
+
+test("GET /admin/media-factory/jobs and /admin/accessibility are readable", async () => {
+  const db = {
+    async query() {
+      return { rows: [] };
+    },
+  } as unknown as QueryPort;
+  const a = app(db);
+  const jobs = await a.request("/admin/media-factory/jobs", { headers: { authorization: "Bearer operator:ReadOnly:r1" } });
+  assert.equal(jobs.status, 200);
+  assert.equal((await jobs.json() as { source: string }).source, "unwired");
+
+  const a11y = await a.request("/admin/accessibility", { headers: { authorization: "Bearer operator:ReadOnly:r1" } });
+  assert.equal(a11y.status, 200);
+  const report = (await a11y.json()) as { perTrack: unknown[]; reviewQueueSource: string };
+  assert.equal(report.perTrack.length, 4);
+  assert.equal(report.reviewQueueSource, "unwired");
+});

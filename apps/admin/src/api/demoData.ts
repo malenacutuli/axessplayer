@@ -3,11 +3,17 @@
 // this fixture so every surface renders a real, populated state instead of an error. The shapes match the
 // ADMIN API CONTRACT exactly. No live/biometric/personal data lives here, it is synthetic. No em dashes.
 import type {
+  AdminAccessibility,
   AdminContentDetail,
   AdminContentList,
   AdminDashboard,
   AdminMe,
   ContentNode,
+  MediaFactoryJobs,
+  SimulateRequest,
+  SimulateResult,
+  StoryGraph,
+  StoryValidation,
 } from "./adminApi";
 
 export const DEMO_ME: AdminMe = {
@@ -138,3 +144,267 @@ export function demoContentDetail(id: string): AdminContentDetail | undefined {
     ],
   };
 }
+
+/* --------------------------------- Story graph -------------------------------- */
+// A small but representative adaptive graph for Shadow Signal: one episode, a beat, a timed branch with a
+// default fallback, two POV cuts, an intensity dial, a premium (priced) cut, a locked ending, and two
+// endings. Memory variables and canon rules included. Layout (col/row) is laid out by hand so the diagram
+// reads left to right. Pricing is display only.
+const STORY_SHADOW: StoryGraph = {
+  seriesId: "ser_shadow",
+  seriesTitle: "Shadow Signal",
+  version: 7,
+  defaultFallbackNodeId: "n_stay",
+  nodes: [
+    { id: "n_ep1", kind: "episode", title: "Ep1 · Cold open", col: 0, row: 1, writes: ["trust"] },
+    { id: "n_beat1", kind: "beat", title: "The intercept", col: 1, row: 1, reads: ["trust"] },
+    { id: "n_branch1", kind: "branch", title: "Answer the call?", col: 2, row: 1, reads: ["trust"], writes: ["answered"] },
+    { id: "n_maya", kind: "pov", title: "Maya POV", col: 3, row: 0, reads: ["answered"] },
+    { id: "n_luca", kind: "pov", title: "Luca POV", col: 3, row: 2, reads: ["answered"] },
+    { id: "n_stay", kind: "intensity", title: "Stay quiet (low intensity)", col: 3, row: 1, writes: ["intensity"] },
+    { id: "n_premium", kind: "premium", title: "Director's cut: the wiretap", col: 4, row: 0, reads: ["answered"], priceCoins: 40, locked: false },
+    { id: "n_confront", kind: "beat", title: "The confrontation", col: 4, row: 2, reads: ["intensity"] },
+    { id: "n_end_truth", kind: "ending", title: "Ending A: The truth", col: 5, row: 0, reads: ["trust", "answered"] },
+    { id: "n_end_locked", kind: "locked", title: "Ending B: The betrayal (locked)", col: 5, row: 2, reads: ["trust"], priceCoins: 75, locked: true },
+  ],
+  edges: [
+    { id: "e1", from: "n_ep1", to: "n_beat1" },
+    { id: "e2", from: "n_beat1", to: "n_branch1" },
+    { id: "e3", from: "n_branch1", to: "n_maya", choice: "Answer as Maya", timerSec: 8 },
+    { id: "e4", from: "n_branch1", to: "n_luca", choice: "Answer as Luca", timerSec: 8 },
+    { id: "e5", from: "n_branch1", to: "n_stay", choice: "Let it ring", timerSec: 8, isDefault: true },
+    { id: "e6", from: "n_maya", to: "n_premium", choice: "Trace the signal" },
+    { id: "e7", from: "n_luca", to: "n_confront" },
+    { id: "e8", from: "n_stay", to: "n_confront" },
+    { id: "e9", from: "n_premium", to: "n_end_truth" },
+    { id: "e10", from: "n_confront", to: "n_end_truth", choice: "Expose the source" },
+    { id: "e11", from: "n_confront", to: "n_end_locked", choice: "Bury it" },
+  ],
+  memoryVars: [
+    { name: "trust", type: "int", note: "Viewer trust toward Maya, 0..10. Read by the branch and both endings." },
+    { name: "answered", type: "bool", note: "Whether the viewer answered the intercept call." },
+    { name: "intensity", type: "enum", note: "low / medium / high. Drives the intensity-dial cut selection." },
+  ],
+  canonRules: [
+    { id: "c1", rule: "Every branch must have exactly one default-fallback edge for the choice timer." },
+    { id: "c2", rule: "A locked ending must be reachable only after a premium cut or coin unlock." },
+    { id: "c3", rule: "No ending may contradict an established memory variable (canon consistency)." },
+  ],
+};
+
+// A second, simpler graph for The Director's Daughter so the route works for more than one series.
+const STORY_DIRECTOR: StoryGraph = {
+  seriesId: "ser_director",
+  seriesTitle: "The Director's Daughter",
+  version: 3,
+  defaultFallbackNodeId: "d_wait",
+  nodes: [
+    { id: "d_ep3", kind: "episode", title: "Ep3 · The reveal", col: 0, row: 1, writes: ["suspicion"] },
+    { id: "d_branch", kind: "branch", title: "Open the envelope?", col: 1, row: 1, reads: ["suspicion"], writes: ["opened"] },
+    { id: "d_open", kind: "beat", title: "Read the letter", col: 2, row: 0, reads: ["opened"] },
+    { id: "d_wait", kind: "intensity", title: "Wait (low intensity)", col: 2, row: 2, writes: ["intensity"] },
+    { id: "d_end", kind: "ending", title: "Ending: The verdict", col: 3, row: 1, reads: ["suspicion"] },
+  ],
+  edges: [
+    { id: "de1", from: "d_ep3", to: "d_branch" },
+    { id: "de2", from: "d_branch", to: "d_open", choice: "Open it", timerSec: 6 },
+    { id: "de3", from: "d_branch", to: "d_wait", choice: "Set it down", timerSec: 6, isDefault: true },
+    { id: "de4", from: "d_open", to: "d_end" },
+    { id: "de5", from: "d_wait", to: "d_end" },
+  ],
+  memoryVars: [
+    { name: "suspicion", type: "int", note: "How suspicious the viewer is of the director." },
+    { name: "opened", type: "bool", note: "Whether the envelope was opened." },
+    { name: "intensity", type: "enum", note: "low / medium / high." },
+  ],
+  canonRules: [{ id: "dc1", rule: "Every branch must have a default-fallback edge for the choice timer." }],
+};
+
+const STORY_GRAPHS: Record<string, StoryGraph> = {
+  ser_shadow: STORY_SHADOW,
+  ser_director: STORY_DIRECTOR,
+};
+
+export function demoStoryGraph(seriesId: string): StoryGraph {
+  return STORY_GRAPHS[seriesId] ?? STORY_SHADOW;
+}
+
+// A synthetic constraint-solver pass: confirms each branch has a default edge and flags the locked ending
+// as a (benign) warning so the result shows a mix of ok + warning, never a fake all-green.
+export function demoValidate(seriesId: string): StoryValidation {
+  const g = demoStoryGraph(seriesId);
+  const issues: StoryValidation["issues"] = [];
+  const branchIds = g.nodes.filter((n) => n.kind === "branch").map((n) => n.id);
+  for (const b of branchIds) {
+    const hasDefault = g.edges.some((e) => e.from === b && e.isDefault);
+    if (hasDefault) {
+      issues.push({ severity: "ok", code: "default_fallback", message: `Branch ${b} has a default-fallback edge.`, nodeIds: [b] });
+    } else {
+      issues.push({ severity: "error", code: "missing_default", message: `Branch ${b} is missing a default-fallback edge for its choice timer.`, nodeIds: [b] });
+    }
+  }
+  const locked = g.nodes.filter((n) => n.kind === "locked");
+  for (const l of locked) {
+    issues.push({ severity: "warning", code: "locked_reachability", message: `Locked ending ${l.id} is reachable only via a paid unlock. Confirm the upsell is wired.`, nodeIds: [l.id] });
+  }
+  issues.push({ severity: "ok", code: "canon", message: "No memory-variable contradictions detected across endings.", nodeIds: [] });
+  return { ok: issues.every((i) => i.severity !== "error"), issues, checkedAt: new Date().toISOString() };
+}
+
+// A synthetic dry-run journey: walk the default path from the episode root, taking the first non-default
+// choice where available, until an ending. Highlights the visited nodes for the diagram replay.
+export function demoSimulate(seriesId: string, req: SimulateRequest): SimulateResult {
+  const g = demoStoryGraph(seriesId);
+  const byId = new Map(g.nodes.map((n) => [n.id, n]));
+  const memory: Record<string, string | number | boolean> = { trust: 5, suspicion: 4 };
+  const steps: SimulateResult["steps"] = [];
+  const visited: string[] = [];
+
+  // If an explicit path was requested, replay it; otherwise walk a default journey.
+  if (req.path && req.path.length > 0) {
+    for (const id of req.path) {
+      const n = byId.get(id);
+      if (!n) continue;
+      visited.push(id);
+      (n.writes ?? []).forEach((w) => (memory[w] = w === "answered" || w === "opened" ? true : memory[w] ?? 1));
+      steps.push({ nodeId: id, title: n.title, rationale: "Replayed from requested path.", memory: { ...memory } });
+    }
+    return { visitedNodeIds: visited, steps, endingNodeId: visited.find((id) => byId.get(id)?.kind === "ending" || byId.get(id)?.kind === "locked") };
+  }
+
+  const root = g.nodes.find((n) => n.kind === "episode") ?? g.nodes[0];
+  let cur: string | undefined = root.id;
+  const guard = new Set<string>();
+  while (cur && !guard.has(cur)) {
+    guard.add(cur);
+    const n = byId.get(cur);
+    if (!n) break;
+    visited.push(cur);
+    (n.writes ?? []).forEach((w) => (memory[w] = w === "answered" || w === "opened" ? true : (typeof memory[w] === "number" ? memory[w] : "high")));
+    const outgoing = g.edges.filter((e) => e.from === cur);
+    const taken = outgoing.find((e) => e.choice && !e.isDefault) ?? outgoing[0];
+    steps.push({
+      nodeId: cur,
+      title: n.title,
+      rationale: taken?.choice ? `Took choice "${taken.choice}"${taken.timerSec ? ` within the ${taken.timerSec}s timer` : ""}.` : n.kind === "episode" ? "Journey start." : "Followed the only outgoing path.",
+      memory: { ...memory },
+    });
+    if (n.kind === "ending" || n.kind === "locked") break;
+    cur = taken?.to;
+  }
+  const endingId = visited.find((id) => { const k = byId.get(id)?.kind; return k === "ending" || k === "locked"; });
+  return { visitedNodeIds: visited, steps, endingNodeId: endingId };
+}
+
+/* -------------------------------- Media factory ------------------------------- */
+export const DEMO_MEDIA_JOBS: MediaFactoryJobs = {
+  jobs: [
+    {
+      jobId: "job_shadow_ep3",
+      seriesId: "ser_shadow",
+      seriesTitle: "Shadow Signal",
+      episodeTitle: "Ep3 · The wiretap",
+      state: "running",
+      projectedCost: 1840,
+      budget: 2500,
+      overBudget: false,
+      stages: [
+        { name: "Ingest + probe", status: "done", cost: 40, assetId: "ast_ing_9921" },
+        { name: "Encode HLS (9:16 + 16:9)", status: "done", cost: 320, assetId: "ast_hls_9922" },
+        { name: "Captions (CWI, EN)", status: "done", cost: 180, assetId: "ast_cc_9923" },
+        { name: "Audio description (EN)", status: "running", cost: 260 },
+        { name: "Sign track (ASL)", status: "queued", cost: 540 },
+        { name: "Dubs (ES, PT)", status: "queued", cost: 380 },
+        { name: "QA + provenance (C2PA)", status: "queued", cost: 120 },
+      ],
+    },
+    {
+      jobId: "job_director_ep4",
+      seriesId: "ser_director",
+      seriesTitle: "The Director's Daughter",
+      episodeTitle: "Ep4 · The verdict",
+      state: "needs_approval",
+      projectedCost: 3120,
+      budget: 2500,
+      overBudget: true,
+      stages: [
+        { name: "Ingest + probe", status: "done", cost: 40, assetId: "ast_ing_7741" },
+        { name: "Encode HLS (9:16 + 16:9)", status: "done", cost: 360, assetId: "ast_hls_7742" },
+        { name: "Captions (CWI, EN)", status: "done", cost: 200, assetId: "ast_cc_7743" },
+        { name: "Audio description (EN)", status: "blocked", cost: 280, detail: "Over budget: awaiting approval to proceed." },
+        { name: "Sign track (ASL + BSL)", status: "blocked", cost: 980 },
+        { name: "Dubs (ES, PT, FR)", status: "blocked", cost: 740 },
+        { name: "QA + provenance (C2PA)", status: "blocked", cost: 120 },
+      ],
+    },
+    {
+      jobId: "job_vow_ep2",
+      seriesId: "ser_vow",
+      seriesTitle: "A Vow in Code",
+      episodeTitle: "Ep2 · The proposal",
+      state: "failed",
+      projectedCost: 1460,
+      budget: 2500,
+      overBudget: false,
+      stages: [
+        { name: "Ingest + probe", status: "done", cost: 40, assetId: "ast_ing_5511" },
+        { name: "Encode HLS (9:16 + 16:9)", status: "failed", cost: 320, detail: "Source master corrupt at 00:14:22. Re-upload required." },
+        { name: "Captions (CWI, EN)", status: "skipped", cost: 0 },
+        { name: "Audio description (EN)", status: "skipped", cost: 0 },
+        { name: "Sign track (ASL)", status: "skipped", cost: 0 },
+        { name: "QA + provenance (C2PA)", status: "skipped", cost: 0 },
+      ],
+    },
+    {
+      jobId: "job_heiress_ep5",
+      seriesId: "ser_heiress",
+      seriesTitle: "The Hidden Heiress",
+      episodeTitle: "Ep5 · The inheritance",
+      state: "done",
+      projectedCost: 1980,
+      budget: 2500,
+      overBudget: false,
+      stages: [
+        { name: "Ingest + probe", status: "done", cost: 40, assetId: "ast_ing_3301" },
+        { name: "Encode HLS (9:16 + 16:9)", status: "done", cost: 340, assetId: "ast_hls_3302" },
+        { name: "Captions (CWI, EN)", status: "done", cost: 190, assetId: "ast_cc_3303" },
+        { name: "Audio description (EN)", status: "done", cost: 270, assetId: "ast_ad_3304" },
+        { name: "Sign track (ASL)", status: "done", cost: 560, assetId: "ast_sign_3305" },
+        { name: "Dubs (ES, PT)", status: "done", cost: 360, assetId: "ast_dub_3306" },
+        { name: "QA + provenance (C2PA)", status: "done", cost: 120, assetId: "ast_c2pa_3307" },
+      ],
+    },
+  ],
+};
+
+/* ------------------------------ Accessibility -------------------------------- */
+export const DEMO_ACCESSIBILITY: AdminAccessibility = {
+  readiness: [
+    { seriesId: "ser_shadow", seriesTitle: "Shadow Signal", score: 100, blockers: [] },
+    { seriesId: "ser_heiress", seriesTitle: "The Hidden Heiress", score: 100, blockers: [] },
+    { seriesId: "ser_vow", seriesTitle: "A Vow in Code", score: 92, blockers: ["Sign track (ASL) Ep2 awaiting Deaf review"] },
+    {
+      seriesId: "ser_director",
+      seriesTitle: "The Director's Daughter",
+      score: 64,
+      blockers: ["Audio description (EN) Ep3 missing", "Sign track (ASL) Ep3 in QA", "Dub (PT) Ep3 drafted, not reviewed"],
+    },
+  ],
+  perTrack: [
+    { seriesId: "ser_shadow", seriesTitle: "Shadow Signal", track: "captions", language: "EN", status: "ready", coverage: 100 },
+    { seriesId: "ser_shadow", seriesTitle: "Shadow Signal", track: "audio_description", language: "EN", status: "ready", coverage: 100 },
+    { seriesId: "ser_shadow", seriesTitle: "Shadow Signal", track: "sign", language: "ASL", status: "ready", coverage: 100 },
+    { seriesId: "ser_shadow", seriesTitle: "Shadow Signal", track: "dub", language: "ES", status: "ready", coverage: 100 },
+    { seriesId: "ser_director", seriesTitle: "The Director's Daughter", track: "captions", language: "EN", status: "ready", coverage: 100 },
+    { seriesId: "ser_director", seriesTitle: "The Director's Daughter", track: "audio_description", language: "EN", status: "missing", coverage: 0 },
+    { seriesId: "ser_director", seriesTitle: "The Director's Daughter", track: "sign", language: "ASL", status: "in_qa", coverage: 70 },
+    { seriesId: "ser_director", seriesTitle: "The Director's Daughter", track: "dub", language: "PT", status: "drafted", coverage: 45 },
+    { seriesId: "ser_vow", seriesTitle: "A Vow in Code", track: "captions", language: "EN", status: "ready", coverage: 100 },
+    { seriesId: "ser_vow", seriesTitle: "A Vow in Code", track: "sign", language: "ASL", status: "in_qa", coverage: 88 },
+  ],
+  reviewQueue: [
+    { id: "rv_1", seriesTitle: "A Vow in Code", episodeTitle: "Ep2 · The proposal", track: "sign", language: "ASL", reviewer: "Deaf review panel", submittedAt: "2026-06-17T14:20:00Z" },
+    { id: "rv_2", seriesTitle: "The Director's Daughter", episodeTitle: "Ep3 · The reveal", track: "sign", language: "ASL", reviewer: "Deaf review panel", submittedAt: "2026-06-17T09:05:00Z" },
+    { id: "rv_3", seriesTitle: "The Director's Daughter", episodeTitle: "Ep3 · The reveal", track: "dub", language: "PT", reviewer: "Native PT reviewer", submittedAt: "2026-06-16T18:40:00Z" },
+  ],
+};

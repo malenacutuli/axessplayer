@@ -5,12 +5,23 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import {
   AdminApi,
+  type AdminAccessibility,
   type AdminContentDetail,
   type AdminContentList,
   type AdminDashboard,
   type AdminMe,
+  type MediaFactoryJobs,
+  type StoryGraph,
 } from "./adminApi";
-import { DEMO_CONTENT, DEMO_DASHBOARD, DEMO_ME, demoContentDetail } from "./demoData";
+import {
+  DEMO_ACCESSIBILITY,
+  DEMO_CONTENT,
+  DEMO_DASHBOARD,
+  DEMO_MEDIA_JOBS,
+  DEMO_ME,
+  demoContentDetail,
+  demoStoryGraph,
+} from "./demoData";
 
 export const AdminApiContext = createContext<AdminApi | null>(null);
 export function useAdminApi(): AdminApi {
@@ -70,4 +81,13 @@ export function useContentDetail(id: string): AsyncResult<AdminContentDetail> {
     },
     [id],
   );
+}
+export function useStoryGraph(seriesId: string): AsyncResult<StoryGraph> {
+  return useAsync<StoryGraph>((api) => api.storyGraph(seriesId), () => demoStoryGraph(seriesId), [seriesId]);
+}
+export function useMediaFactoryJobs(): AsyncResult<MediaFactoryJobs> {
+  return useAsync<MediaFactoryJobs>((api) => api.mediaFactoryJobs(), () => DEMO_MEDIA_JOBS, []);
+}
+export function useAccessibility(): AsyncResult<AdminAccessibility> {
+  return useAsync<AdminAccessibility>((api) => api.accessibility(), () => DEMO_ACCESSIBILITY, []);
 }

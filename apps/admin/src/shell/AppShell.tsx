@@ -50,7 +50,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div key={grp.group ?? `top-${gi}`}>
               {grp.group && <div className="adm-rail__section">{grp.group}</div>}
               {grp.items.map((item) => {
-                const current = path === item.path || path.startsWith(`${item.path}/`);
+                // Match on the first path segment so a detail route (e.g. /admin/story-graph/:seriesId)
+                // still highlights its rail section even though the nav path carries a default id.
+                const itemSection = item.path.replace(/^\/admin\//, "").split("/")[0];
+                const curSection = path.replace(/^\/admin\//, "").split("/")[0];
+                const current = path === item.path || itemSection === curSection;
                 return (
                   <Link
                     key={item.key}

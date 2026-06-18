@@ -48,6 +48,33 @@ test("content writes: Owner/Admin/Content allowed, other roles read-only", () =>
   }
 });
 
+test("classifyRoute maps the section 4-6 surfaces", () => {
+  assert.equal(classifyRoute("/admin/story-graph/abc"), "storyGraph");
+  assert.equal(classifyRoute("/admin/story-graph/abc/validate"), "storyGraph");
+  assert.equal(classifyRoute("/admin/story-graph/abc/simulate"), "storyGraph");
+  assert.equal(classifyRoute("/admin/media-factory/jobs"), "mediaFactory");
+  assert.equal(classifyRoute("/admin/accessibility"), "accessibility");
+});
+
+test("story-graph: reads open to all, validate/simulate writes gated to Content/Owner/Admin", () => {
+  for (const role of ROLES) {
+    assert.equal(decide(role, "/admin/story-graph/abc", "GET").allow, true, `${role} reads graph`);
+    assert.equal(decide(role, "/admin/media-factory/jobs", "GET").allow, true, `${role} reads jobs`);
+    assert.equal(decide(role, "/admin/accessibility", "GET").allow, true, `${role} reads a11y`);
+  }
+  const writers: Role[] = ["Owner", "Admin", "Content"];
+  for (const role of writers) {
+    assert.equal(decide(role, "/admin/story-graph/abc/validate", "POST").allow, true, `${role} validate`);
+    assert.equal(decide(role, "/admin/story-graph/abc/simulate", "POST").allow, true, `${role} simulate`);
+  }
+  const readers: Role[] = ["Finance", "Marketing", "Moderation", "Support", "ReadOnly"];
+  for (const role of readers) {
+    const v = decide(role, "/admin/story-graph/abc/validate", "POST");
+    assert.equal(v.allow, false, `${role} may not run the validate seam`);
+    assert.equal(v.reason, "read_only_violation");
+  }
+});
+
 test("unknown route is denied for every role and method (deny by default)", () => {
   for (const role of ROLES) {
     assert.equal(decide(role, "/admin/secret", "GET").allow, false);

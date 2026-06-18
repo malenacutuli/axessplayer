@@ -24,8 +24,12 @@ import {
   buildDashboard,
   buildContentTree,
   buildContentDetail,
+  buildStoryGraph,
+  buildMediaFactoryJobs,
+  buildAccessibility,
   type QueryPort,
 } from "../aggregate.js";
+import { validateStoryGraph, simulateStoryGraph, type SimulateInput } from "../storygraph.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -97,6 +101,80 @@ export function createAdminApp(deps: AppDeps): Hono {
     const detail = await buildContentDetail(db, id);
     if (detail == null) return c.json({ error: "not_found" }, 404);
     return c.json(detail);
+  });
+
+  // GET /admin/story-graph/:seriesId : the versioned graph JSON composed from the hosted content graph
+  // (series -> episodes -> beats -> beat_variants + beat_edges). A malformed id is a clean 400 before any
+  // DB access; an unknown series is 404. Read-only; reward weights never appear here.
+  app.get("/admin/story-graph/:seriesId", async (c) => {
+    const id = c.req.param("seriesId");
+    if (!UUID_RE.test(id)) return c.json({ error: "invalid_id" }, 400);
+    const graph = await buildStoryGraph(db, id);
+    if (graph == null) return c.json({ error: "not_found" }, 404);
+    return c.json(graph);
+  });
+
+  // POST /admin/story-graph/:seriesId/validate : run the pure canon/broken-link constraint solver over the
+  // composed graph and return { valid, issues[] }. Pure (no DB writes), but it is a POST mutation seam, so
+  // it is RBAC-gated by the storyGraph write capability and the run is audit-logged for traceability.
+  app.post("/admin/story-graph/:seriesId/validate", async (c) => {
+    const id = c.req.param("seriesId");
+    if (!UUID_RE.test(id)) return c.json({ error: "invalid_id" }, 400);
+    const graph = await buildStoryGraph(db, id);
+    if (graph == null) return c.json({ error: "not_found" }, 404);
+    const result = validateStoryGraph(graph);
+    await recordMutation(audit, c.get("operator"), "story_graph.validate", `series:${id}`, undefined, {
+      valid: result.valid,
+      issueCount: result.issues.length,
+      version: graph.version,
+    });
+    return c.json(result);
+  });
+
+  // POST /admin/story-graph/:seriesId/simulate : deterministically walk the composed graph applying the
+  // body's {path|signals} and return the visited node sequence. Pure (no DB writes); the same RBAC +
+  // audit treatment as validate, since it is a POST seam.
+  app.post("/admin/story-graph/:seriesId/simulate", async (c) => {
+    const id = c.req.param("seriesId");
+    if (!UUID_RE.test(id)) return c.json({ error: "invalid_id" }, 400);
+    let body: SimulateInput = {};
+    try {
+      const raw = (await c.req.json()) as unknown;
+      if (raw != null && typeof raw === "object") {
+        const r = raw as Record<string, unknown>;
+        body = {
+          ...(Array.isArray(r.path) ? { path: r.path.filter((x): x is string => typeof x === "string") } : {}),
+          ...(Array.isArray(r.signals) ? { signals: r.signals.filter((x): x is string => typeof x === "string") } : {}),
+          ...(typeof r.start === "string" ? { start: r.start } : {}),
+        };
+      }
+    } catch {
+      // An empty or non-JSON body is a default signal-driven canon walk, not an error.
+      body = {};
+    }
+    const graph = await buildStoryGraph(db, id);
+    if (graph == null) return c.json({ error: "not_found" }, 404);
+    const result = simulateStoryGraph(graph, body);
+    await recordMutation(audit, c.get("operator"), "story_graph.simulate", `series:${id}`, undefined, {
+      reachedEnding: result.reachedEnding,
+      steps: result.visited.length,
+      version: graph.version,
+    });
+    return c.json(result);
+  });
+
+  // GET /admin/media-factory/jobs : produce-DAG job state. No jobs table exists in the hosted schema yet,
+  // so this returns an empty list with a clear shape + an "unwired" source marker (no fabricated jobs).
+  app.get("/admin/media-factory/jobs", async (c) => {
+    const jobs = await buildMediaFactoryJobs(db);
+    return c.json(jobs);
+  });
+
+  // GET /admin/accessibility : per-series readiness (cc/ad/sign/dub coverage as a 0..100 score + blockers),
+  // per-track QA placeholders, and a review-queue read (empty + unwired until a queue table exists).
+  app.get("/admin/accessibility", async (c) => {
+    const report = await buildAccessibility(db);
+    return c.json(report);
   });
 
   // Erase the context-variable generic at the boundary: callers (server.ts, tests) consume the plain Hono

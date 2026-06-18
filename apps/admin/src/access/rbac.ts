@@ -19,6 +19,12 @@ export type Action =
   | "content.view"
   | "content.edit"
   | "content.publish"
+  | "storygraph.view"
+  | "storygraph.edit"
+  | "media.view"
+  | "media.control" // retry / kill / approve-over-budget on produce DAG jobs (audit-logged)
+  | "accessibility.view"
+  | "accessibility.review" // accept / edit / upload a human clip in the Deaf-review queue (audit-logged)
   | "users.view"
   | "users.manage"
   | "creators.view"
@@ -39,6 +45,9 @@ export type Action =
 const VIEW_ACTIONS: Action[] = [
   "dashboard.view",
   "content.view",
+  "storygraph.view",
+  "media.view",
+  "accessibility.view",
   "users.view",
   "creators.view",
   "moderation.view",
@@ -55,10 +64,10 @@ const VIEW_ACTIONS: Action[] = [
 const MATRIX: Record<OperatorRole, Action[] | "*"> = {
   Owner: "*",
   Admin: "*",
-  Content: [...VIEW_ACTIONS, "content.edit", "content.publish"],
+  Content: [...VIEW_ACTIONS, "content.edit", "content.publish", "storygraph.edit", "media.control", "accessibility.review"],
   Finance: [...VIEW_ACTIONS, "billing.payout"],
   Marketing: [...VIEW_ACTIONS],
-  Moderation: [...VIEW_ACTIONS, "moderation.act"],
+  Moderation: [...VIEW_ACTIONS, "moderation.act", "accessibility.review"],
   Support: [...VIEW_ACTIONS],
   ReadOnly: [...VIEW_ACTIONS],
 };
@@ -74,6 +83,9 @@ export function can(role: OperatorRole, action: Action): boolean {
 const MUTATING_ACTIONS: Action[] = [
   "content.edit",
   "content.publish",
+  "storygraph.edit",
+  "media.control",
+  "accessibility.review",
   "users.manage",
   "moderation.act",
   "billing.payout",

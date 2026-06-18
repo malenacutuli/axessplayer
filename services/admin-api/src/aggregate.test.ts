@@ -16,7 +16,15 @@ import {
   variantRollupBySeriesSql,
   latestPolicyVersionSql,
 } from "./queries.js";
-import { buildDashboard, buildContentTree, buildContentDetail, type QueryPort } from "./aggregate.js";
+import {
+  buildDashboard,
+  buildContentTree,
+  buildContentDetail,
+  buildStoryGraph,
+  buildMediaFactoryJobs,
+  buildAccessibility,
+  type QueryPort,
+} from "./aggregate.js";
 
 // ---- Pure SQL shape assertions ----------------------------------------------------------------------
 
@@ -159,4 +167,94 @@ test("buildContentDetail returns null for an unknown series, full rollup otherwi
   assert.equal(detail.beats[0].role, "spine");
   assert.equal(detail.variants[0].hasCaptions, true);
   assert.equal(detail.variants[0].hasAudioDescription, false);
+});
+
+// ---- Story graph composition ------------------------------------------------------------------------
+
+test("buildStoryGraph returns null for an unknown series", async () => {
+  const empty = fakePg([{ match: /from series where id/, rows: [] }]);
+  assert.equal(await buildStoryGraph(empty, "missing"), null);
+});
+
+test("buildStoryGraph composes nodes labeled by flags, edges with default fallback, and pricing", async () => {
+  const db = fakePg([
+    { match: /from series where id/, rows: [{ id: "s1" }] },
+    { match: /from beats where series_id/, rows: [
+      { id: "b0", episode_id: "e1", beat_index: 0, role: "spine", is_branch_point: false },
+      { id: "b1", episode_id: "e1", beat_index: 1, role: "spine", is_branch_point: true },
+      { id: "b2", episode_id: "e1", beat_index: 2, role: "variant", is_branch_point: false },
+      { id: "b3", episode_id: "e1", beat_index: 3, role: "ending", is_branch_point: false },
+    ] },
+    { match: /group by v\.beat_id/, rows: [
+      { beat_id: "b1", any_premium: false, any_branch: true, any_ending: false, min_premium_cost: null, variant_kind: null },
+      { beat_id: "b2", any_premium: true, any_branch: false, any_ending: false, min_premium_cost: 30, variant_kind: "pov" },
+      { beat_id: "b3", any_premium: false, any_branch: false, any_ending: true, min_premium_cost: null, variant_kind: "alt_ending" },
+    ] },
+    { match: /from beat_edges/, rows: [
+      { from_beat_id: "b0", to_beat_id: "b1", condition: {} },
+      { from_beat_id: "b1", to_beat_id: "b2", condition: { chose: "a" } },
+      { from_beat_id: "b1", to_beat_id: "b3", condition: {} },
+      { from_beat_id: "b2", to_beat_id: "b3", condition: null },
+    ] },
+  ]);
+
+  const g = await buildStoryGraph(db, "s1");
+  assert.ok(g);
+  const kindById = Object.fromEntries(g.nodes.map((n) => [n.id, n.kind]));
+  assert.equal(kindById.b0, "beat");
+  assert.equal(kindById.b1, "branch");
+  // b2 is premium-locked; premium dominates the pov axis in labelNodeKind precedence.
+  assert.equal(kindById.b2, "premium");
+  assert.equal(kindById.b3, "ending");
+
+  // Default-fallback derivation: empty/null condition -> default; populated -> guarded.
+  const e01 = g.edges.find((e) => e.from === "b0" && e.to === "b1");
+  assert.equal(e01?.isDefault, true);
+  const e12guard = g.edges.find((e) => e.from === "b1" && e.to === "b2");
+  assert.equal(e12guard?.isDefault, false);
+  assert.equal(e12guard?.condition, "chose");
+
+  // Pricing surfaces the premium-gated node.
+  assert.deepEqual(g.pricing, [{ nodeId: "b2", kind: "premium", coinCost: 30 }]);
+
+  // memoryVars is honestly empty with a TODO (no hosted memory source yet).
+  assert.deepEqual(g.memoryVars, []);
+  assert.ok(g.memoryVarsTodo && g.memoryVarsTodo.length > 0);
+
+  // Version is a deterministic stamp over the topology.
+  assert.match(g.version, /^g[0-9a-f]+\.n4\.e4$/);
+});
+
+test("buildMediaFactoryJobs returns an empty unwired shape, never fabricated jobs", async () => {
+  const db = fakePg([]);
+  const r = await buildMediaFactoryJobs(db);
+  assert.deepEqual(r.jobs, []);
+  assert.equal(r.source, "unwired");
+  assert.ok(r.note.length > 0);
+});
+
+test("buildAccessibility scores per-series readiness, sums per-track, and leaves the queue unwired", async () => {
+  const db = fakePg([
+    { match: /from beats b join beat_variants v on v\.beat_id = b\.id/, rows: [
+      { series_id: "s1", total: 10, with_captions: 10, with_ad: 5, with_sign: 0, with_dub: 0 },
+      { series_id: "s2", total: 4, with_captions: 4, with_ad: 4, with_sign: 4, with_dub: 4 },
+    ] },
+    { match: /from series order by created_at/, rows: [
+      { id: "s1", title: "One" },
+      { id: "s2", title: "Two" },
+    ] },
+  ]);
+  const r = await buildAccessibility(db);
+  const byId = Object.fromEntries(r.readiness.map((x) => [x.seriesId, x]));
+  assert.equal(byId.s1.score, 38);
+  assert.equal(byId.s1.title, "One");
+  assert.equal(byId.s2.score, 100);
+  assert.equal(byId.s2.blockers.length, 0);
+
+  const cc = r.perTrack.find((t) => t.track === "cc");
+  assert.equal(cc?.covered, 14); // 10 + 4
+  assert.equal(cc?.total, 14);   // 10 + 4
+
+  assert.deepEqual(r.reviewQueue, []);
+  assert.equal(r.reviewQueueSource, "unwired");
 });
