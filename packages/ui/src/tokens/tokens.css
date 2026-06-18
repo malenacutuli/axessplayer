@@ -1,0 +1,120 @@
+/* Axessplayer design tokens. The SINGLE canonical source for every surface (viewer, studio, admin, mobile).
+   Values are the high-fidelity handoff (docs/product/design/DESIGN_HANDOFF_README.md). Surfaces import this
+   once and never fork colors/type/spacing. Three skins are token overrides on [data-skin], NOT forked
+   components. No emojis. No em dashes in any token comment. */
+
+:root {
+  /* ---- color: ink / backgrounds / surfaces ---- */
+  --axp-bg: #0B0B0D;            /* deepest app background */
+  --axp-board: #08080A;         /* board / behind-everything */
+  --axp-surface: #15151b;       /* raised surfaces */
+  --axp-card: #16161c;          /* cards */
+  --axp-rail: #0E0E12;          /* left rail + topbar (consoles) */
+
+  /* ---- color: borders ---- */
+  --axp-border: #1f1f25;
+  --axp-border-2: #20202a;
+  --axp-border-3: #26262d;
+  --axp-hairline: #1a1a20;      /* card hairline */
+
+  /* ---- color: text ---- */
+  --axp-ink: #FAFAF8;           /* primary */
+  --axp-ink-2: #C9C9CF;         /* secondary */
+  --axp-muted: #9A9AA0;         /* muted */
+  --axp-faint: #6B6B72;         /* faint */
+  --axp-faintest: #54545C;      /* faintest */
+
+  /* ---- color: brand accents ---- */
+  --axp-rose: #FF2E6E;          /* Electric Rose, the ONE focal accent per screen */
+  --axp-rose-soft: #FF8FB4;
+  --axp-rose-deep: #cf1d57;
+  --axp-gold: #E8B54B;          /* premium / credits, reserved */
+
+  /* ---- color: semantic ---- */
+  --axp-success: #1F8A5B;
+  --axp-info: #5aa6ff;
+  --axp-danger: #ff5f57;
+  --axp-warning: #E8B54B;
+
+  /* ---- color: tint fills ---- */
+  --axp-rose-fill-08: rgba(255, 46, 110, 0.08);
+  --axp-rose-fill-12: rgba(255, 46, 110, 0.12);
+  --axp-rose-fill-16: rgba(255, 46, 110, 0.16);
+  --axp-gold-tint-14: rgba(232, 181, 75, 0.14);
+  --axp-gold-tint-16: rgba(232, 181, 75, 0.16);
+  /* counterfactual / ending-lift bands always render as a translucent band, never a point */
+  --axp-band-rose: rgba(255, 46, 110, 0.16);
+  --axp-band-info: rgba(90, 166, 255, 0.16);
+
+  /* ---- typography: families ---- */
+  --axp-font-display: "Outfit", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --axp-font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --axp-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* ---- typography: weights ---- */
+  --axp-w-regular: 400;
+  --axp-w-medium: 500;
+  --axp-w-semibold: 600;
+
+  /* ---- typography: display letter-spacing (large -> small) ---- */
+  --axp-ls-display-lg: -0.035em;
+  --axp-ls-display-sm: -0.02em;
+  --axp-ls-mono: 0.14em;         /* mono labels 0.1 to 0.18em */
+
+  /* ---- typography: scale ---- */
+  --axp-fs-h1: 30px;             /* console h1 */
+  --axp-fs-section: 16px;        /* section title */
+  --axp-fs-kpi: 30px;            /* KPI number 22 to 30 */
+  --axp-fs-kpi-sm: 22px;
+  --axp-fs-title-mobile: 24px;   /* mobile screen titles 20 to 32 */
+  --axp-fs-body: 14px;           /* body 13 to 15 */
+  --axp-fs-caption: 12px;        /* captions 11 to 12 */
+  --axp-fs-mono: 11px;           /* mono labels 9 to 13 */
+
+  /* ---- spacing / radius ---- */
+  --axp-radius-card: 14px;       /* 13 to 16 */
+  --axp-radius-card-lg: 16px;
+  --axp-radius-pill: 999px;
+  --axp-radius-phone: 46px;      /* phone screen radius */
+  --axp-bezel-w: 9px;            /* phone bezel */
+  --axp-bezel-color: #1b1b21;
+  --axp-pad-panel: 20px;         /* 18 to 22 */
+  --axp-pad-page-y: 30px;        /* console page padding */
+  --axp-pad-page-x: 36px;
+
+  /* ---- shadow / ring ---- */
+  --axp-shadow-phone: 0 40px 80px -30px rgba(0, 0, 0, 0.9);
+  --axp-shadow-card: 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  --axp-ring: 0 0 0 3px var(--axp-rose-fill-16);   /* rose focus ring */
+  --axp-ring-solid: 0 0 0 2px var(--axp-rose);
+
+  /* ---- controls ---- */
+  --axp-toggle-h: 40px;          /* pill toggles 38 to 42 */
+  --axp-scrub-h: 4px;
+  --axp-icon-stroke: 1.85;       /* inline stroke svg 1.8 to 1.9 */
+}
+
+/* Viewer skin: mobile-first, the default. Tokens already target it; explicit for clarity. */
+[data-skin="viewer"] {
+  --axp-pad-page-y: 18px;
+  --axp-pad-page-x: 16px;
+}
+
+/* Studio skin: desktop console, slightly roomier panels. */
+[data-skin="studio"] {
+  --axp-pad-page-y: 30px;
+  --axp-pad-page-x: 36px;
+}
+
+/* Admin skin: dense operator console, tighter rhythm, same palette. */
+[data-skin="admin"] {
+  --axp-pad-page-y: 24px;
+  --axp-pad-page-x: 28px;
+  --axp-radius-card: 13px;
+}
+
+/* Respect reduced motion globally (WCAG 2.2 AA). Components must not animate when this is set. */
+@media (prefers-reduced-motion: reduce) {
+  :root { --axp-motion: none; }
+}
+:root { --axp-motion: auto; }

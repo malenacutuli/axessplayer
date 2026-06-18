@@ -1,0 +1,3 @@
+/* Axessplayer brand fonts. Imported once per surface alongside tokens.css. Outfit (display), Inter (body),
+   JetBrains Mono (mono labels/data). Matches the handoff font link verbatim. No em dashes. */
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");

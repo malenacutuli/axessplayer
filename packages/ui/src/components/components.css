@@ -1,0 +1,162 @@
+/* Axessplayer component library styles. Class-based, driven ENTIRELY by tokens.css custom properties so the
+   three skins (viewer/studio/admin) differ by tokens, not forked CSS. Every interactive element ships a visible
+   focus ring and respects reduced motion (WCAG 2.2 AA). No emojis. No em dashes. Prefix: .axp- */
+
+/* ---------- focus + motion (AA) ---------- */
+.axp-focusable:focus-visible,
+.axp-btn:focus-visible,
+.axp-icon-btn:focus-visible,
+.axp-toggle:focus-visible,
+.axp-chip:focus-visible,
+.axp-tab:focus-visible {
+  outline: none;
+  box-shadow: var(--axp-ring-solid), var(--axp-ring);
+}
+@media (prefers-reduced-motion: reduce) {
+  .axp-toggle__knob, .axp-scrub__fill, .axp-btn, .axp-skeleton { transition: none !important; animation: none !important; }
+}
+
+/* ---------- wordmark + logo ---------- */
+.axp-wordmark {
+  font-family: var(--axp-font-display);
+  font-weight: var(--axp-w-semibold);
+  letter-spacing: var(--axp-ls-display-lg);
+  color: var(--axp-ink);
+  text-transform: lowercase;
+  line-height: 1;
+}
+.axp-wordmark__player { color: var(--axp-rose); }
+.axp-logo-lockup { display: inline-flex; align-items: center; gap: 12px; }
+
+/* ---------- buttons ---------- */
+.axp-btn {
+  font-family: var(--axp-font-display);
+  font-weight: var(--axp-w-semibold);
+  letter-spacing: var(--axp-ls-display-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: filter 120ms ease, background 120ms ease;
+}
+.axp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* size: console (compact, radius 9) vs viewer (pill) controlled by --axp-btn-radius set per skin/prop */
+.axp-btn--md { font-size: 14px; padding: 10px 18px; border-radius: 9px; }
+.axp-btn--lg { font-size: 17px; padding: 15px 22px; border-radius: var(--axp-radius-pill); }
+.axp-btn--primary { background: var(--axp-rose); color: #fff; }
+.axp-btn--primary:hover:not(:disabled) { filter: brightness(1.06); }
+.axp-btn--primary.axp-btn--lg { box-shadow: var(--axp-shadow-rose, 0 14px 30px -10px rgba(255,46,110,0.7)); }
+.axp-btn--secondary { background: rgba(255,255,255,0.08); color: var(--axp-ink); border-color: var(--axp-border-3); }
+.axp-btn--secondary:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
+.axp-btn--ghost { background: transparent; color: var(--axp-ink-2); }
+.axp-btn--ghost:hover:not(:disabled) { color: var(--axp-ink); background: rgba(255,255,255,0.05); }
+
+.axp-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 46px; height: 46px; border-radius: 50%;
+  background: rgba(0,0,0,0.4); color: #fff; border: none; cursor: pointer;
+}
+.axp-icon-btn--sm { width: 34px; height: 34px; border-radius: 11px; }
+
+/* ---------- pills / chips ---------- */
+.axp-chip {
+  font-family: var(--axp-font-mono);
+  font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 6px 11px; border-radius: 7px;
+  background: rgba(255,255,255,0.06); color: var(--axp-ink-2);
+  border: 1px solid var(--axp-border-3); cursor: pointer;
+}
+.axp-chip[aria-pressed="true"], .axp-chip--active { background: var(--axp-rose); color: #fff; border-color: transparent; }
+.axp-pov-pill {
+  font-family: var(--axp-font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 4px 9px; border-radius: 7px; background: rgba(255,46,110,0.92); color: #fff;
+}
+.axp-cutforyou {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--axp-font-mono); font-size: 11px; letter-spacing: var(--axp-ls-mono); text-transform: uppercase;
+  padding: 7px 14px; border-radius: var(--axp-radius-pill);
+  background: var(--axp-rose-fill-16); border: 1px solid rgba(255,46,110,0.5); color: var(--axp-rose-soft);
+}
+.axp-cutforyou__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--axp-rose); }
+
+/* ---------- toggle ---------- */
+.axp-toggle {
+  position: relative; width: 42px; height: 25px; border-radius: var(--axp-radius-pill);
+  background: var(--axp-border-3); border: none; cursor: pointer; padding: 0;
+  transition: background 140ms ease;
+}
+.axp-toggle[aria-checked="true"] { background: var(--axp-rose); }
+.axp-toggle__knob {
+  position: absolute; top: 2.5px; left: 2.5px; width: 20px; height: 20px; border-radius: 50%; background: #fff;
+  transition: transform 140ms ease;
+}
+.axp-toggle[aria-checked="true"] .axp-toggle__knob { transform: translateX(17px); }
+
+/* ---------- cards ---------- */
+.axp-card {
+  background: var(--axp-card); border: 1px solid var(--axp-border-2);
+  border-radius: var(--axp-radius-card); padding: var(--axp-pad-panel);
+}
+.axp-card__title { font-family: var(--axp-font-display); font-weight: var(--axp-w-semibold); font-size: var(--axp-fs-section); color: var(--axp-ink); margin: 0 0 12px; }
+.axp-card__subtitle { font-family: var(--axp-font-body); font-size: 12px; color: var(--axp-muted); margin: 0 0 14px; }
+
+.axp-kpi { background: var(--axp-surface); border: 1px solid var(--axp-border-2); border-radius: var(--axp-radius-card); padding: 20px; }
+.axp-kpi--gold { background: linear-gradient(160deg, #1a160d, #15151b); border-color: rgba(232,181,75,0.35); }
+.axp-kpi--green { background: linear-gradient(160deg, #0e1a14, #15151b); border-color: rgba(31,138,91,0.35); }
+.axp-kpi__label { font-family: var(--axp-font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--axp-muted); }
+.axp-kpi--gold .axp-kpi__label { color: var(--axp-gold); }
+.axp-kpi--green .axp-kpi__label { color: var(--axp-success); }
+.axp-kpi__num { font-family: var(--axp-font-display); font-weight: var(--axp-w-semibold); font-size: var(--axp-fs-kpi); letter-spacing: -0.02em; color: var(--axp-ink); margin-top: 8px; }
+.axp-kpi__trend { font-family: var(--axp-font-body); font-size: 12px; color: var(--axp-success); margin-top: 4px; }
+
+/* ---------- status chip (tables) ---------- */
+.axp-status { font-family: var(--axp-font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 8px; border-radius: 5px; }
+.axp-status--live { color: var(--axp-success); background: rgba(31,138,91,0.15); }
+.axp-status--review { color: var(--axp-gold); background: rgba(232,181,75,0.15); }
+.axp-status--processing { color: var(--axp-info); background: rgba(90,166,255,0.15); }
+.axp-status--draft { color: var(--axp-muted); background: rgba(255,255,255,0.06); }
+.axp-status--failed { color: var(--axp-danger); background: rgba(255,95,87,0.12); }
+
+/* ---------- accessibility badges (CC/AD/SIGN/lang/C2PA/readiness) ---------- */
+.axp-badge { font-family: var(--axp-font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 9px; border-radius: 6px; border: 1px solid var(--axp-border-3); color: var(--axp-ink-2); background: transparent; }
+.axp-badge--c2pa { color: var(--axp-info); border-color: rgba(90,166,255,0.4); }
+.axp-badge--ready { color: var(--axp-success); border-color: rgba(31,138,91,0.4); }
+
+/* ---------- credits / gold pill ---------- */
+.axp-credits { display: inline-flex; align-items: center; gap: 8px; font-family: var(--axp-font-mono); font-size: 12px; color: var(--axp-gold); }
+.axp-credits__dot { width: 18px; height: 18px; border-radius: 50%; background: var(--axp-gold); display: inline-flex; align-items: center; justify-content: center; color: var(--axp-bg); font-size: 10px; }
+
+/* ---------- progress / scrub (rose) ---------- */
+.axp-scrub { height: var(--axp-scrub-h); border-radius: 3px; background: rgba(255,255,255,0.25); overflow: hidden; }
+.axp-scrub--track-dark { background: var(--axp-border-2); }
+.axp-scrub__fill { height: 100%; border-radius: 3px; background: var(--axp-rose); transition: width 200ms ease; }
+.axp-meter { height: 5px; border-radius: 3px; background: var(--axp-border-2); overflow: hidden; }
+.axp-meter__fill { height: 100%; background: var(--axp-success); border-radius: 3px; }
+
+/* ---------- counterfactual band (never a point) ---------- */
+.axp-band { position: relative; height: 10px; border-radius: 5px; background: var(--axp-border-2); }
+.axp-band__fill { position: absolute; top: 0; bottom: 0; border-radius: 5px; background: var(--axp-band-rose); }
+.axp-band__center { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--axp-rose); }
+
+/* ---------- bottom tab bar (viewer) ---------- */
+.axp-tabbar { display: flex; justify-content: space-around; align-items: center; height: 74px; padding-bottom: 14px;
+  background: rgba(11,11,13,0.92); backdrop-filter: blur(12px); border-top: 1px solid var(--axp-border); }
+.axp-tab { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: none; cursor: pointer; color: var(--axp-faint); }
+.axp-tab[aria-current="page"] { color: var(--axp-rose); }
+.axp-tab__label { font-family: var(--axp-font-body); font-size: 9px; }
+
+/* ---------- left rail (console) ---------- */
+.axp-rail { width: 236px; background: var(--axp-rail); border-right: 1px solid var(--axp-border); padding: 18px 14px; }
+.axp-rail__section { font-family: var(--axp-font-mono); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--axp-faintest); padding: 14px 10px 7px; }
+.axp-rail__item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 9px; font-family: var(--axp-font-body); font-weight: 500; font-size: 14px; color: var(--axp-muted); background: none; border: none; width: 100%; text-align: left; cursor: pointer; }
+.axp-rail__item[aria-current="page"], .axp-rail__item--active { background: var(--axp-rose-fill-12); color: #fff; }
+
+/* ---------- state helpers: skeleton / empty / error ---------- */
+.axp-skeleton { background: linear-gradient(90deg, var(--axp-border) 25%, var(--axp-border-3) 37%, var(--axp-border) 63%); background-size: 400% 100%; animation: axp-shimmer 1.4s ease infinite; border-radius: 8px; }
+@keyframes axp-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+.axp-empty, .axp-error { text-align: center; padding: 32px 20px; border: 1px dashed var(--axp-border-3); border-radius: var(--axp-radius-card); color: var(--axp-muted); font-family: var(--axp-font-body); font-size: 13px; }
+.axp-empty__title, .axp-error__title { font-family: var(--axp-font-display); font-weight: 600; font-size: 16px; color: var(--axp-ink); margin: 0 0 6px; }
+.axp-error { border-color: rgba(255,95,87,0.4); }
+.axp-error__title { color: var(--axp-danger); }
