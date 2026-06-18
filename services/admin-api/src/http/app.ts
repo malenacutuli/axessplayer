@@ -14,7 +14,7 @@
 // rewardWeightsEditable:false), and there is no route that writes them. A weight change is a founder
 // sign-off, never an operator/agent action.
 
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 
 import { parseBearer, type OperatorVerifier, type OperatorIdentity } from "../auth.js";
@@ -27,6 +27,13 @@ import {
   buildStoryGraph,
   buildMediaFactoryJobs,
   buildAccessibility,
+  buildBrands,
+  buildCampaigns,
+  buildPlacements,
+  buildUsersPage,
+  buildUserDetail,
+  buildCreators,
+  buildCreatorDetail,
   type QueryPort,
 } from "../aggregate.js";
 import { validateStoryGraph, simulateStoryGraph, type SimulateInput } from "../storygraph.js";
@@ -177,6 +184,81 @@ export function createAdminApp(deps: AppDeps): Hono {
     return c.json(report);
   });
 
+  // ---- Section 7-8: AD PLANE (brands / campaigns / placements) --------------------------------------
+  // The hosted schema has no ad-plane tables yet (prompt 19). Each returns a real EMPTY list + source:
+  // "unwired". RBAC scopes these to the ad-plane roles (Marketing/Admin/Owner write; others read). The
+  // content/ad firewall holds: these handlers issue no content-ranking read.
+  app.get("/admin/brands", async (c) => c.json(await buildBrands(db)));
+  app.get("/admin/campaigns", async (c) => c.json(await buildCampaigns(db)));
+  app.get("/admin/placements", async (c) => c.json(await buildPlacements(db)));
+
+  // ---- Section 8: USERS (privacy-minimized viewer admin) --------------------------------------------
+  // GET /admin/users : a minimized page (id/username/tier/created_at + wallet balance + event count). The
+  // list read is access-logged via the audit sink as a read (who looked at the viewer roster, when). Query
+  // params limit/offset page the list; the aggregate clamps them.
+  app.get("/admin/users", async (c) => {
+    const limit = Number(c.req.query("limit") ?? "50");
+    const offset = Number(c.req.query("offset") ?? "0");
+    const page = await buildUsersPage(db, Number.isFinite(limit) ? limit : 50, Number.isFinite(offset) ? offset : 0);
+    await recordRead(audit, c.get("operator"), "users.list", "users", { count: page.users.length, total: page.total });
+    return c.json(page);
+  });
+
+  // GET /admin/users/:id : the fuller (still minimized) profile. A malformed id is a clean 400 before any DB
+  // access; an unknown id is 404. The detail read is access-logged (who looked at which viewer).
+  app.get("/admin/users/:id", async (c) => {
+    const id = c.req.param("id");
+    if (!UUID_RE.test(id)) return c.json({ error: "invalid_id" }, 400);
+    const detail = await buildUserDetail(db, id);
+    if (detail == null) return c.json({ error: "not_found" }, 404);
+    await recordRead(audit, c.get("operator"), "users.detail", `user:${id}`);
+    return c.json(detail);
+  });
+
+  // ---- Section 9: CREATORS ---------------------------------------------------------------------------
+  // GET /admin/creators : derived from series ownership IF present, else empty + source:"unwired". The
+  // 70/30 split is shown display-only via the revenueShare helper. No payout is executed.
+  app.get("/admin/creators", async (c) => c.json(await buildCreators(db)));
+
+  app.get("/admin/creators/:id", async (c) => {
+    const id = c.req.param("id");
+    if (!UUID_RE.test(id)) return c.json({ error: "invalid_id" }, 400);
+    const detail = await buildCreatorDetail(db, id);
+    if (detail == null) return c.json({ error: "not_found" }, 404);
+    return c.json(detail);
+  });
+
+  // ---- DESTRUCTIVE SEAMS (GDPR export/delete, ban, refund) ------------------------------------------
+  // These are RBAC-gated by the elevated write surfaces (gdpr/moderation) in rbac.ts. They are PURE SEAMS
+  // this wave: each appends ONE audit entry recording the attempted destructive action (who, what target,
+  // intent), then returns 501 not_implemented WITHOUT touching any data. No delete, no ban, no refund is
+  // executed. The mutation backend is unwired; surfacing the seam (audited) is the deliverable. The audit
+  // entry is recorded BEFORE the 501 so the attempt is on the immutable trail even though nothing changed.
+  async function destructiveSeam(c: Context<{ Variables: Vars }>, action: string): Promise<Response> {
+    const id = c.req.param("id") ?? "";
+    if (!UUID_RE.test(id)) return c.json({ error: "invalid_id" }, 400);
+    await recordMutation(audit, c.get("operator"), action, `user:${id}`, undefined, {
+      executed: false,
+      reason: "not_implemented",
+    });
+    return c.json(
+      {
+        error: "not_implemented",
+        action,
+        note: "destructive mutation backend is unwired; this seam audited the attempt and performed no data change",
+      },
+      501,
+    );
+  }
+
+  // GDPR export + delete (account-data operations; gdpr write = Admin/Owner).
+  app.post("/admin/users/:id/export", (c) => destructiveSeam(c, "gdpr.export"));
+  app.post("/admin/users/:id/delete", (c) => destructiveSeam(c, "gdpr.delete"));
+  // Ban (moderation write = Moderation/Admin/Owner).
+  app.post("/admin/users/:id/ban", (c) => destructiveSeam(c, "user.ban"));
+  // Refund (moderation write = Finance/Moderation/Admin/Owner; a refund reverses a coin transaction).
+  app.post("/admin/users/:id/refund", (c) => destructiveSeam(c, "coin.refund"));
+
   // Erase the context-variable generic at the boundary: callers (server.ts, tests) consume the plain Hono
   // fetch surface. The Vars typing exists only so the handlers above are type-safe against c.get/c.set.
   return app as unknown as Hono;
@@ -202,4 +284,19 @@ export async function recordMutation(
     ...(after !== undefined ? { after } : {}),
   };
   await audit.append(entry);
+}
+
+// Access-log a sensitive READ. The user-admin reads touch viewer PII (minimized), so the privacy gate
+// requires logging WHO accessed the viewer roster/profile and WHEN. This appends a read entry to the same
+// immutable trail (action suffixed conceptually as a read; the `after` carries only non-PII metadata such
+// as a count, never the rows themselves). It is a thin wrapper over recordMutation so there is one append
+// path, but it exists as its own name so a reader sees these are access logs, not data mutations.
+export async function recordRead(
+  audit: AdminAuditSink,
+  operator: OperatorIdentity,
+  action: string,
+  target: string,
+  meta?: unknown,
+): Promise<void> {
+  await recordMutation(audit, operator, action, target, undefined, meta);
 }

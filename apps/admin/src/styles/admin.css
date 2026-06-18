@@ -804,3 +804,237 @@ body {
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* ============================================================================
+   Sections 7-9: Brand integration, Users, Creators. No emojis, no em dashes.
+   ============================================================================ */
+
+/* ---- content / ad plane firewall boundary (section 7) ---- */
+.adm-firewall {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 13px 16px;
+  margin-bottom: 14px;
+  border: 1px dashed var(--axp-border-2);
+  border-left: 3px solid var(--axp-gold);
+  border-radius: 12px;
+  background: var(--axp-gold-tint-14);
+  color: var(--axp-ink-2);
+  font-family: var(--axp-font-body);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.adm-firewall svg {
+  color: var(--axp-gold);
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+/* ---- sub-view tabs (brands / campaigns / placements) ---- */
+.adm-subtabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.adm-subtab {
+  font-family: var(--axp-font-body);
+  font-size: 13px;
+  color: var(--axp-muted);
+  text-decoration: none;
+  padding: 8px 14px;
+  border: 1px solid var(--axp-border-3);
+  border-radius: 10px;
+  background: var(--axp-surface);
+}
+.adm-subtab:hover {
+  color: var(--axp-ink);
+}
+.adm-subtab.is-active {
+  color: var(--axp-ink);
+  border-color: var(--axp-rose);
+  background: var(--axp-rose-fill-08);
+}
+.adm-subtab:focus-visible {
+  outline: 2px solid var(--axp-rose);
+  outline-offset: 2px;
+}
+
+/* ---- table column overrides for the new row variants ---- */
+.adm-tr--brands {
+  grid-template-columns: 2fr 1.4fr 0.8fr 1fr 1fr;
+}
+.adm-tr--campaigns {
+  grid-template-columns: 2fr 1.4fr 0.8fr 1fr 1.2fr 1fr;
+}
+.adm-tr--users {
+  grid-template-columns: 1.8fr 0.9fr 1.1fr 1fr 0.8fr 1fr;
+}
+.adm-tr--creators {
+  grid-template-columns: 1.8fr 1fr 0.7fr 1.1fr 1fr 0.9fr 0.9fr;
+}
+@media (max-width: 820px) {
+  .adm-tr--brands,
+  .adm-tr--campaigns,
+  .adm-tr--users,
+  .adm-tr--creators {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ---- score chip (brand-safety / suitability) ---- */
+.adm-score {
+  font-family: var(--axp-font-mono);
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 8px;
+  justify-self: start;
+}
+.adm-score--good {
+  color: var(--axp-success);
+  background: rgba(70, 200, 140, 0.12);
+}
+.adm-score--warn {
+  color: var(--axp-warning);
+  background: rgba(225, 170, 60, 0.14);
+}
+.adm-score--bad {
+  color: var(--axp-danger);
+  background: rgba(255, 95, 87, 0.12);
+}
+
+/* ---- pill tones ---- */
+.adm-pill--ok {
+  color: var(--axp-success);
+  border-color: transparent;
+  background: rgba(70, 200, 140, 0.12);
+}
+.adm-pill--warn {
+  color: var(--axp-warning);
+  border-color: transparent;
+  background: rgba(225, 170, 60, 0.14);
+}
+
+/* ---- placements ---- */
+.adm-placements {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+@media (max-width: 980px) {
+  .adm-placements {
+    grid-template-columns: 1fr;
+  }
+}
+.adm-placement__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.adm-placement__scores {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.adm-placement__meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+.adm-placement__lift {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+/* ---- privacy-gated user sections (section 8) ---- */
+.adm-gated-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+@media (max-width: 980px) {
+  .adm-gated-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.adm-gated__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.adm-gated__lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--axp-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--axp-muted);
+  padding: 4px 9px;
+  border: 1px solid var(--axp-border-3);
+  border-radius: 8px;
+}
+.adm-historylist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.adm-historylist__row {
+  display: grid;
+  grid-template-columns: 1.6fr 1.4fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--axp-hairline);
+}
+.adm-historylist__row:last-child {
+  border-bottom: none;
+}
+
+/* ---- destructive seam blocks (sections 8-9) ---- */
+.adm-destructive {
+  border-color: var(--axp-border-2);
+  border-left: 3px solid var(--axp-danger);
+}
+.adm-destructive__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+/* ---- transparent revenue split bar (section 9) ---- */
+.adm-split {
+  display: flex;
+  height: 38px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--axp-border-2);
+}
+.adm-split__creator,
+.adm-split__platform {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--axp-font-body);
+  font-size: 12px;
+  font-weight: var(--axp-w-medium);
+}
+.adm-split__creator {
+  color: var(--axp-ink);
+  background: var(--axp-gold-tint-14);
+}
+.adm-split__platform {
+  color: var(--axp-muted);
+  background: var(--axp-faintest);
+}

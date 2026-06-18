@@ -264,6 +264,155 @@ export interface AdminAccessibility {
   reviewQueue: ReviewItem[];
 }
 
+/* ---------------------------- Brand integration ------------------------------ */
+// Section 7. The content/ad PLANE FIREWALL is a hard gate: brand/ad data and decisions never cross into
+// content ranking. These shapes carry the brand side only; nothing here is ever fed to cut selection or the
+// recommendation surface, and the UI labels that boundary explicitly. Brand tables are NOT in the hosted
+// schema yet, so GET /admin/brands|campaigns|placements return empty arrays today; the UI renders a real
+// "no campaigns yet" empty state plus the firewall note (no dead end), never fabricated rows. Deal model,
+// suitability + brand-safety scores, targeting, sponsored disclosure, approval workflow, and revenue
+// attribution (counterfactual lift as a BAND) are all display-only operator reads. No em dashes.
+export type DealModel = "CPM" | "CPA" | "CPC" | "flat";
+export type CampaignStatus = "draft" | "in_review" | "approved" | "live" | "paused" | "ended";
+export type ApprovalStep = "submitted" | "brand_safety" | "legal" | "operator_approval" | "approved" | "rejected";
+
+export interface Brand {
+  id: string;
+  name: string;
+  // The advertiser/agency account. Account-level only; never linked to content ranking.
+  industry: string;
+  // Aggregate brand-safety suitability score 0..100 (display only).
+  safetyScore: number;
+  campaignCount: number;
+  status: "active" | "paused" | "prospect";
+}
+export interface Campaign {
+  id: string;
+  brandId: string;
+  brandName: string;
+  name: string;
+  status: CampaignStatus;
+  deal: DealModel;
+  // Headline rate for the deal model (e.g. CPM rate, flat fee). Display only.
+  rate: string;
+  // Approval workflow position. Approval is a seam; not executed in this wave.
+  approval: ApprovalStep;
+  // High-level targeting summary (audience/context). Never a content-ranking input.
+  targeting: string;
+  flightStart?: string;
+  flightEnd?: string;
+}
+export interface Placement {
+  id: string;
+  campaignId: string;
+  campaignName: string;
+  brandName: string;
+  // The content slot this placement is linked to (series/episode), by title only.
+  contentTitle: string;
+  // The generation-time slot kind (where in the produce pipeline the placement is composited).
+  slotKind: "pre_roll" | "mid_scene" | "product_dressing" | "end_card";
+  // Suitability score for this slot 0..100 and brand-safety pass/flag (display only).
+  suitabilityScore: number;
+  brandSafe: boolean;
+  // Sponsored disclosure label shown to the viewer (transparency requirement).
+  disclosure: string;
+  // Performance + revenue attribution. Lift is a counterfactual BAND, never a point.
+  impressions: number;
+  revenue: number;
+  liftBand?: KpiBand;
+}
+export interface AdminBrands {
+  brands: Brand[];
+}
+export interface AdminCampaigns {
+  campaigns: Campaign[];
+}
+export interface AdminPlacements {
+  placements: Placement[];
+}
+
+/* ---------------------------------- Users ------------------------------------ */
+// Section 8. PRIVACY + DATA-MINIMIZATION hard gate: only the minimum profile fields are returned, access is
+// logged server side, and NO personal/biometric data leaves the sovereign plane. The detail view marks the
+// privacy-gated, access-logged sections explicitly. GDPR export/delete, ban/suspend, and audited refund are
+// DESTRUCTIVE seams: RBAC-gated, confirmation-required, audit-logged, and NOT executed this wave (rendered
+// disabled / coming-soon). No em dashes.
+export type UserTier = "free" | "plus" | "premium";
+export type SubscriptionStatus = "none" | "active" | "trialing" | "past_due" | "canceled";
+
+export interface UserRow {
+  id: string;
+  // Minimized handle (no full legal name / email on the list view).
+  handle: string;
+  tier: UserTier;
+  subscription: SubscriptionStatus;
+  // Coin wallet balance (display only; the ledger is the source of truth).
+  balanceCoins: number;
+  // Coarse region only (data minimization: no precise location).
+  region: string;
+  createdAt: string;
+}
+export interface UserHistoryItem {
+  // A minimized activity row (purchase / watch / branch). No raw event payloads.
+  label: string;
+  detail: string;
+  at: string;
+}
+export interface UserDetail {
+  user: UserRow;
+  // A11y + language defaults the viewer set (so support can reproduce their experience).
+  a11yDefaults: Array<{ label: string; value: string }>;
+  // PRIVACY-GATED + minimized sections. Each carries an access-logged note in the UI.
+  purchaseHistory: UserHistoryItem[];
+  watchHistory: UserHistoryItem[];
+  branchHistory: UserHistoryItem[];
+  downloads: UserHistoryItem[];
+  referrals: UserHistoryItem[];
+  sessions: Array<{ device: string; lastSeen: string; ip: string }>;
+}
+export interface AdminUsers {
+  users: UserRow[];
+}
+
+/* --------------------------------- Creators ---------------------------------- */
+// Section 9. Read-only. The 70/30 revenue share is shown TRANSPARENTLY. Financial actions (payout release)
+// are RBAC-gated (Finance/Admin/Owner) and rendered coming-soon (not executed). Rights/consent files and
+// moderation/strike status are surfaced; no personal/biometric data off the sovereign plane. No em dashes.
+export type KycStatus = "not_started" | "in_review" | "verified" | "rejected";
+export type PayoutStatus = "pending" | "scheduled" | "paid" | "on_hold";
+export type StrikeStatus = "clear" | "warning" | "suspended";
+
+export interface CreatorRow {
+  id: string;
+  name: string;
+  // Onboarding / KYC status (display only).
+  kyc: KycStatus;
+  // Lifetime earnings to the creator (the 70 side of the 70/30 split), in USD.
+  earningsUsd: number;
+  contentCount: number;
+  payout: PayoutStatus;
+  strikes: StrikeStatus;
+  // Whether the creator is eligible for brand integrations (gated on rights + safety).
+  brandEligible: boolean;
+}
+export interface CreatorDetail {
+  creator: CreatorRow;
+  // The transparent revenue split. creatorPct + platformPct === 100.
+  split: { creatorPct: number; platformPct: number };
+  contract: { id: string; signedAt: string; term: string };
+  // Content library (titles only).
+  library: Array<{ id: string; title: string; status: ContentStatus; variants: number }>;
+  // Rights / consent files on record (provenance + likeness consent). Display only.
+  rightsFiles: Array<{ label: string; status: "on_file" | "missing" | "expired"; updatedAt: string }>;
+  // Moderation history (strikes / actions). Display only.
+  moderation: Array<{ label: string; at: string; severity: "info" | "warning" | "strike" }>;
+  // Earnings breakdown by source (display only). Brand earnings stay on the brand side of the firewall.
+  earnings: Array<{ source: string; amountUsd: number }>;
+}
+export interface AdminCreators {
+  creators: CreatorRow[];
+}
+
 /* ----------------------------------- Client ---------------------------------- */
 export interface AdminApiConfig {
   baseUrl: string;
@@ -369,6 +518,38 @@ export class AdminApi {
   // GET /admin/accessibility -> readiness + per-track QA + review queue
   accessibility(): Promise<AdminAccessibility> {
     return this.get<AdminAccessibility>("/admin/accessibility");
+  }
+
+  // GET /admin/brands -> brand accounts (empty until the brand tables land; the UI renders a real empty
+  // state plus the firewall note, never fabricated rows).
+  brands(): Promise<AdminBrands> {
+    return this.get<AdminBrands>("/admin/brands");
+  }
+  // GET /admin/campaigns -> campaigns across brands
+  campaigns(): Promise<AdminCampaigns> {
+    return this.get<AdminCampaigns>("/admin/campaigns");
+  }
+  // GET /admin/placements -> placement slots linked to content (brand side of the firewall)
+  placements(): Promise<AdminPlacements> {
+    return this.get<AdminPlacements>("/admin/placements");
+  }
+
+  // GET /admin/users -> minimized users list
+  users(): Promise<AdminUsers> {
+    return this.get<AdminUsers>("/admin/users");
+  }
+  // GET /admin/users/:id -> minimized, privacy-gated user detail (access logged server side)
+  userDetail(id: string): Promise<UserDetail> {
+    return this.get<UserDetail>(`/admin/users/${encodeURIComponent(id)}`);
+  }
+
+  // GET /admin/creators -> creators list
+  creators(): Promise<AdminCreators> {
+    return this.get<AdminCreators>("/admin/creators");
+  }
+  // GET /admin/creators/:id -> creator detail (read-only; financial actions gated elsewhere)
+  creatorDetail(id: string): Promise<CreatorDetail> {
+    return this.get<CreatorDetail>(`/admin/creators/${encodeURIComponent(id)}`);
   }
 }
 

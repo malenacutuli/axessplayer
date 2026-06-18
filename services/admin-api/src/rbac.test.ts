@@ -90,3 +90,94 @@ test("Owner and Admin have full write across every surface", () => {
     assert.equal(decide(role, "/admin/content", "DELETE").allow, true);
   }
 });
+
+// ---- Section 7-9 additions --------------------------------------------------------------------------
+
+test("classifyRoute maps the section 7-9 surfaces and destructive seams", () => {
+  assert.equal(classifyRoute("/admin/brands"), "brands");
+  assert.equal(classifyRoute("/admin/brands/abc"), "brands");
+  assert.equal(classifyRoute("/admin/campaigns"), "campaigns");
+  assert.equal(classifyRoute("/admin/placements"), "placements");
+  assert.equal(classifyRoute("/admin/users"), "users");
+  assert.equal(classifyRoute("/admin/users/abc"), "users");
+  assert.equal(classifyRoute("/admin/creators"), "creators");
+  assert.equal(classifyRoute("/admin/creators/abc"), "creators");
+  assert.equal(classifyRoute("/admin/payouts"), "payouts");
+  // The destructive seams classify to their elevated-write surfaces, NOT to the underlying read surface,
+  // so a delete/export is gdpr and a ban/refund is moderation (most-specific-first ordering).
+  assert.equal(classifyRoute("/admin/users/abc/export"), "gdpr");
+  assert.equal(classifyRoute("/admin/users/abc/delete"), "gdpr");
+  assert.equal(classifyRoute("/admin/users/abc/ban"), "moderation");
+  assert.equal(classifyRoute("/admin/users/abc/refund"), "moderation");
+});
+
+test("brands ad-plane: Marketing/Admin/Owner write, everyone else read-only", () => {
+  for (const role of ["Marketing", "Admin", "Owner"] as Role[]) {
+    assert.equal(decide(role, "/admin/brands", "GET").allow, true, `${role} reads brands`);
+    assert.equal(decide(role, "/admin/brands", "POST").allow, true, `${role} writes brands`);
+  }
+  for (const role of ["Content", "Finance", "Moderation", "Support", "ReadOnly"] as Role[]) {
+    assert.equal(decide(role, "/admin/brands", "GET").allow, true, `${role} reads brands`);
+    const v = decide(role, "/admin/brands", "POST");
+    assert.equal(v.allow, false, `${role} may not write brands`);
+    assert.equal(v.reason, "read_only_violation");
+  }
+});
+
+test("users surface: Support/Admin/Owner write, everyone else read-only; all read", () => {
+  for (const role of ROLES) {
+    assert.equal(decide(role, "/admin/users", "GET").allow, true, `${role} reads users`);
+    assert.equal(decide(role, "/admin/users/abc", "GET").allow, true, `${role} reads a user`);
+  }
+  for (const role of ["Support", "Admin", "Owner"] as Role[]) {
+    assert.equal(decide(role, "/admin/users", "POST").allow, true, `${role} writes users`);
+  }
+  for (const role of ["Content", "Finance", "Marketing", "Moderation", "ReadOnly"] as Role[]) {
+    assert.equal(decide(role, "/admin/users", "POST").allow, false, `${role} may not write users`);
+  }
+});
+
+test("creators surface: Admin/Owner write, all read; payouts: Finance/Owner write", () => {
+  for (const role of ROLES) {
+    assert.equal(decide(role, "/admin/creators", "GET").allow, true, `${role} reads creators`);
+    assert.equal(decide(role, "/admin/payouts", "GET").allow, true, `${role} reads payouts`);
+  }
+  for (const role of ["Admin", "Owner"] as Role[]) {
+    assert.equal(decide(role, "/admin/creators", "POST").allow, true, `${role} writes creators`);
+  }
+  for (const role of ["Content", "Finance", "Marketing", "Moderation", "Support", "ReadOnly"] as Role[]) {
+    assert.equal(decide(role, "/admin/creators", "POST").allow, false, `${role} may not write creators`);
+  }
+  assert.equal(decide("Finance", "/admin/payouts", "POST").allow, true, "Finance writes payouts");
+  assert.equal(decide("Owner", "/admin/payouts", "POST").allow, true, "Owner writes payouts");
+  for (const role of ["Content", "Marketing", "Support", "ReadOnly"] as Role[]) {
+    assert.equal(decide(role, "/admin/payouts", "POST").allow, false, `${role} may not write payouts`);
+  }
+});
+
+test("destructive GDPR seams require an elevated write role (Admin/Owner only)", () => {
+  for (const role of ["Admin", "Owner"] as Role[]) {
+    assert.equal(decide(role, "/admin/users/abc/export", "POST").allow, true, `${role} may run gdpr export`);
+    assert.equal(decide(role, "/admin/users/abc/delete", "POST").allow, true, `${role} may run gdpr delete`);
+  }
+  // Every non-elevated role (including Support, which owns the read surface) is denied the destructive seam.
+  for (const role of ["Content", "Finance", "Marketing", "Moderation", "Support", "ReadOnly"] as Role[]) {
+    const exp = decide(role, "/admin/users/abc/export", "POST");
+    assert.equal(exp.allow, false, `${role} may not run gdpr export`);
+    // gdpr is NONE for these roles, so the denial is role_forbidden (the surface is not theirs at all),
+    // not merely read_only_violation.
+    assert.equal(exp.reason, "role_forbidden", `${role} export denial reason`);
+  }
+});
+
+test("ban requires Moderation/Admin/Owner; refund requires Finance/Moderation/Admin/Owner", () => {
+  for (const role of ["Moderation", "Admin", "Owner"] as Role[]) {
+    assert.equal(decide(role, "/admin/users/abc/ban", "POST").allow, true, `${role} may ban`);
+    assert.equal(decide(role, "/admin/users/abc/refund", "POST").allow, true, `${role} may refund`);
+  }
+  assert.equal(decide("Finance", "/admin/users/abc/refund", "POST").allow, true, "Finance may refund");
+  for (const role of ["Content", "Marketing", "Support", "ReadOnly"] as Role[]) {
+    assert.equal(decide(role, "/admin/users/abc/ban", "POST").allow, false, `${role} may not ban`);
+    assert.equal(decide(role, "/admin/users/abc/refund", "POST").allow, false, `${role} may not refund`);
+  }
+});

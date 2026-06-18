@@ -25,9 +25,11 @@ export type Action =
   | "media.control" // retry / kill / approve-over-budget on produce DAG jobs (audit-logged)
   | "accessibility.view"
   | "accessibility.review" // accept / edit / upload a human clip in the Deaf-review queue (audit-logged)
+  | "brands.view" // Marketing / Admin / Owner only (section 7).
   | "users.view"
-  | "users.manage"
+  | "users.manage" // GDPR export/delete + ban/suspend + audited refund (destructive seam; not executed).
   | "creators.view"
+  | "creators.payout" // Finance / Admin / Owner only: release a creator payout (destructive seam, gated).
   | "moderation.view"
   | "moderation.act"
   | "monetization.view"
@@ -41,15 +43,17 @@ export type Action =
   | "settings.manage"
   | "policy.view_reward_weights"; // DISPLAY ONLY, every role; never an edit action.
 
-// Role -> allowed actions. "*" means all actions. ReadOnly gets only the *.view set (a read-only UI).
+// The view actions every operator role (including ReadOnly) may exercise. The PEOPLE + BRAND sections are
+// scoped tighter (brands -> Marketing/Admin/Owner, users -> Support/Admin/Owner, creators -> Admin/Owner +
+// Finance) so those view actions are NOT in this blanket set; they are granted per role below. ReadOnly is
+// the read-only mirror of whatever sections a role can see, so it gets the same scoped view grants a viewer
+// would, never a mutating action.
 const VIEW_ACTIONS: Action[] = [
   "dashboard.view",
   "content.view",
   "storygraph.view",
   "media.view",
   "accessibility.view",
-  "users.view",
-  "creators.view",
   "moderation.view",
   "monetization.view",
   "analytics.view",
@@ -65,11 +69,15 @@ const MATRIX: Record<OperatorRole, Action[] | "*"> = {
   Owner: "*",
   Admin: "*",
   Content: [...VIEW_ACTIONS, "content.edit", "content.publish", "storygraph.edit", "media.control", "accessibility.review"],
-  Finance: [...VIEW_ACTIONS, "billing.payout"],
-  Marketing: [...VIEW_ACTIONS],
+  // Finance can see creators (for payouts) and release payouts (seam this wave), plus billing payouts.
+  Finance: [...VIEW_ACTIONS, "creators.view", "creators.payout", "billing.payout"],
+  // Marketing owns brand integration.
+  Marketing: [...VIEW_ACTIONS, "brands.view"],
   Moderation: [...VIEW_ACTIONS, "moderation.act", "accessibility.review"],
-  Support: [...VIEW_ACTIONS],
-  ReadOnly: [...VIEW_ACTIONS],
+  // Support owns user accounts.
+  Support: [...VIEW_ACTIONS, "users.view"],
+  // A read-only viewer can see every read surface (mirror), but performs no mutating action.
+  ReadOnly: [...VIEW_ACTIONS, "brands.view", "users.view", "creators.view"],
 };
 
 export function can(role: OperatorRole, action: Action): boolean {
@@ -87,6 +95,7 @@ const MUTATING_ACTIONS: Action[] = [
   "media.control",
   "accessibility.review",
   "users.manage",
+  "creators.payout",
   "moderation.act",
   "billing.payout",
   "settings.manage",

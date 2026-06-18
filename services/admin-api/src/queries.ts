@@ -272,6 +272,106 @@ export function graphEdgesBySeriesSql(seriesId: string): Sql {
   };
 }
 
+// ---- Users (GET /admin/users, GET /admin/users/:id) -------------------------------------------------
+//
+// PRIVACY-MINIMIZED viewer admin. The list and detail read mobile.users for the minimal identity an
+// operator needs to do support work: id, username, tier, created_at. Raw PII beyond that (email, auth_id,
+// avatar) is NOT selected here. The wallet balance and the minimized history counts are joined/aggregated
+// from coin_wallet, engagement_events, and coin_transactions. These reads NEVER touch decision_log,
+// beat_variants, or any content-ranking surface: the user-admin plane is separate from content ranking.
+
+// Page of users for the list, newest first. Minimal columns only (no email/auth_id). limit/offset are the
+// page window so the list never unbounded-scans the table.
+export function usersListSql(limit = 50, offset = 0): Sql {
+  return {
+    text:
+      "select id, username, tier, created_at " +
+      "from users order by created_at desc limit $1 offset $2",
+    values: [limit, offset],
+  };
+}
+
+// Total user count, for the list's pagination header. Separate from usersCountSql only in intent (this is
+// the users-surface count); reuses the same minimal scan.
+export function usersTotalSql(): Sql {
+  return { text: "select count(*)::int as n from users", values: [] };
+}
+
+// One user's minimal identity by id. Same minimized projection as the list; the detail adds the joined
+// wallet + history below, not more raw PII.
+export function userByIdSql(id: string): Sql {
+  return {
+    text: "select id, username, tier, created_at from users where id = $1",
+    values: [id],
+  };
+}
+
+// A user's coin wallet balance (and bonus). LEFT-join semantics are applied in the aggregate by treating a
+// missing row as zero; this builder simply reads the wallet row when present.
+export function userWalletSql(userId: string): Sql {
+  return {
+    text: "select balance, bonus_balance from coin_wallet where user_id = $1",
+    values: [userId],
+  };
+}
+
+// Minimized per-user history COUNTS (not the rows): how many engagement events and coin transactions the
+// user has. Counts, not raw event/transaction bodies, are the privacy-minimized history an operator needs.
+// One round trip each, scoped to the user. coin_transactions also returns the net credited/spent so the
+// support view can answer "how much have they bought/spent" without exposing individual receipts.
+export function userEngagementCountSql(userId: string): Sql {
+  return {
+    text: "select count(*)::int as events from engagement_events where user_id = $1",
+    values: [userId],
+  };
+}
+
+export function userCoinHistorySql(userId: string): Sql {
+  return {
+    text:
+      "select count(*)::int as transactions, " +
+      "coalesce(sum(amount) filter (where amount > 0), 0)::int as credited, " +
+      "coalesce(-sum(amount) filter (where amount < 0), 0)::int as spent " +
+      "from coin_transactions where user_id = $1",
+    values: [userId],
+  };
+}
+
+// List-level history counts for ALL users in the page, in one pass each, keyed by user_id, so the list does
+// not N+1 per user. The aggregate joins these onto the page rows by id. Scoped to nothing (full group-by)
+// because the page is small and the group-by is indexed by user_id; the aggregate picks the page's ids.
+export function usersEngagementCountsSql(): Sql {
+  return {
+    text: "select user_id, count(*)::int as events from engagement_events group by user_id",
+    values: [],
+  };
+}
+
+export function usersWalletBalancesSql(): Sql {
+  return {
+    text: "select user_id, balance, bonus_balance from coin_wallet",
+    values: [],
+  };
+}
+
+// ---- Creators (GET /admin/creators, GET /admin/creators/:id) ----------------------------------------
+//
+// There is NO creators table and NO series-ownership column in the hosted schema or the additive scripts.
+// The creator view is therefore derived from series ownership IF present, else unwired. This builder is a
+// tolerant existence probe: it asks the catalog whether a `series.owner_id`-style column exists before any
+// derive is attempted. The aggregate uses the probe to decide between a derived view and an empty +
+// unwired source, so we never fabricate creators. The probe reads only the information_schema catalog (no
+// content rows), keeping the firewall intact.
+export function seriesOwnerColumnProbeSql(): Sql {
+  return {
+    text:
+      "select column_name from information_schema.columns " +
+      "where table_schema in ('mobile', 'public') and table_name = 'series' " +
+      "and column_name in ('owner_id', 'creator_id') limit 1",
+    values: [],
+  };
+}
+
 // ---- Accessibility readiness (GET /admin/accessibility) ---------------------------------------------
 
 // Per-series accessibility track coverage: total variants and how many carry each of the four tracks

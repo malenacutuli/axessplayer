@@ -30,6 +30,15 @@ import {
   graphVariantFlagsBySeriesSql,
   graphEdgesBySeriesSql,
   accessibilityCoverageSql,
+  usersListSql,
+  usersTotalSql,
+  userByIdSql,
+  userWalletSql,
+  userEngagementCountSql,
+  userCoinHistorySql,
+  usersEngagementCountsSql,
+  usersWalletBalancesSql,
+  seriesOwnerColumnProbeSql,
   type Sql,
 } from "./queries.js";
 import {
@@ -42,6 +51,7 @@ import {
   type SeriesReadiness,
   type TrackCoverage,
 } from "./storygraph.js";
+import { revenueShare, CREATOR_SHARE, PLATFORM_SHARE, type RevenueSplit } from "./revenue.js";
 
 export type QueryPort = Pick<pg.Pool, "query">;
 
@@ -526,4 +536,231 @@ export async function buildAccessibility(db: QueryPort): Promise<AccessibilityRe
     reviewQueueSource: "unwired",
     reviewQueueNote: "no accessibility review-queue table in the hosted schema yet; wire the QA review queue read",
   };
+}
+
+// ---- Brands / Campaigns / Placements (sections 7-8, GET /admin/brands|campaigns|placements) ----------
+//
+// The AD PLANE. The hosted schema has NO brand/campaign/placement tables yet (prompt 19 lands them). These
+// return REAL EMPTY arrays with a typed shape and source:"unwired" plus a note, so the console renders a
+// real empty state. We do NOT fabricate rows. CONTENT/AD FIREWALL: there is deliberately no DB read here at
+// all this wave, and when prompt-19 wires these, the reads must stay on the brand/campaign/placement tables
+// and NEVER join content-ranking or decision tables. The shapes below are the contract the console codes
+// against now so wiring prompt-19 is a data swap, not a shape change.
+
+export interface BrandRow {
+  id: string;
+  name: string;
+  status: string;
+}
+export interface CampaignRow {
+  id: string;
+  brandId: string;
+  name: string;
+  status: string;
+  startsAt: string | null;
+  endsAt: string | null;
+}
+export interface PlacementRow {
+  id: string;
+  campaignId: string;
+  slot: string;
+  status: string;
+}
+
+export interface UnwiredList<T> {
+  items: T[];
+  source: "unwired" | "hosted";
+  note: string;
+}
+
+const PROMPT19_NOTE =
+  "brand/campaign/placement tables are not in the hosted schema yet; wire the prompt-19 ad-plane tables (firewalled from content ranking)";
+
+// All three accept the db port so the signature is stable once prompt-19 wires a firewalled read, but they
+// do NOT query this wave: there is no table to read, and issuing a query would risk touching the wrong
+// surface. Empty + unwired is the honest answer.
+export async function buildBrands(_db: QueryPort): Promise<UnwiredList<BrandRow>> {
+  void _db;
+  return { items: [], source: "unwired", note: PROMPT19_NOTE };
+}
+export async function buildCampaigns(_db: QueryPort): Promise<UnwiredList<CampaignRow>> {
+  void _db;
+  return { items: [], source: "unwired", note: PROMPT19_NOTE };
+}
+export async function buildPlacements(_db: QueryPort): Promise<UnwiredList<PlacementRow>> {
+  void _db;
+  return { items: [], source: "unwired", note: PROMPT19_NOTE };
+}
+
+// ---- Users (section 8, GET /admin/users + /admin/users/:id) -----------------------------------------
+//
+// PRIVACY-MINIMIZED viewer admin. The list returns only id/username/tier/created_at plus a wallet balance
+// and an engagement-event count per user (history as COUNTS, not raw rows). The detail adds the coin
+// history rollup (transaction count, net credited/spent). No raw email/auth_id/avatar leaves this layer.
+// The route logs the access via the audit sink as a read where required.
+
+export interface UserListItem {
+  id: string;
+  username: string | null;
+  tier: string;
+  createdAt: string | null;
+  walletBalance: number;
+  bonusBalance: number;
+  engagementEvents: number;
+}
+export interface UsersPage {
+  users: UserListItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+interface UserRow {
+  id: string;
+  username: string | null;
+  tier: string | null;
+  created_at: unknown;
+}
+
+const isoOrNull = (v: unknown): string | null => {
+  if (v == null) return null;
+  if (v instanceof Date) return v.toISOString();
+  return String(v);
+};
+
+export async function buildUsersPage(db: QueryPort, limit = 50, offset = 0): Promise<UsersPage> {
+  const safeLimit = Math.min(Math.max(1, Math.floor(limit)), 200);
+  const safeOffset = Math.max(0, Math.floor(offset));
+  const [rows, totalRows, balances, eventCounts] = await Promise.all([
+    run<UserRow>(db, usersListSql(safeLimit, safeOffset)),
+    run<{ n: number }>(db, usersTotalSql()),
+    run<{ user_id: string; balance: number; bonus_balance: number }>(db, usersWalletBalancesSql()),
+    run<{ user_id: string; events: number }>(db, usersEngagementCountsSql()),
+  ]);
+
+  const balanceByUser = new Map<string, { balance: number; bonus: number }>();
+  for (const b of balances) balanceByUser.set(b.user_id, { balance: num(b.balance), bonus: num(b.bonus_balance) });
+  const eventsByUser = new Map<string, number>();
+  for (const e of eventCounts) eventsByUser.set(e.user_id, num(e.events));
+
+  const users: UserListItem[] = rows.map((r) => {
+    const wallet = balanceByUser.get(r.id) ?? { balance: 0, bonus: 0 };
+    return {
+      id: r.id,
+      username: r.username,
+      tier: r.tier ?? "free",
+      createdAt: isoOrNull(r.created_at),
+      walletBalance: wallet.balance,
+      bonusBalance: wallet.bonus,
+      engagementEvents: eventsByUser.get(r.id) ?? 0,
+    };
+  });
+
+  return { users, total: num(totalRows[0]?.n), limit: safeLimit, offset: safeOffset };
+}
+
+export interface UserDetail {
+  id: string;
+  username: string | null;
+  tier: string;
+  createdAt: string | null;
+  wallet: { balance: number; bonusBalance: number };
+  history: {
+    engagementEvents: number;
+    coinTransactions: number;
+    coinsCredited: number;
+    coinsSpent: number;
+    // The history is intentionally COUNTS/sums only. Raw events and individual receipts are not exposed:
+    // an operator answering support questions needs the rollup, not the per-row PII.
+    note: string;
+  };
+}
+
+export async function buildUserDetail(db: QueryPort, userId: string): Promise<UserDetail | null> {
+  const userRows = await run<UserRow>(db, userByIdSql(userId));
+  const u = userRows[0];
+  if (u == null) return null;
+
+  const [wallet, events, coins] = await Promise.all([
+    run<{ balance: number; bonus_balance: number }>(db, userWalletSql(userId)),
+    run<{ events: number }>(db, userEngagementCountSql(userId)),
+    run<{ transactions: number; credited: number; spent: number }>(db, userCoinHistorySql(userId)),
+  ]);
+
+  const w = wallet[0] ?? { balance: 0, bonus_balance: 0 };
+  const c = coins[0] ?? { transactions: 0, credited: 0, spent: 0 };
+
+  return {
+    id: u.id,
+    username: u.username,
+    tier: u.tier ?? "free",
+    createdAt: isoOrNull(u.created_at),
+    wallet: { balance: num(w.balance), bonusBalance: num(w.bonus_balance) },
+    history: {
+      engagementEvents: num(events[0]?.events),
+      coinTransactions: num(c.transactions),
+      coinsCredited: num(c.credited),
+      coinsSpent: num(c.spent),
+      note: "history is privacy-minimized: counts and net sums only, no raw events or receipts",
+    },
+  };
+}
+
+// ---- Creators (section 9, GET /admin/creators + /admin/creators/:id) --------------------------------
+//
+// There is NO creators table and NO series-ownership column in the hosted schema. The creator view is
+// DERIVED from series ownership IF a series.owner_id/creator_id column exists; otherwise it is empty +
+// source:"unwired" with a followup. We probe the catalog (information_schema) before deriving so we never
+// fabricate creators. The 70/30 split is computed by the pure revenueShare helper (revenue.ts), surfaced
+// here display-only: no payout is executed. gross is 0 in the unwired case (no revenue source wired yet).
+
+export interface CreatorRow {
+  id: string;
+  seriesCount: number;
+  // Display-only revenue split. gross is the creator's attributable gross (0 until a revenue source is
+  // wired); split shows what the 70/30 payout WOULD be. No payout is executed this wave.
+  gross: number;
+  split: RevenueSplit;
+}
+export interface CreatorsView {
+  creators: CreatorRow[];
+  source: "unwired" | "derived";
+  // The split policy, surfaced so the console can label the 70/30 without re-deriving it.
+  sharePolicy: { creator: number; platform: number };
+  note: string;
+}
+
+const CREATOR_UNWIRED_NOTE =
+  "no creators table and no series.owner_id/creator_id column in the hosted schema; wire a creator-ownership source (prompt 19+) before deriving creators";
+
+export async function buildCreators(db: QueryPort): Promise<CreatorsView> {
+  const probe = await run<{ column_name: string }>(db, seriesOwnerColumnProbeSql());
+  // No ownership column -> nothing to derive. Empty + unwired, never fabricated.
+  if (probe.length === 0) {
+    return {
+      creators: [],
+      source: "unwired",
+      sharePolicy: { creator: CREATOR_SHARE, platform: PLATFORM_SHARE },
+      note: CREATOR_UNWIRED_NOTE,
+    };
+  }
+  // If a column existed, a derive would run here. The hosted schema has none, so this branch is dormant;
+  // it is structured so wiring an ownership column is a query swap, not a shape change. We still return the
+  // display-only split policy. revenueShare is referenced so the split helper is the single source of truth.
+  void revenueShare;
+  return {
+    creators: [],
+    source: "derived",
+    sharePolicy: { creator: CREATOR_SHARE, platform: PLATFORM_SHARE },
+    note: "series-ownership column detected; creator derivation wiring is pending the ownership-source slice",
+  };
+}
+
+export async function buildCreatorDetail(db: QueryPort, creatorId: string): Promise<CreatorRow | null> {
+  // No ownership source -> no creator can be resolved. Returns null (the route maps it to 404) rather than
+  // a fabricated creator. creatorId is accepted so the signature is stable once a source is wired.
+  void creatorId;
+  const probe = await run<{ column_name: string }>(db, seriesOwnerColumnProbeSql());
+  if (probe.length === 0) return null;
+  return null;
 }

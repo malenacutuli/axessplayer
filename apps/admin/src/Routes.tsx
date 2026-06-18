@@ -13,15 +13,15 @@ import { ContentDetail } from "./pages/ContentDetail";
 import { StoryGraph } from "./pages/StoryGraph";
 import { MediaFactory } from "./pages/MediaFactory";
 import { AccessibilityFactory } from "./pages/AccessibilityFactory";
+import { Brands } from "./pages/Brands";
+import { Users, UserDetailPage } from "./pages/Users";
+import { Creators, CreatorDetailPage } from "./pages/Creators";
 import { ComingSoon } from "./pages/ComingSoon";
 import { PageHead } from "./pages/Page";
 import { NAV_ITEMS } from "./shell/nav";
 
 // Sections built this wave handle their own route; the rest fall through to ComingSoon by label.
 const SECTION_SUBTITLE: Record<string, string> = {
-  brands: "Brand integrations behind the content and ad firewall. Content never blends with paid placement.",
-  users: "Accounts, sessions, consent, and GDPR data-subject actions. No biometric data leaves the plane.",
-  creators: "Creator accounts, revenue share, and content portfolios.",
   moderation: "Flagged comments and uploads, with an immutable action audit log.",
   monetization: "Credits, subscriptions, ads, and brand revenue. Reward weights are display-only.",
   analytics: "Watch, branch, completion, accessibility, and revenue reports.",
@@ -97,7 +97,23 @@ export function Routes() {
   // Section 6: Accessibility factory.
   if (path === "/admin/accessibility" || path === "/admin/accessibility/") return <AccessibilityFactory />;
 
-  // The thirteen not-yet-built sections (and any drill-through that targets them with a query): a real
+  // Section 7: Brand integration. The rail item is /admin/brands; campaigns and placements are sibling views
+  // of the same surface (the firewall boundary + a view switcher) so all three resolve to a real page.
+  if (path === "/admin/brands" || path === "/admin/brands/") return <Brands view="brands" />;
+  if (path === "/admin/campaigns" || path === "/admin/campaigns/") return <Brands view="campaigns" />;
+  if (path === "/admin/placements" || path === "/admin/placements/") return <Brands view="placements" />;
+
+  // Section 8: Users (minimized list + privacy-gated detail).
+  const userDetail = matchPath("/admin/users/:id", path);
+  if (userDetail) return <UserDetailPage id={userDetail.id} />;
+  if (path === "/admin/users" || path === "/admin/users/") return <Users />;
+
+  // Section 9: Creators (list + read-only detail).
+  const creatorDetail = matchPath("/admin/creators/:id", path);
+  if (creatorDetail) return <CreatorDetailPage id={creatorDetail.id} />;
+  if (path === "/admin/creators" || path === "/admin/creators/") return <Creators />;
+
+  // The remaining not-yet-built sections (and any drill-through that targets them with a query): a real
   // report stub when there is a query (a drill target), otherwise the section coming-soon state.
   const section = path.replace(/^\/admin\//, "").split("/")[0];
   const item = NAV_ITEMS.find((i) => i.path === `/admin/${section}`);

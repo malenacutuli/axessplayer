@@ -4,16 +4,23 @@
 // ADMIN API CONTRACT exactly. No live/biometric/personal data lives here, it is synthetic. No em dashes.
 import type {
   AdminAccessibility,
+  AdminBrands,
+  AdminCampaigns,
   AdminContentDetail,
   AdminContentList,
+  AdminCreators,
   AdminDashboard,
   AdminMe,
+  AdminPlacements,
+  AdminUsers,
   ContentNode,
+  CreatorDetail,
   MediaFactoryJobs,
   SimulateRequest,
   SimulateResult,
   StoryGraph,
   StoryValidation,
+  UserDetail,
 } from "./adminApi";
 
 export const DEMO_ME: AdminMe = {
@@ -408,3 +415,101 @@ export const DEMO_ACCESSIBILITY: AdminAccessibility = {
     { id: "rv_3", seriesTitle: "The Director's Daughter", episodeTitle: "Ep3 · The reveal", track: "dub", language: "PT", reviewer: "Native PT reviewer", submittedAt: "2026-06-16T18:40:00Z" },
   ],
 };
+
+/* ---------------------------- Brand integration ------------------------------ */
+// Brand tables are NOT in the hosted schema yet. Per the build gate, the brand surfaces render a REAL empty
+// state (no campaigns yet) plus the content/ad firewall note, NOT fabricated rows. So every brand fixture is
+// deliberately empty: the demo fallback shows the same honest empty state the live (currently empty)
+// endpoints would. No em dashes.
+export const DEMO_BRANDS: AdminBrands = { brands: [] };
+export const DEMO_CAMPAIGNS: AdminCampaigns = { campaigns: [] };
+export const DEMO_PLACEMENTS: AdminPlacements = { placements: [] };
+
+/* ---------------------------------- Users ------------------------------------ */
+// Synthetic, minimized accounts. Handles only (no legal names), coarse region, coin balance, tier, and
+// subscription. No personal/biometric data. The detail view's history is minimized + privacy-gated.
+export const DEMO_USERS: AdminUsers = {
+  users: [
+    { id: "usr_8821", handle: "@mara.k", tier: "premium", subscription: "active", balanceCoins: 1240, region: "NA", createdAt: "2025-11-02" },
+    { id: "usr_8822", handle: "@deafcinephile", tier: "plus", subscription: "active", balanceCoins: 380, region: "EU", createdAt: "2026-01-14" },
+    { id: "usr_8823", handle: "@luca_watches", tier: "free", subscription: "none", balanceCoins: 60, region: "LATAM", createdAt: "2026-03-20" },
+    { id: "usr_8824", handle: "@signfirst", tier: "premium", subscription: "trialing", balanceCoins: 940, region: "NA", createdAt: "2026-05-01" },
+    { id: "usr_8825", handle: "@nightowl22", tier: "plus", subscription: "past_due", balanceCoins: 0, region: "APAC", createdAt: "2026-02-09" },
+    { id: "usr_8826", handle: "@quiet.viewer", tier: "free", subscription: "canceled", balanceCoins: 15, region: "EU", createdAt: "2025-09-30" },
+  ],
+};
+
+function demoUserDetail(id: string): UserDetail | undefined {
+  const user = DEMO_USERS.users.find((u) => u.id === id);
+  if (!user) return undefined;
+  return {
+    user,
+    a11yDefaults: [
+      { label: "Captions", value: "On (CWI, large)" },
+      { label: "Audio description", value: user.tier === "free" ? "Off" : "On" },
+      { label: "Sign track", value: "ASL preferred" },
+      { label: "Language", value: user.region === "LATAM" ? "ES" : "EN" },
+      { label: "Reduce motion", value: "On" },
+    ],
+    purchaseHistory: [
+      { label: "Coin pack", detail: "500 coins", at: "2026-06-10" },
+      { label: "Premium cut unlock", detail: "Shadow Signal · Director's cut", at: "2026-06-11" },
+    ],
+    watchHistory: [
+      { label: "Shadow Signal", detail: "Ep1 completed · Maya POV", at: "2026-06-11" },
+      { label: "The Hidden Heiress", detail: "Ep5 started", at: "2026-06-12" },
+    ],
+    branchHistory: [
+      { label: "Shadow Signal Ep1", detail: 'Choice "Answer as Maya"', at: "2026-06-11" },
+      { label: "Shadow Signal Ep1", detail: 'Choice "Trace the signal"', at: "2026-06-11" },
+    ],
+    downloads: [{ label: "Offline download", detail: "The Hidden Heiress Ep5", at: "2026-06-12" }],
+    referrals: [{ label: "Referred", detail: "1 friend joined", at: "2026-05-22" }],
+    sessions: [
+      { device: "iOS app", lastSeen: "2026-06-12T20:14:00Z", ip: "redacted" },
+      { device: "Web (Chrome)", lastSeen: "2026-06-10T11:02:00Z", ip: "redacted" },
+    ],
+  };
+}
+export { demoUserDetail };
+
+/* --------------------------------- Creators ---------------------------------- */
+export const DEMO_CREATORS: AdminCreators = {
+  creators: [
+    { id: "cre_201", name: "Avalon Studios", kyc: "verified", earningsUsd: 482000, contentCount: 3, payout: "paid", strikes: "clear", brandEligible: true },
+    { id: "cre_202", name: "Rosa Marin", kyc: "verified", earningsUsd: 128400, contentCount: 1, payout: "scheduled", strikes: "clear", brandEligible: true },
+    { id: "cre_203", name: "North Pivot Films", kyc: "in_review", earningsUsd: 0, contentCount: 1, payout: "pending", strikes: "warning", brandEligible: false },
+    { id: "cre_204", name: "Kemi Adeyemi", kyc: "verified", earningsUsd: 71250, contentCount: 1, payout: "on_hold", strikes: "clear", brandEligible: false },
+  ],
+};
+
+function demoCreatorDetail(id: string): CreatorDetail | undefined {
+  const creator = DEMO_CREATORS.creators.find((c) => c.id === id);
+  if (!creator) return undefined;
+  return {
+    creator,
+    split: { creatorPct: 70, platformPct: 30 },
+    contract: { id: `ct_${creator.id}`, signedAt: "2025-10-12", term: "24 months, auto-renew" },
+    library: (
+      [
+        { id: "ser_shadow", title: "Shadow Signal", status: "live", variants: 486 },
+        { id: "ser_heiress", title: "The Hidden Heiress", status: "live", variants: 540 },
+      ] as CreatorDetail["library"]
+    ).slice(0, creator.contentCount),
+    rightsFiles: [
+      { label: "Likeness consent (cast)", status: "on_file", updatedAt: "2025-10-12" },
+      { label: "Music sync license", status: creator.brandEligible ? "on_file" : "missing", updatedAt: "2026-01-04" },
+      { label: "C2PA provenance manifest", status: "on_file", updatedAt: "2026-06-01" },
+    ],
+    moderation:
+      creator.strikes === "warning"
+        ? [{ label: "Content advisory: unverified source clip", at: "2026-05-18", severity: "warning" as const }]
+        : [{ label: "No moderation actions on record", at: "2025-10-12", severity: "info" as const }],
+    earnings: [
+      { source: "Coins", amountUsd: Math.round(creator.earningsUsd * 0.62) },
+      { source: "Subscriptions", amountUsd: Math.round(creator.earningsUsd * 0.28) },
+      { source: "Ads", amountUsd: Math.round(creator.earningsUsd * 0.1) },
+    ],
+  };
+}
+export { demoCreatorDetail };

@@ -39,18 +39,27 @@ export class PgAuditSink implements AdminAuditSink {
   constructor(private readonly db: Pick<pg.Pool, "query">) {}
 
   async append(entry: AuditEntry): Promise<void> {
-    await this.db.query(
-      `insert into mobile.admin_audit_log (operator_id, role, action, target, before, after)
-       values ($1, $2, $3, $4, $5, $6)`,
-      [
-        entry.operatorId,
-        entry.role,
-        entry.action,
-        entry.target,
-        entry.before == null ? null : JSON.stringify(entry.before),
-        entry.after == null ? null : JSON.stringify(entry.after),
-      ],
-    );
+    try {
+      await this.db.query(
+        `insert into mobile.admin_audit_log (operator_id, role, action, target, before, after)
+         values ($1, $2, $3, $4, $5, $6)`,
+        [
+          entry.operatorId,
+          entry.role,
+          entry.action,
+          entry.target,
+          entry.before == null ? null : JSON.stringify(entry.before),
+          entry.after == null ? null : JSON.stringify(entry.after),
+        ],
+      );
+    } catch (err) {
+      // Fail-open: a missing or unreachable mobile.admin_audit_log must never 500 a request. Until the
+      // additive table (scripts/sql/07_admin_audit.sql) is applied, the audit degrades to a logged warning.
+      // CUTOVER NOTE: once real mutating routes ship, apply the table and make mutation audit FAIL-CLOSED
+      // (a mutation must not proceed without a durable audit row). Reads/access-logs stay fail-open.
+      // eslint-disable-next-line no-console
+      console.warn(`admin audit append degraded (${entry.action} on ${entry.target}): ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 }
 

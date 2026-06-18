@@ -6,21 +6,35 @@ import { createContext, useContext, useEffect, useState } from "react";
 import {
   AdminApi,
   type AdminAccessibility,
+  type AdminBrands,
+  type AdminCampaigns,
   type AdminContentDetail,
   type AdminContentList,
+  type AdminCreators,
   type AdminDashboard,
   type AdminMe,
+  type AdminPlacements,
+  type AdminUsers,
+  type CreatorDetail,
   type MediaFactoryJobs,
   type StoryGraph,
+  type UserDetail,
 } from "./adminApi";
 import {
   DEMO_ACCESSIBILITY,
+  DEMO_BRANDS,
+  DEMO_CAMPAIGNS,
   DEMO_CONTENT,
+  DEMO_CREATORS,
   DEMO_DASHBOARD,
   DEMO_MEDIA_JOBS,
   DEMO_ME,
+  DEMO_PLACEMENTS,
+  DEMO_USERS,
   demoContentDetail,
+  demoCreatorDetail,
   demoStoryGraph,
+  demoUserDetail,
 } from "./demoData";
 
 export const AdminApiContext = createContext<AdminApi | null>(null);
@@ -90,4 +104,49 @@ export function useMediaFactoryJobs(): AsyncResult<MediaFactoryJobs> {
 }
 export function useAccessibility(): AsyncResult<AdminAccessibility> {
   return useAsync<AdminAccessibility>((api) => api.accessibility(), () => DEMO_ACCESSIBILITY, []);
+}
+
+// Section 7: brand integration. The endpoints are operator-authed and currently return empty (brand tables
+// not in the hosted schema yet); the demo fallback is also empty so the surface shows the same honest empty
+// state plus the firewall note.
+export function useBrands(): AsyncResult<AdminBrands> {
+  return useAsync<AdminBrands>((api) => api.brands(), () => DEMO_BRANDS, []);
+}
+export function useCampaigns(): AsyncResult<AdminCampaigns> {
+  return useAsync<AdminCampaigns>((api) => api.campaigns(), () => DEMO_CAMPAIGNS, []);
+}
+export function usePlacements(): AsyncResult<AdminPlacements> {
+  return useAsync<AdminPlacements>((api) => api.placements(), () => DEMO_PLACEMENTS, []);
+}
+
+// Section 8: users.
+export function useUsers(): AsyncResult<AdminUsers> {
+  return useAsync<AdminUsers>((api) => api.users(), () => DEMO_USERS, []);
+}
+export function useUserDetail(id: string): AsyncResult<UserDetail> {
+  return useAsync<UserDetail>(
+    (api) => api.userDetail(id),
+    () => {
+      const d = demoUserDetail(id);
+      if (!d) throw new Error("not found");
+      return d;
+    },
+    [id],
+  );
+}
+
+// Section 9: creators.
+export function useCreators(): AsyncResult<AdminCreators> {
+  return useAsync<AdminCreators>((api) => api.creators(), () => DEMO_CREATORS, []);
+}
+export function useCreatorDetail(id: string): AsyncResult<CreatorDetail> {
+  return useAsync<CreatorDetail>(
+    (api) => api.creatorDetail(id),
+    () => {
+      const d = demoCreatorDetail(id);
+      if (!d) throw new Error("not found");
+      return d;
+    },
+    [id],
+  );
 }
