@@ -37,7 +37,7 @@ export const STUDIO_SECTIONS: StudioSection[] = [
   { id: "create", label: "Create with AI", built: true, blurb: "Prompt to series: the writers-room showrunner." },
   { id: "upload", label: "Upload", built: true, blurb: "Drop 9:16 masters; we encode and register them." },
   { id: "library", label: "Library", built: true, blurb: "Every series you have authored." },
-  { id: "branch", label: "Branch", built: true, blurb: "Edit the branching story graph." },
+  { id: "branch", label: "Branch and endings", built: true, blurb: "Edit the branching story graph, alternate endings, and premium cuts." },
   { id: "media", label: "Media", built: true, blurb: "Manual per-variant authoring (Pro override)." },
   {
     id: "process",

@@ -7,6 +7,8 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ContentClient, type AdminOverview, type FeedSeries } from "../src/api/client.js";
 import { ContentClientContext } from "../src/api/useContentClient.js";
+import { CatalogClient } from "../src/api/catalogClient.js";
+import { CatalogClientContext } from "../src/api/useCatalogClient.js";
 import { IngestionClient } from "../src/api/ingestion.js";
 import { IngestionClientContext } from "../src/api/useIngestionClient.js";
 import { CreatorAuthProvider, type CreatorSession } from "../src/auth/creatorAuth.js";
@@ -66,13 +68,18 @@ function renderStudio(opts?: { session?: CreatorSession | null; fetchOpts?: Para
   // The ingestion client only needs to exist for the Process panel; its reads 404 against the stub, which the
   // panel handles gracefully. The shell renders ProcessPanel for nav-process, so the provider must be present.
   const ingestion = new IngestionClient({ baseUrl: "http://ingest.test", fetchImpl: makeFetch(opts?.fetchOpts) });
+  // The catalog client backs sections 8-9 (branch and endings, analytics). Its routes 404 against the stub,
+  // which the sections render as a graceful not-available empty state (no dead end).
+  const catalog = new CatalogClient({ baseUrl: "http://catalog.test", token: "session:test", fetchImpl: makeFetch(opts?.fetchOpts) });
   render(
     <ContentClientContext.Provider value={client}>
-      <IngestionClientContext.Provider value={ingestion}>
-        <CreatorAuthProvider initialSession={opts && "session" in opts ? opts.session ?? null : { name: "Test Studio", tier: "solo" }}>
-          <CreatorStudio />
-        </CreatorAuthProvider>
-      </IngestionClientContext.Provider>
+      <CatalogClientContext.Provider value={catalog}>
+        <IngestionClientContext.Provider value={ingestion}>
+          <CreatorAuthProvider initialSession={opts && "session" in opts ? opts.session ?? null : { name: "Test Studio", tier: "solo" }}>
+            <CreatorStudio />
+          </CreatorAuthProvider>
+        </IngestionClientContext.Provider>
+      </CatalogClientContext.Provider>
     </ContentClientContext.Provider>,
   );
 }
@@ -153,6 +160,16 @@ describe("CreatorStudio", () => {
     expect(await screen.findByTestId("panel-upload")).toBeInTheDocument();
     await user.click(screen.getByTestId("nav-process"));
     expect(await screen.findByTestId("panel-process")).toBeInTheDocument();
+  });
+
+  it("routes Branch and endings and Analytics to their dedicated catalog-backed panels", async () => {
+    const user = userEvent.setup();
+    renderStudio();
+    await screen.findByTestId("dashboard-loaded");
+    await user.click(screen.getByTestId("nav-branch"));
+    expect(await screen.findByTestId("panel-branches")).toBeInTheDocument();
+    await user.click(screen.getByTestId("nav-analytics"));
+    expect(await screen.findByTestId("panel-analytics")).toBeInTheDocument();
   });
 
   it("hides pro-only sections in Simple mode and reveals them in Pro mode", async () => {

@@ -206,3 +206,79 @@ test("an unknown route is 404", async () => {
   const res = await route(db, verifiers, "GET", urlOf("/nope"), null, undefined);
   assert.equal(res.status, 404);
 });
+
+// --- creator-scoped endpoints (session-authed) -----------------------------------------------------
+
+test("GET /series/:id/graph without a creator bearer is 401 (no db read)", async () => {
+  const { db, calls } = fakePg([]);
+  const res = await route(db, verifiers, "GET", urlOf("/series/s1/graph"), null, undefined);
+  assert.equal(res.status, 401);
+  assert.equal(calls.length, 0);
+});
+
+test("GET /series/:id/graph with a valid bearer but unknown series is 404", async () => {
+  // exists -> empty; the other three reads still run in parallel, then composeSeriesGraph returns null.
+  const { db } = fakePg([[], [], [], []]);
+  const res = await route(db, verifiers, "GET", urlOf("/series/ghost/graph"), BEARER, undefined);
+  assert.equal(res.status, 404);
+});
+
+test("GET /series/:id/graph with a valid bearer composes the graph (200) and runs canon", async () => {
+  const { db } = fakePg([
+    [{ id: "s1" }], // exists
+    [
+      { id: "a", episode_id: "e1", beat_index: 0, role: "spine", is_branch_point: false },
+      { id: "z", episode_id: "e1", beat_index: 1, role: "ending", is_branch_point: false },
+    ], // beats
+    [
+      { beat_id: "a", any_premium: false, any_branch: false, any_ending: false, any_locked: false, min_premium_cost: null, axis_kind: null },
+      { beat_id: "z", any_premium: false, any_branch: false, any_ending: true, any_locked: false, min_premium_cost: null, axis_kind: null },
+    ], // flags
+    [{ from_beat_id: "a", to_beat_id: "z", condition: null }], // edges
+  ]);
+  const res = await route(db, verifiers, "GET", urlOf("/series/s1/graph"), BEARER, undefined);
+  assert.equal(res.status, 200);
+  const body = res.body as { nodes: unknown[]; edges: unknown[]; canon: { valid: boolean } };
+  assert.equal(body.nodes.length, 2);
+  assert.equal(body.edges.length, 1);
+  assert.equal(body.canon.valid, true);
+});
+
+test("GET /series/:id/analytics without a creator bearer is 401 (no db read)", async () => {
+  const { db, calls } = fakePg([]);
+  const res = await route(db, verifiers, "GET", urlOf("/series/s1/analytics"), null, undefined);
+  assert.equal(res.status, 401);
+  assert.equal(calls.length, 0);
+});
+
+test("GET /series/:id/analytics with a valid bearer but unknown series is 404 (only the exists read)", async () => {
+  const { db, calls } = fakePg([[]]);
+  const res = await route(db, verifiers, "GET", urlOf("/series/ghost/analytics"), BEARER, undefined);
+  assert.equal(res.status, 404);
+  assert.equal(calls.length, 1); // short-circuits after the existence check
+});
+
+test("GET /series/:id/analytics with a valid bearer aggregates (200) with lift as a band", async () => {
+  const { db } = fakePg([
+    [{ id: "s1" }], // exists
+    [{ beat_id: "b1", started: 100, skipped: 10 }], // retention
+    [{ beat_id: "b1", treatment_trials: 10000, treatment_success: 8000, control_trials: 10000, control_success: 5000 }], // branch
+    [{ beat_id: "z1", completions: 50 }], // endings
+    [{ impression: 1000, play: 500, completion_50: 250, episode_completed: 100, unlock_purchased: 5 }], // funnel
+    [{ plays: 200, completions: 50, watch_ms: 9999 }], // completion
+    [{ cohort_id: "earlybird", play: 100, completion_50: 40, episode_completed: 10 }], // cohort
+  ]);
+  const res = await route(db, verifiers, "GET", urlOf("/series/s1/analytics"), BEARER, undefined);
+  assert.equal(res.status, 200);
+  const body = res.body as {
+    beatRetention: Array<{ retention: number }>;
+    branchPerformance: Array<{ lift: { low: number; high: number; center: number }; direction: string }>;
+    completion: number;
+  };
+  assert.equal(body.beatRetention[0].retention, 0.9);
+  // lift is a band object, never a bare number.
+  const lift = body.branchPerformance[0].lift;
+  assert.ok(typeof lift.low === "number" && typeof lift.high === "number" && typeof lift.center === "number");
+  assert.equal(body.branchPerformance[0].direction, "up");
+  assert.equal(body.completion, 0.25);
+});

@@ -23,6 +23,8 @@ import { SettingsPanel } from "./SettingsPanel.js";
 import { CreateWithAiPanel } from "./studio/CreateWithAiPanel.js";
 import { UploadPanel } from "./studio/UploadPanel.js";
 import { ProcessPanel } from "./studio/ProcessPanel.js";
+import { BranchesSection } from "./studio/BranchesSection.js";
+import { AnalyticsSection } from "./studio/AnalyticsSection.js";
 import { sectionById, type SectionId } from "../sections.js";
 import { useStudioRoute } from "../router.js";
 import { useCreatorAuth } from "../auth/creatorAuth.js";
@@ -33,16 +35,23 @@ import type { PanelId } from "./studio/SideRail.js";
 // Sections 3-5 (create, upload, process) are NOT in here: they render dedicated panels below.
 const WORKFLOW_PANEL: Partial<Record<SectionId, PanelId>> = {
   library: "library",
-  branch: "branch",
   media: "media",
   poster: "poster",
-  analytics: "operator",
   monetization: "pricing",
 };
 
 // Sections that render their own dedicated panel here (not the StudioPage workflow, not coming-soon). The
-// coming-soon fallback must skip these so a built section never shows a coming-soon surface.
-const DEDICATED_SECTIONS = new Set<SectionId>(["dashboard", "settings", "create", "upload", "process"]);
+// coming-soon fallback must skip these so a built section never shows a coming-soon surface. Sections 8-9
+// (branch and endings, analytics) are dedicated catalog-backed surfaces, not the legacy StudioPage panels.
+const DEDICATED_SECTIONS = new Set<SectionId>([
+  "dashboard",
+  "settings",
+  "create",
+  "upload",
+  "process",
+  "branch",
+  "analytics",
+]);
 
 export function CreatorStudio(): JSX.Element {
   const { session, mode } = useCreatorAuth();
@@ -105,6 +114,16 @@ export function CreatorStudio(): JSX.Element {
             {active.id === "process" && (
               <div className="smain">
                 <ProcessPanel />
+              </div>
+            )}
+            {active.id === "branch" && (
+              <div className="smain">
+                <BranchesSection proMode={mode === "pro"} />
+              </div>
+            )}
+            {active.id === "analytics" && (
+              <div className="smain">
+                <AnalyticsSection />
               </div>
             )}
             {workflow && (

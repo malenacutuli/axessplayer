@@ -9,6 +9,17 @@
 // MERGES into viewer_state.preference_vector via jsonb concatenation (does not clobber other keys). No em
 // dashes.
 
+import {
+  checkCanon,
+  labelNodeKind,
+  type CanonResult,
+  type GraphEdge,
+  type GraphNode,
+  type MemoryVar,
+  type NodeKind,
+} from "./storygraph.js";
+import { liftBand, type Band, type BandVerdict } from "./bands.js";
+
 // A built SQL statement: parameterized text plus its positional values. Mirrors the pg.query call shape.
 export interface SqlSpec {
   text: string;
@@ -651,4 +662,446 @@ export function composeChannelDetail(
     showCount: series.length,
     series,
   };
+}
+
+// ===================================================================================================
+// CREATOR-SCOPED endpoints (session-authed; the studio sends a creator session bearer).
+// ===================================================================================================
+
+// ---------------------------------------------------------------------------------------------------
+// GET /series/:id/graph : the branch-editor graph composed from the hosted content graph.
+//
+// series -> episodes -> beats -> beat_variants + beat_edges. Node kinds are labeled from
+// variant_kind / is_branch_point / is_ending flags (storygraph.ts); edges come from beat_edges with
+// isDefault derived from an empty/null condition; memoryVars is derived empty with a TODO (no story-graph
+// memory table exists in the hosted schema); pricing is the per-beat minimum premium coin_cost; canon is
+// the reachability + dangling-edge + branch-default validity check (storygraph.ts). Read-only; unqualified
+// names so search_path=mobile resolves the overlay. Mirrors the admin-api composition but lives here so
+// catalog stays a standalone deployable.
+// ---------------------------------------------------------------------------------------------------
+
+// Existence gate: a single-row series lookup so an unknown series is a clean 404 rather than an
+// empty-but-present graph.
+export function buildSeriesExistsQuery(seriesId: string): SqlSpec {
+  return { text: `select s.id as id from series s where s.id = $1`, values: [seriesId] };
+}
+
+// Beats of the series, with the spine fields the editor lays out by. Ordered by episode then beat_index so
+// the composed node list is stable.
+export function buildGraphBeatsQuery(seriesId: string): SqlSpec {
+  return {
+    text: `select b.id as id,
+            b.episode_id as episode_id,
+            b.beat_index as beat_index,
+            b.role as role,
+            coalesce(b.is_branch_point, false) as is_branch_point
+       from beats b
+      where b.series_id = $1
+      order by b.episode_id asc, b.beat_index asc`,
+    values: [seriesId],
+  };
+}
+
+// Per-beat variant flags folded in one pass over beat_variants: whether any variant is premium / a branch
+// point / an ending, the variant axis (pov|intensity) when present, whether any premium variant carries an
+// entitlement scope (a hard lock), and the minimum premium coin_cost (the creator-set price to enter the
+// node). Grouped per beat. is_branch_point / is_ending / entitlement_scope are substrate columns.
+export function buildGraphVariantFlagsQuery(seriesId: string): SqlSpec {
+  return {
+    text: `select b.id as beat_id,
+            bool_or(coalesce(v.is_premium, false)) as any_premium,
+            bool_or(coalesce(v.is_branch_point, false)) as any_branch,
+            bool_or(coalesce(v.is_ending, false)) as any_ending,
+            bool_or(coalesce(v.is_premium, false) and v.entitlement_scope is not null) as any_locked,
+            min(v.coin_cost) filter (where coalesce(v.is_premium, false) = true) as min_premium_cost,
+            max(v.variant_kind) filter (where v.variant_kind in ('pov', 'intensity')) as axis_kind
+       from beats b
+       left join beat_variants v on v.beat_id = b.id
+      where b.series_id = $1
+      group by b.id`,
+    values: [seriesId],
+  };
+}
+
+// beat_edges of the series. Both endpoints are constrained to beats of THIS series via the join so an edge
+// that leaks across series is not returned. condition drives the isDefault flag (empty/null = canon).
+export function buildGraphEdgesQuery(seriesId: string): SqlSpec {
+  return {
+    text: `select e.from_beat_id as from_beat_id,
+            e.to_beat_id as to_beat_id,
+            e.condition as condition
+       from beat_edges e
+       join beats bf on bf.id = e.from_beat_id and bf.series_id = $1
+       join beats bt on bt.id = e.to_beat_id and bt.series_id = $1`,
+    values: [seriesId],
+  };
+}
+
+// An edge is the canon default-fallback when its condition is null or an empty object. A populated
+// condition is a guarded branch edge; we reduce it to a short choice label for display. Pure.
+export function edgeChoiceLabel(condition: unknown): string | null {
+  if (condition == null) return null;
+  if (typeof condition === "object") {
+    const keys = Object.keys(condition as Record<string, unknown>);
+    if (keys.length === 0) return null;
+    return keys.join(",");
+  }
+  const s = String(condition).trim();
+  return s.length === 0 ? null : s;
+}
+
+// Map the substrate variant_kind to a node axis label. Only pov/intensity participate in axis labeling.
+export function axisOf(variantKind: unknown): string | null {
+  if (variantKind === "pov") return "pov";
+  if (variantKind === "intensity") return "intensity";
+  return null;
+}
+
+export interface SeriesGraph {
+  seriesId: string;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  memoryVars: MemoryVar[];
+  // Set when memoryVars could not be read from a real story-graph source and were derived empty, so the
+  // studio shows a "memory variables not yet modeled" note rather than implying the story has none.
+  memoryVarsTodo?: string;
+  pricing: Array<{ nodeId: string; kind: NodeKind; coinCost: number }>;
+  canon: CanonResult;
+}
+
+// Compose the branch-editor graph from the three result sets. Pure mapping; returns null when the series
+// is absent (existsRows empty) so the route can answer 404.
+export function composeSeriesGraph(
+  seriesId: string,
+  existsRows: Array<Record<string, unknown>>,
+  beatRows: Array<Record<string, unknown>>,
+  flagRows: Array<Record<string, unknown>>,
+  edgeRows: Array<Record<string, unknown>>,
+): SeriesGraph | null {
+  if (existsRows[0] == null) return null;
+
+  const flagByBeat = new Map<string, Record<string, unknown>>();
+  for (const f of flagRows) flagByBeat.set(String(f.beat_id), f);
+
+  const nodes: GraphNode[] = beatRows.map((b) => {
+    const f = flagByBeat.get(String(b.id));
+    const isEnding = f?.any_ending === true || b.role === "ending";
+    const isBranchPoint = b.is_branch_point === true || f?.any_branch === true;
+    const premium = f?.any_premium === true;
+    const locked = f?.any_locked === true;
+    const axis = axisOf(f?.axis_kind ?? null);
+    const coinCost = premium ? toInt(f?.min_premium_cost) : 0;
+    const kind = labelNodeKind({ isEnding, isBranchPoint, premium, locked, axis });
+    return {
+      id: String(b.id),
+      kind,
+      episodeId: String(b.episode_id),
+      beatIndex: toInt(b.beat_index),
+      role: String(b.role ?? ""),
+      isBranchPoint,
+      isEnding,
+      premium,
+      locked,
+      coinCost,
+      axis,
+    };
+  });
+
+  const edges: GraphEdge[] = edgeRows.map((e) => {
+    const choice = edgeChoiceLabel(e.condition);
+    return {
+      from: String(e.from_beat_id),
+      to: String(e.to_beat_id),
+      choice,
+      isDefault: choice == null,
+    };
+  });
+
+  // memoryVars: the hosted schema has no dedicated story-graph memory table, so we return an empty list
+  // plus a TODO rather than fabricating variables. A followup wires a real memory-variable source.
+  const memoryVars: MemoryVar[] = [];
+
+  const pricing = nodes
+    .filter((n) => n.premium && n.coinCost > 0)
+    .map((n) => ({ nodeId: n.id, kind: n.kind, coinCost: n.coinCost }));
+
+  return {
+    seriesId,
+    nodes,
+    edges,
+    memoryVars,
+    memoryVarsTodo:
+      "memory variables are not modeled in the hosted schema yet; wire a real story-graph memory source",
+    pricing,
+    canon: checkCanon({ nodes, edges }),
+  };
+}
+
+// ---------------------------------------------------------------------------------------------------
+// GET /series/:id/analytics : creator analytics aggregated from engagement_events + decision_log +
+// coin_transactions.
+//
+//   - beatRetention: per-beat play vs swipe-away (beat_started vs beat_skipped) -> retention 0..1.
+//   - branchPerformance: off-policy lift per branch beat as a BAND {low,high,center} (NEVER a point),
+//     derived with liftBand (bands.ts) from decision_log treatment/control reward outcomes.
+//   - endingDistribution: share of episode_completed events per reached ending beat.
+//   - funnel: impression -> play -> completion_50 -> episode_completed -> unlock_purchased for the series.
+//   - completion + watchTime: completion rate (completion_50 / play) and total watch ms.
+//   - byCohort: the funnel headline counts sliced by viewer_state.cohort_id.
+//
+// Reads engagement_events / decision_log / coin_transactions ONLY (content/ad firewall + reward-weights
+// gate: this never reads or returns a reward weight). All unqualified so search_path=mobile resolves the
+// overlay. Read-only.
+// ---------------------------------------------------------------------------------------------------
+
+// Per-beat retention raw counts: beat_started ("played") vs beat_skipped ("swiped away") for the series.
+// Grouped per beat. The mapper turns these into a retention fraction with an honest 0 when nothing played.
+export function buildBeatRetentionQuery(seriesId: string): SqlSpec {
+  return {
+    text: `select e.beat_id as beat_id,
+            count(*) filter (where e.type = 'beat_started')::int as started,
+            count(*) filter (where e.type = 'beat_skipped')::int as skipped
+       from engagement_events e
+      where e.series_id = $1
+        and e.beat_id is not null
+        and e.type in ('beat_started', 'beat_skipped')
+      group by e.beat_id`,
+    values: [seriesId],
+  };
+}
+
+export interface BeatRetention {
+  beatId: string;
+  // 0..1 share of beat_started that did NOT swipe away. started 0 -> retention 0 (no evidence), not NaN.
+  retention: number;
+  started: number;
+  skipped: number;
+}
+
+export function mapBeatRetention(rows: Array<Record<string, unknown>>): BeatRetention[] {
+  return rows.map((r) => {
+    const started = toInt(r.started);
+    const skipped = toInt(r.skipped);
+    const retention = started > 0 ? Math.max(0, Math.min(1, (started - skipped) / started)) : 0;
+    return { beatId: String(r.beat_id), retention, started, skipped };
+  });
+}
+
+// Per-branch treatment/control outcome counts from decision_log for the series' beats. A row is a
+// "success" when the served decision earned a positive reward (reward ->> 'value' > 0, tolerant of the
+// jsonb reward shape). Joined through beats so only this series' branch beats are aggregated. The lift
+// BAND is derived in the mapper (bands.ts), never as a point.
+export function buildBranchPerformanceQuery(seriesId: string): SqlSpec {
+  return {
+    text: `select d.beat_id as beat_id,
+            count(*) filter (where coalesce(d.is_control, false) = false)::int as treatment_trials,
+            count(*) filter (
+              where coalesce(d.is_control, false) = false
+                and coalesce((d.reward ->> 'value')::float, 0) > 0
+            )::int as treatment_success,
+            count(*) filter (where coalesce(d.is_control, false) = true)::int as control_trials,
+            count(*) filter (
+              where coalesce(d.is_control, false) = true
+                and coalesce((d.reward ->> 'value')::float, 0) > 0
+            )::int as control_success
+       from decision_log d
+       join beats b on b.id = d.beat_id
+      where b.series_id = $1
+      group by d.beat_id
+      order by treatment_trials desc`,
+    values: [seriesId],
+  };
+}
+
+export interface BranchPerformance {
+  branchId: string;
+  treatmentTrials: number;
+  controlTrials: number;
+  // The off-policy lift as a BAND, never a point. inconclusive when the band straddles zero.
+  lift: Band;
+  inconclusive: boolean;
+  direction: "up" | "down" | "none";
+}
+
+export function mapBranchPerformance(rows: Array<Record<string, unknown>>): BranchPerformance[] {
+  return rows.map((r) => {
+    const verdict: BandVerdict = liftBand(
+      toInt(r.treatment_success),
+      toInt(r.treatment_trials),
+      toInt(r.control_success),
+      toInt(r.control_trials),
+    );
+    return {
+      branchId: String(r.beat_id),
+      treatmentTrials: toInt(r.treatment_trials),
+      controlTrials: toInt(r.control_trials),
+      lift: verdict.band,
+      inconclusive: verdict.inconclusive,
+      direction: verdict.direction,
+    };
+  });
+}
+
+// Ending distribution: count episode_completed events landing on each ending beat for the series. We join
+// engagement_events.beat_id to ending-flagged beats (role='ending' OR a variant flagged is_ending) so only
+// terminal beats are counted. The mapper turns counts into shares.
+export function buildEndingDistributionQuery(seriesId: string): SqlSpec {
+  return {
+    text: `select e.beat_id as beat_id, count(*)::int as completions
+       from engagement_events e
+       join beats b on b.id = e.beat_id and b.series_id = $1
+      where e.type = 'episode_completed'
+        and e.beat_id is not null
+        and (
+          b.role = 'ending'
+          or exists (
+            select 1 from beat_variants v
+             where v.beat_id = b.id and coalesce(v.is_ending, false) = true
+          )
+        )
+      group by e.beat_id
+      order by completions desc`,
+    values: [seriesId],
+  };
+}
+
+export interface EndingShare {
+  beatId: string;
+  completions: number;
+  // 0..1 share of all ending completions that landed here.
+  share: number;
+}
+
+export function mapEndingDistribution(rows: Array<Record<string, unknown>>): EndingShare[] {
+  const counts = rows.map((r) => ({ beatId: String(r.beat_id), completions: toInt(r.completions) }));
+  const total = counts.reduce((acc, c) => acc + c.completions, 0);
+  return counts.map((c) => ({
+    beatId: c.beatId,
+    completions: c.completions,
+    share: total > 0 ? c.completions / total : 0,
+  }));
+}
+
+// Series funnel headline counts in one pass over engagement_events for the series. Stages mirror the
+// documented funnel restricted to the player-facing ones the studio cares about per series.
+export const SERIES_FUNNEL_STAGES = [
+  "impression",
+  "play",
+  "completion_50",
+  "episode_completed",
+  "unlock_purchased",
+] as const;
+
+export function buildSeriesFunnelQuery(seriesId: string): SqlSpec {
+  return {
+    text: `select
+            count(*) filter (where type = 'impression')::int as impression,
+            count(*) filter (where type = 'play')::int as play,
+            count(*) filter (where type = 'completion_50')::int as completion_50,
+            count(*) filter (where type = 'episode_completed')::int as episode_completed,
+            count(*) filter (where type = 'unlock_purchased')::int as unlock_purchased
+       from engagement_events
+      where series_id = $1`,
+    values: [seriesId],
+  };
+}
+
+export interface FunnelStage {
+  stage: string;
+  count: number;
+  // Conversion from the PRIOR stage, 0..1. The first stage is the entry (rate 1). A zero prior is 0 (no
+  // divide-by-zero), flagged honestly rather than NaN.
+  conversionFromPrev: number;
+}
+
+export function deriveSeriesFunnel(counts: Record<string, unknown>): FunnelStage[] {
+  const stages: FunnelStage[] = [];
+  let prev = 0;
+  SERIES_FUNNEL_STAGES.forEach((stage, i) => {
+    const count = toInt(counts[stage]);
+    const conversionFromPrev = i === 0 ? 1 : prev > 0 ? count / prev : 0;
+    stages.push({ stage, count, conversionFromPrev });
+    prev = count;
+  });
+  return stages;
+}
+
+// Completion + watch-time headline for the series. completion_50 / play is the completion rate (a 0..1
+// fraction shown as the headline); total watch ms sums the session_ended total_ms payload (the only
+// duration the event taxonomy carries). Both null-safe.
+export function buildSeriesCompletionQuery(seriesId: string): SqlSpec {
+  return {
+    text: `select
+            count(*) filter (where type = 'play')::int as plays,
+            count(*) filter (where type = 'completion_50')::int as completions,
+            coalesce(sum((payload ->> 'total_ms')::float) filter (where type = 'session_ended'), 0) as watch_ms
+       from engagement_events
+      where series_id = $1`,
+    values: [seriesId],
+  };
+}
+
+export interface CompletionSummary {
+  completion: number;
+  watchTimeMs: number;
+}
+
+export function mapCompletion(rows: Array<Record<string, unknown>>): CompletionSummary {
+  const r = rows[0] ?? {};
+  const plays = toInt(r.plays);
+  const completions = toInt(r.completions);
+  const completion = plays > 0 ? Math.max(0, Math.min(1, completions / plays)) : 0;
+  const watchMs = typeof r.watch_ms === "number" ? r.watch_ms : Number(r.watch_ms);
+  return { completion, watchTimeMs: Number.isFinite(watchMs) ? Math.max(0, watchMs) : 0 };
+}
+
+// Funnel headline counts sliced by viewer_state.cohort_id for the series. Joins engagement_events to the
+// viewer's per-series cohort. Rows with no cohort are bucketed under 'unassigned' so the slice is total.
+export function buildCohortFunnelQuery(seriesId: string): SqlSpec {
+  return {
+    text: `select coalesce(vs.cohort_id, 'unassigned') as cohort_id,
+            count(*) filter (where e.type = 'play')::int as play,
+            count(*) filter (where e.type = 'completion_50')::int as completion_50,
+            count(*) filter (where e.type = 'episode_completed')::int as episode_completed
+       from engagement_events e
+       left join viewer_state vs on vs.user_id = e.user_id and vs.series_id = e.series_id
+      where e.series_id = $1
+      group by coalesce(vs.cohort_id, 'unassigned')
+      order by play desc`,
+    values: [seriesId],
+  };
+}
+
+export interface CohortSlice {
+  cohortId: string;
+  play: number;
+  completion50: number;
+  episodeCompleted: number;
+  // completion_50 / play for the cohort, 0..1 (no divide-by-zero).
+  completion: number;
+}
+
+export function mapCohortSlices(rows: Array<Record<string, unknown>>): CohortSlice[] {
+  return rows.map((r) => {
+    const play = toInt(r.play);
+    const completion50 = toInt(r.completion_50);
+    return {
+      cohortId: String(r.cohort_id ?? "unassigned"),
+      play,
+      completion50,
+      episodeCompleted: toInt(r.episode_completed),
+      completion: play > 0 ? Math.max(0, Math.min(1, completion50 / play)) : 0,
+    };
+  });
+}
+
+export interface SeriesAnalytics {
+  seriesId: string;
+  beatRetention: BeatRetention[];
+  branchPerformance: BranchPerformance[];
+  endingDistribution: EndingShare[];
+  funnel: FunnelStage[];
+  completion: number;
+  watchTimeMs: number;
+  byCohort: CohortSlice[];
 }

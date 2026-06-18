@@ -53,6 +53,24 @@ import {
   mapSeriesCutsRows,
   mapTrendingRows,
   parseCalibrateInput,
+  buildSeriesExistsQuery,
+  buildGraphBeatsQuery,
+  buildGraphVariantFlagsQuery,
+  buildGraphEdgesQuery,
+  composeSeriesGraph,
+  buildBeatRetentionQuery,
+  mapBeatRetention,
+  buildBranchPerformanceQuery,
+  mapBranchPerformance,
+  buildEndingDistributionQuery,
+  mapEndingDistribution,
+  buildSeriesFunnelQuery,
+  deriveSeriesFunnel,
+  buildSeriesCompletionQuery,
+  mapCompletion,
+  buildCohortFunnelQuery,
+  mapCohortSlices,
+  type SeriesAnalytics,
   type Queryable,
 } from "./queries.js";
 
@@ -165,6 +183,61 @@ async function handleSeriesCuts(db: Queryable, seriesId: string): Promise<Handle
   return { status: 200, body: mapSeriesCutsRows(r.rows) };
 }
 
+// CREATOR-SCOPED. Compose the branch-editor graph for the series. session-authed: the studio sends a
+// creator session bearer; the route enforces the verified session before reaching here. A missing series
+// is a 404 (composeSeriesGraph returns null).
+async function handleSeriesGraph(db: Queryable, seriesId: string): Promise<HandlerResult> {
+  const exists = buildSeriesExistsQuery(seriesId);
+  const beats = buildGraphBeatsQuery(seriesId);
+  const flags = buildGraphVariantFlagsQuery(seriesId);
+  const edges = buildGraphEdgesQuery(seriesId);
+  const [xRes, bRes, fRes, eRes] = await Promise.all([
+    db.query(exists.text, exists.values),
+    db.query(beats.text, beats.values),
+    db.query(flags.text, flags.values),
+    db.query(edges.text, edges.values),
+  ]);
+  const graph = composeSeriesGraph(seriesId, xRes.rows, bRes.rows, fRes.rows, eRes.rows);
+  if (graph == null) return { status: 404, body: { error: "not_found" } };
+  return { status: 200, body: graph };
+}
+
+// CREATOR-SCOPED. Aggregate the creator analytics for the series from engagement_events + decision_log +
+// coin_transactions (reward-weights firewall: never reads or returns a reward weight). branchPerformance
+// lift is always a BAND, never a point. A missing series is a 404.
+async function handleSeriesAnalytics(db: Queryable, seriesId: string): Promise<HandlerResult> {
+  const exists = buildSeriesExistsQuery(seriesId);
+  const xRes = await db.query(exists.text, exists.values);
+  if (xRes.rows[0] == null) return { status: 404, body: { error: "not_found" } };
+
+  const retention = buildBeatRetentionQuery(seriesId);
+  const branch = buildBranchPerformanceQuery(seriesId);
+  const endings = buildEndingDistributionQuery(seriesId);
+  const funnel = buildSeriesFunnelQuery(seriesId);
+  const completion = buildSeriesCompletionQuery(seriesId);
+  const cohort = buildCohortFunnelQuery(seriesId);
+  const [rRes, brRes, enRes, fRes, cRes, coRes] = await Promise.all([
+    db.query(retention.text, retention.values),
+    db.query(branch.text, branch.values),
+    db.query(endings.text, endings.values),
+    db.query(funnel.text, funnel.values),
+    db.query(completion.text, completion.values),
+    db.query(cohort.text, cohort.values),
+  ]);
+  const comp = mapCompletion(cRes.rows);
+  const body: SeriesAnalytics = {
+    seriesId,
+    beatRetention: mapBeatRetention(rRes.rows),
+    branchPerformance: mapBranchPerformance(brRes.rows),
+    endingDistribution: mapEndingDistribution(enRes.rows),
+    funnel: deriveSeriesFunnel(fRes.rows[0] ?? {}),
+    completion: comp.completion,
+    watchTimeMs: comp.watchTimeMs,
+    byCohort: mapCohortSlices(coRes.rows),
+  };
+  return { status: 200, body };
+}
+
 async function handleSearch(db: Queryable, q: string): Promise<HandlerResult> {
   const trimmed = q.trim();
   if (trimmed.length === 0) {
@@ -208,6 +281,8 @@ async function handleChannelDetail(db: Queryable, channelId: string): Promise<Ha
 
 const SERIES_DETAIL_RE = /^\/series\/([^/]+)\/detail$/;
 const SERIES_CUTS_RE = /^\/series\/([^/]+)\/cuts$/;
+const SERIES_GRAPH_RE = /^\/series\/([^/]+)\/graph$/;
+const SERIES_ANALYTICS_RE = /^\/series\/([^/]+)\/analytics$/;
 const CHANNEL_DETAIL_RE = /^\/channel\/([^/]+)$/;
 
 export async function route(
@@ -261,6 +336,22 @@ export async function route(
   const cutsMatch = method === "GET" ? SERIES_CUTS_RE.exec(path) : null;
   if (cutsMatch != null) {
     return handleSeriesCuts(db, decodeURIComponent(cutsMatch[1]));
+  }
+
+  // CREATOR-SCOPED routes. session-authed: the studio sends a creator session bearer; an absent or invalid
+  // token is a 401 before any series read. These compose the branch-editor graph and the creator analytics.
+  const graphMatch = method === "GET" ? SERIES_GRAPH_RE.exec(path) : null;
+  if (graphMatch != null) {
+    const identity = await verifiers.session.verifySession(parseBearer(authorization));
+    if (identity == null) return { status: 401, body: { error: "unauthorized" } };
+    return handleSeriesGraph(db, decodeURIComponent(graphMatch[1]));
+  }
+
+  const analyticsMatch = method === "GET" ? SERIES_ANALYTICS_RE.exec(path) : null;
+  if (analyticsMatch != null) {
+    const identity = await verifiers.session.verifySession(parseBearer(authorization));
+    if (identity == null) return { status: 401, body: { error: "unauthorized" } };
+    return handleSeriesAnalytics(db, decodeURIComponent(analyticsMatch[1]));
   }
 
   return { status: 404, body: { error: "not_found" } };
