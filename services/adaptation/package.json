@@ -1,0 +1,19 @@
+{
+  "name": "@axessplayer/adaptation",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "AI live-action adaptation (prompt 23, GOLD_STANDARD_15). One click = analyze + plan + 15s preview + approve + constrained render, never blind regeneration. Edit existing pixels, do not regenerate. Reliability tiers A/B/C, confidence scoring, a HARD rights/consent gate wired to the consent ledger by interface, an open AdaptationAdapter interface (no hardcoded vendors), and an idempotent resumable DAG. Every output registers as a beat_variant with source_type=adapted_archive carrying full provenance. NOT deployed. No em dashes.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo lint ok",
+    "serve": "node --import tsx src/serve.ts",
+    "test": "node --import tsx --test $(find test -name '*.test.ts' 2>/dev/null)"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^20.0.0"
+  }
+}
