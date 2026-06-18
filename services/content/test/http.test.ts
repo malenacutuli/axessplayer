@@ -240,6 +240,60 @@ test("publish on an unknown series is 404", async () => {
   assert.equal(((await res.json()) as { error: string }).error, "series_not_found");
 });
 
+// ---------- GET /series : ALL series incl drafts ----------
+
+test("GET /series lists drafts and published series both (unlike /feed)", async () => {
+  const app = appFor(await emptyDb());
+  // Two fresh series, both drafts.
+  const a = (await (await app.request("/series", json({ title: "Draft One" }))).json()) as { id: string };
+  await app.request("/series", json({ title: "Draft Two" }));
+  // /feed is empty (nothing published) but /series shows both drafts.
+  assert.deepEqual(((await (await app.request("/feed")).json()) as { series: unknown[] }).series, []);
+  const all = (await (await app.request("/series")).json()) as { series: { id: string; title: string; published_at: string | null }[] };
+  assert.equal(all.series.length, 2);
+  assert.ok(all.series.every((s) => s.published_at == null));
+  assert.ok(all.series.some((s) => s.id === a.id && s.title === "Draft One"));
+});
+
+// ---------- PATCH /series/{id} : rename / update ----------
+
+test("PATCH /series/{id} renames a series and leaves other fields intact", async () => {
+  const app = appFor(await emptyDb());
+  const created = (await (
+    await app.request("/series", json({ title: "Working Title", genre: "thriller" }))
+  ).json()) as { id: string };
+
+  const res = await app.request(`/series/${created.id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ title: "The Real Title" }),
+  });
+  assert.equal(res.status, 200);
+  const row = (await res.json()) as { title: string; genre: string | null };
+  assert.equal(row.title, "The Real Title");
+  // COALESCE keeps the genre we did not send.
+  assert.equal(row.genre, "thriller");
+});
+
+test("PATCH /series/{id} rejects an empty title and unknown series", async () => {
+  const app = appFor(await freshDb());
+  const empty = await app.request(`/series/${FIX.series}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ title: "   " }),
+  });
+  assert.equal(empty.status, 400);
+  assert.equal(((await empty.json()) as { error: string }).error, "invalid_title");
+
+  const missing = await app.request("/series/99999999-9999-9999-9999-999999999999", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ title: "Nope" }),
+  });
+  assert.equal(missing.status, 404);
+  assert.equal(((await missing.json()) as { error: string }).error, "series_not_found");
+});
+
 // ---------- variant tracks (0009a) ----------
 
 test("PATCH /variants/{id}/tracks attaches accessibility track URLs", async () => {

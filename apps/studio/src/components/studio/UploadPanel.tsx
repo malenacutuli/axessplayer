@@ -93,6 +93,26 @@ export function UploadPanel({ proMode, onNavigate }: UploadPanelProps): JSX.Elem
 
   // Upload + register one master onto the next open beat. Errors are surfaced per row, never silent. The
   // bytes go DIRECTLY to public storage from the browser; the content service only records the public URL.
+  // Ensure the series has at least one beat to attach a master to. A freshly created series has no episodes
+  // or beats; rather than dead-ending the creator, scaffold Episode N+1 + an opening beat for them (the
+  // "do not make creators hand-build structure" default). Pro can author episodes/beats explicitly in Media.
+  const ensureBeat = async (g: FlatGraph): Promise<FlatGraph> => {
+    if (nextOpenBeat(g)) return g;
+    const number = g.episodeCount + 1;
+    const ep = await client.createEpisode({
+      series_id: g.seriesId,
+      episode_number: number,
+      title: `Episode ${number}`,
+    });
+    await client.createBeat({
+      series_id: g.seriesId,
+      episode_id: ep.id,
+      beat_index: 0,
+      role: "cold_open",
+    });
+    return client.getFlatGraph(g.seriesId);
+  };
+
   const handleFiles = async (files: FileList | File[]) => {
     if (!graph) return;
     const list = Array.from(files).filter(
@@ -100,9 +120,23 @@ export function UploadPanel({ proMode, onNavigate }: UploadPanelProps): JSX.Elem
     );
     if (list.length === 0) return;
 
+    // Scaffold a home beat once for this drop if the series is empty, then reuse the refreshed graph.
+    let workingGraph = graph;
+    try {
+      workingGraph = await ensureBeat(workingGraph);
+    } catch (e) {
+      const id = `row-${++rowSeq}`;
+      setRows((prev) => [
+        ...prev,
+        { id, name: list[0]?.name ?? "upload", size: 0, state: "error", produce: "idle",
+          message: e instanceof ContentApiError ? e.apiError ?? `content_error_${e.status}` : "Could not prepare the series for upload." },
+      ]);
+      return;
+    }
+
     for (const file of list) {
       const id = `row-${++rowSeq}`;
-      const beat = nextOpenBeat(graph);
+      const beat = nextOpenBeat(workingGraph);
       const beatLabel = beat ? `Episode ${beat.episode_number}, beat ${beat.beat_index + 1}` : "no beat";
       setRows((prev) => [
         ...prev,
@@ -114,7 +148,7 @@ export function UploadPanel({ proMode, onNavigate }: UploadPanelProps): JSX.Elem
       }
       try {
         patchRow(id, { state: "uploading" });
-        const { publicUrl } = await uploadMaster(file, graph.seriesId);
+        const { publicUrl } = await uploadMaster(file, workingGraph.seriesId);
         patchRow(id, { state: "registering" });
         await client.createVariant({
           beat_id: beat.id,
@@ -186,7 +220,13 @@ export function UploadPanel({ proMode, onNavigate }: UploadPanelProps): JSX.Elem
         <ProvenanceLabel mode="assisted" testId="upload-provenance" />
       </div>
 
-      <SeriesPicker selectedId={seriesId} onSelect={setSeriesId} label="Upload into which series" />
+      <SeriesPicker
+        selectedId={seriesId}
+        onSelect={setSeriesId}
+        label="Upload into which series"
+        manage
+        onChanged={() => setReloadToken((n) => n + 1)}
+      />
 
       {!storageReady && (
         <p className="statusline err" role="alert" data-testid="upload-storage-unconfigured">

@@ -11,6 +11,7 @@ import path from "node:path";
 import type {
   ContentDB,
   SeriesRow,
+  UpdateSeriesBody,
   EpisodeRow,
   BeatRow,
   VariantRow,
@@ -259,6 +260,54 @@ export function pgliteContentDb(db: PGlite): ContentDB {
       );
       if (r.rows.length === 0) return null;
       return { id: r.rows[0].id as string, published_at: (r.rows[0].published_at as string) ?? null };
+    },
+
+    async updateSeries(id: string, patch: UpdateSeriesBody): Promise<SeriesRow | null> {
+      const r = await db.query<Record<string, unknown>>(
+        `update series set
+           title = coalesce($2, title),
+           genre = coalesce($3, genre),
+           base_language = coalesce($4, base_language),
+           available_languages = coalesce($5, available_languages),
+           cover_url = coalesce($6, cover_url)
+         where id = $1
+         returning id, title, genre, base_language, available_languages, cover_url`,
+        [
+          id,
+          patch.title ?? null,
+          patch.genre ?? null,
+          patch.base_language ?? null,
+          patch.available_languages ?? null,
+          patch.cover_url ?? null,
+        ]
+      );
+      if (r.rows.length === 0) return null;
+      const out = r.rows[0];
+      return {
+        id: out.id as string,
+        title: out.title as string,
+        genre: (out.genre as string) ?? null,
+        base_language: out.base_language as string,
+        available_languages: (out.available_languages as string[]) ?? [],
+        cover_url: (out.cover_url as string) ?? null,
+      };
+    },
+
+    async listAllSeries(): Promise<SeriesRow[]> {
+      const r = await db.query<Record<string, unknown>>(
+        `select id, title, genre, base_language, available_languages, cover_url, published_at, poster_url
+         from series order by published_at desc nulls first, id desc`
+      );
+      return r.rows.map((row) => ({
+        id: row.id as string,
+        title: row.title as string,
+        genre: (row.genre as string) ?? null,
+        base_language: row.base_language as string,
+        available_languages: (row.available_languages as string[]) ?? [],
+        cover_url: (row.cover_url as string) ?? null,
+        published_at: (row.published_at as string) ?? null,
+        poster_url: (row.poster_url as string) ?? null,
+      }));
     },
 
     async listPublishedSeries(): Promise<FeedItem[]> {

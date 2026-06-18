@@ -52,6 +52,7 @@ function makeFetch(graph: SeriesGraphView | "404", opts?: { emptyFeed?: boolean 
     const json = (status: number, body: unknown) =>
       new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
     if (url.pathname === "/feed") return json(200, { series: opts?.emptyFeed ? [] : FEED });
+    if (url.pathname === "/series") return json(200, { series: opts?.emptyFeed ? [] : FEED });
     if (url.pathname.endsWith("/graph")) {
       if (graph === "404") return json(404, { error: "not_found" });
       return json(200, graph);
@@ -141,6 +142,9 @@ describe("BranchesSection section 8", () => {
 
   it("shows the picker empty state with no series", async () => {
     renderBranches({ graph: VALID_GRAPH, emptyFeed: true });
-    expect(await screen.findByTestId("series-picker-empty")).toBeInTheDocument();
+    // No series -> the picker renders a disabled select reading "No series yet" (no dead end).
+    const picker = (await screen.findByTestId("series-picker")) as HTMLSelectElement;
+    expect(picker).toBeDisabled();
+    expect(picker).toHaveTextContent("No series yet");
   });
 });

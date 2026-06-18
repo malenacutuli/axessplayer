@@ -56,7 +56,7 @@ function makeFetch(opts?: { failOverview?: boolean; emptyOverview?: boolean; emp
       }
       return json(200, OVERVIEW);
     }
-    if (url.pathname === "/feed") {
+    if (url.pathname === "/feed" || url.pathname === "/series") {
       return json(200, { series: opts?.emptyFeed ? [] : FEED });
     }
     return json(404, { error: "not_found" });

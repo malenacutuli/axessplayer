@@ -9,6 +9,7 @@
 import type { paths, operations } from "@axessplayer/contracts/content";
 import type {
   CreateSeriesBody,
+  UpdateSeriesBody,
   CreateEpisodeBody,
   CreateBeatBody,
   CreateVariantBody,
@@ -153,6 +154,26 @@ export class ContentClient {
 
   createSeries(body: CreateSeriesBody): Promise<SeriesRow> {
     return this.sendJson<SeriesRow>("/series", body);
+  }
+  // GET /series : ALL series incl drafts (newest first). The studio picker uses this, not /feed, so the
+  // creator sees unpublished work they are still building.
+  async listAllSeries(): Promise<SeriesRow[]> {
+    const res = await this.fetchImpl(joinUrl(this.baseUrl, "/series"), {
+      method: "GET",
+      headers: { accept: "application/json" },
+    });
+    const body = await this.parse<{ series?: SeriesRow[] }>(res);
+    return body.series ?? [];
+  }
+  // PATCH /series/{id} : rename / update series metadata. Only the fields present in the body change.
+  async updateSeries(id: string, body: UpdateSeriesBody): Promise<SeriesRow> {
+    const safeBody = stripUserId(body);
+    const res = await this.fetchImpl(joinUrl(this.baseUrl, `/series/${encodeURIComponent(id)}`), {
+      method: "PATCH",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify(safeBody),
+    });
+    return this.parse<SeriesRow>(res);
   }
   createEpisode(body: CreateEpisodeBody): Promise<EpisodeRow> {
     return this.sendJson<EpisodeRow>("/episodes", body);

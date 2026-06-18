@@ -38,6 +38,15 @@ export interface CreateSeriesBody {
   cover_url?: string | null;
 }
 
+// PATCH /series/{id}: rename / update metadata. Every field optional; only present fields change. No user_id.
+export interface UpdateSeriesBody {
+  title?: string;
+  genre?: string | null;
+  base_language?: string;
+  available_languages?: string[];
+  cover_url?: string | null;
+}
+
 export interface CreateEpisodeBody {
   series_id: string;
   episode_number: number;

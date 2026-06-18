@@ -70,7 +70,7 @@ function makeFetch(opts?: { revenue?: SeriesRevenue | "404"; posterFail?: boolea
     const method = (init?.method ?? "GET").toUpperCase();
     const json = (status: number, body: unknown) =>
       new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-    if (url.pathname === "/feed") return json(200, { series: FEED });
+    if (url.pathname === "/feed" || url.pathname === "/series") return json(200, { series: FEED });
     if (url.pathname.endsWith("/graph")) return json(200, GRAPH);
     if (url.pathname.endsWith("/revenue")) {
       if (opts?.revenue === "404") return json(404, { error: "not_found" });

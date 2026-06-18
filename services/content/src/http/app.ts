@@ -23,6 +23,8 @@ import {
   handleDeleteVariant,
   handleSetVariantTracks,
   handleSetSeriesPublished,
+  handleUpdateSeries,
+  handleListAllSeries,
   handleGetFeed,
   handleAdminOverview,
   handleAdminAdsToday,
@@ -140,6 +142,22 @@ export function createContentApp(deps: AppDeps): Hono {
   app.get("/feed", async (c) => {
     const result = await handleGetFeed(db);
     return c.json(result.body, result.status as 200);
+  });
+
+  // GET /series : ALL series incl drafts, newest first. The studio picker uses this (not /feed) so the
+  // creator can pick and keep building unpublished series.
+  app.get("/series", async (c) => {
+    const result = await handleListAllSeries(db);
+    return c.json(result.body, result.status as 200);
+  });
+
+  // PATCH /series/{id} : rename / update series metadata (title, genre, languages, cover). Only the fields
+  // present in the body change.
+  app.patch("/series/:id", async (c) => {
+    const raw = await readJson(c);
+    if (raw == null) return c.json({ error: "invalid_json" }, 400);
+    const result = await handleUpdateSeries(c.req.param("id"), raw, db);
+    return c.json(result.body, result.status as 200 | 400 | 404);
   });
 
   // GET /admin/overview : read-only operator dashboard aggregates (content + ledger + decisions).

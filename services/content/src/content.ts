@@ -33,6 +33,15 @@ export interface CreateSeriesBody {
   available_languages?: string[];
   cover_url?: string | null;
 }
+// PATCH /series/{id}: every field optional; only provided fields change (the DB COALESCEs the rest). A
+// rename sends just { title }. No user_id (F1 guardrail), same as the create bodies.
+export interface UpdateSeriesBody {
+  title?: string;
+  genre?: string | null;
+  base_language?: string;
+  available_languages?: string[];
+  cover_url?: string | null;
+}
 export interface CreateEpisodeBody {
   series_id: string;
   episode_number: number;
@@ -217,7 +226,13 @@ export interface ContentDB {
   insertEdge(row: EdgeRow): Promise<EdgeRow>;
   getSeriesGraph(seriesId: string): Promise<SeriesGraph | null>;
   setSeriesPublished(id: string, published: boolean): Promise<{ id: string; published_at: string | null } | null>;
+  // Update mutable series metadata (rename, genre, languages, cover). Returns the full updated row, or null
+  // when the series id does not exist. Only the fields present in the patch change.
+  updateSeries(id: string, patch: UpdateSeriesBody): Promise<SeriesRow | null>;
   listPublishedSeries(): Promise<FeedItem[]>;
+  // All series (including drafts), newest first. Backs the studio picker, which must show unpublished work
+  // the creator is still building, unlike the public /feed.
+  listAllSeries(): Promise<SeriesRow[]>;
   setSeriesPoster(id: string, posterUrl: string, provenance: Record<string, unknown>): Promise<{ id: string; poster_url: string } | null>;
   // Optional read-only aggregate for the operator dashboard. Returns live counts across the content,
   // ledger, and decision tables in the active schema. Optional so the PGlite test harness need not
@@ -471,6 +486,45 @@ export async function handleSetSeriesPublished(
 // ---------- GET /feed (0009b): published series only, newest first ----------
 export async function handleGetFeed(db: ContentDB): Promise<HandlerResult<Feed>> {
   return { status: 200, body: { series: await db.listPublishedSeries() } };
+}
+
+// ---------- GET /series : ALL series incl drafts, newest first (studio picker) ----------
+export async function handleListAllSeries(
+  db: ContentDB
+): Promise<HandlerResult<{ series: SeriesRow[] }>> {
+  return { status: 200, body: { series: await db.listAllSeries() } };
+}
+
+// ---------- PATCH /series/{id} : rename / update series metadata ----------
+export async function handleUpdateSeries(
+  seriesId: string,
+  body: UpdateSeriesBody,
+  db: ContentDB
+): Promise<HandlerResult<SeriesRow | ApiError>> {
+  if (typeof seriesId !== "string" || !UUID_RE.test(seriesId)) return err(400, "invalid_series_id");
+  if (!isObject(body)) return err(400, "invalid_body");
+  if (body.title != null && (typeof body.title !== "string" || body.title.trim().length === 0)) {
+    return err(400, "invalid_title");
+  }
+  if (body.genre != null && typeof body.genre !== "string") return err(400, "invalid_genre");
+  if (body.base_language != null && typeof body.base_language !== "string") {
+    return err(400, "invalid_base_language");
+  }
+  if (
+    body.available_languages != null &&
+    (!Array.isArray(body.available_languages) ||
+      body.available_languages.some((l) => typeof l !== "string"))
+  ) {
+    return err(400, "invalid_available_languages");
+  }
+  if (body.cover_url != null && typeof body.cover_url !== "string") return err(400, "invalid_cover_url");
+  const fields = ["title", "genre", "base_language", "available_languages", "cover_url"] as const;
+  if (!fields.some((k) => (body as Record<string, unknown>)[k] !== undefined)) {
+    return err(400, "no_fields_to_update");
+  }
+  const row = await db.updateSeries(seriesId, body);
+  if (!row) return err(404, "series_not_found");
+  return { status: 200, body: row };
 }
 
 // ---------- GET /admin/overview : operator dashboard, live counts from the active schema ----------

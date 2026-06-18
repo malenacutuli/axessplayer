@@ -8,6 +8,7 @@ import type pg from "pg";
 import type {
   ContentDB,
   SeriesRow,
+  UpdateSeriesBody,
   EpisodeRow,
   BeatRow,
   VariantRow,
@@ -142,6 +143,42 @@ export class PgContentDb implements ContentDB {
     );
     if (r.rows.length === 0) return null;
     return { id: r.rows[0].id as string, published_at: toIso(r.rows[0].published_at) };
+  }
+
+  // COALESCE keeps any field the patch omits (null param = unchanged). A rename passes only title.
+  async updateSeries(id: string, patch: UpdateSeriesBody): Promise<SeriesRow | null> {
+    const r = await this.db.query(
+      `update series set
+         title = coalesce($2, title),
+         genre = coalesce($3, genre),
+         base_language = coalesce($4, base_language),
+         available_languages = coalesce($5, available_languages),
+         cover_url = coalesce($6, cover_url)
+       where id = $1
+       returning id, title, genre, base_language, available_languages, cover_url, published_at,
+                 poster_url, poster_provenance`,
+      [
+        id,
+        patch.title ?? null,
+        patch.genre ?? null,
+        patch.base_language ?? null,
+        patch.available_languages ?? null,
+        patch.cover_url ?? null,
+      ]
+    );
+    if (r.rows.length === 0) return null;
+    return mapSeries(r.rows[0]);
+  }
+
+  // All series (drafts first so freshly-created work surfaces at the top of the studio picker), newest within
+  // each group. The viewer /feed stays published-only; this is the creator-side listing.
+  async listAllSeries(): Promise<SeriesRow[]> {
+    const r = await this.db.query(
+      `select id, title, genre, base_language, available_languages, cover_url, published_at,
+              poster_url, poster_provenance
+       from series order by published_at desc nulls first, id desc`
+    );
+    return r.rows.map(mapSeries);
   }
 
   async listPublishedSeries(): Promise<FeedItem[]> {

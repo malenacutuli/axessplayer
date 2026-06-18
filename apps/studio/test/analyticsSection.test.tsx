@@ -67,7 +67,7 @@ function makeFetch(analytics: SeriesAnalytics | "404") {
     const url = new URL(typeof input === "string" ? input : input.toString());
     const json = (status: number, body: unknown) =>
       new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-    if (url.pathname === "/feed") return json(200, { series: FEED });
+    if (url.pathname === "/feed" || url.pathname === "/series") return json(200, { series: FEED });
     if (url.pathname.endsWith("/analytics")) {
       if (analytics === "404") return json(404, { error: "not_found" });
       return json(200, analytics);

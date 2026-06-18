@@ -121,6 +121,20 @@ export function createFakeContentServer(): FakeServer {
           }));
         return json(200, { series: list });
       }
+      if (path === "/series") {
+        // ALL series incl drafts. Insertion order reversed approximates "newest first".
+        const list = [...series.values()].reverse().map((s) => ({
+          id: s.id,
+          title: s.title,
+          genre: s.genre,
+          base_language: s.base_language,
+          available_languages: s.available_languages,
+          cover_url: s.cover_url,
+          published_at: s.published_at ?? null,
+          poster_url: s.poster_url ?? null,
+        }));
+        return json(200, { series: list });
+      }
       const m = path.match(/^\/series\/([^/]+)\/graph$/);
       if (m) {
         const id = decodeURIComponent(m[1]);
@@ -152,6 +166,22 @@ export function createFakeContentServer(): FakeServer {
         const v = variants.get(decodeURIComponent(tracksM[1]));
         if (!v) return json(404, { error: "variant_not_found" });
         return json(200, v);
+      }
+      // PATCH /series/{id} : rename / update metadata. Only present fields change.
+      const renameM = path.match(/^\/series\/([^/]+)$/);
+      if (renameM) {
+        const s = series.get(decodeURIComponent(renameM[1]));
+        if (!s) return json(404, { error: "series_not_found" });
+        if (!isObject(pbody)) return json(400, { error: "invalid_body" });
+        if (pbody.title !== undefined) {
+          if (typeof pbody.title !== "string" || pbody.title.trim().length === 0) return json(400, { error: "invalid_title" });
+          s.title = pbody.title;
+        }
+        if (pbody.genre !== undefined) s.genre = (pbody.genre as string | null) ?? null;
+        if (pbody.base_language !== undefined) s.base_language = pbody.base_language as string;
+        if (pbody.available_languages !== undefined) s.available_languages = pbody.available_languages as string[];
+        if (pbody.cover_url !== undefined) s.cover_url = (pbody.cover_url as string | null) ?? null;
+        return json(200, { ...s });
       }
       return json(404, { error: "not_found" });
     }

@@ -41,6 +41,7 @@ function makeContentFetch(opts?: { emptyFeed?: boolean }) {
     const json = (status: number, body: unknown) =>
       new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
     if (url.pathname === "/feed") return json(200, { series: opts?.emptyFeed ? [] : FEED });
+    if (url.pathname === "/series") return json(200, { series: opts?.emptyFeed ? [] : FEED });
     if (url.pathname.endsWith("/graph")) return json(200, GRAPH);
     return json(404, { error: "not_found" });
   }) as typeof fetch;
@@ -170,6 +171,9 @@ describe("ProcessPanel GOLD_STANDARD_08", () => {
 
   it("shows the series-picker empty state with no series (no dead end)", async () => {
     renderProcess({ contentOpts: { emptyFeed: true } });
-    expect(await screen.findByTestId("series-picker-empty")).toBeInTheDocument();
+    // With no series the picker renders a disabled select whose only option reads "No series yet" (no dead end).
+    const picker = (await screen.findByTestId("series-picker")) as HTMLSelectElement;
+    expect(picker).toBeDisabled();
+    expect(picker).toHaveTextContent("No series yet");
   });
 });
