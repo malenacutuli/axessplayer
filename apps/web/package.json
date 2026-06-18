@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@axessplayer/analytics-sdk": "workspace:*",
     "@axessplayer/player-sdk": "workspace:*",
     "@axessplayer/ui": "workspace:*",
     "@supabase/supabase-js": "^2.108.2",

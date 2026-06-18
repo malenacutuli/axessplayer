@@ -24,6 +24,9 @@ export default defineConfig({
       // 20-V0 identity service (auth + profile + consent). Local default port; the prefix is stripped by
       // the client so same-origin /identity/* forwards here in dev (see api/identity.ts).
       "/identity": { target: "http://127.0.0.1:8095", changeOrigin: true, rewrite: (p) => p.replace(/^\/identity/, "") },
+      // 20-V1 / 20-V3 catalog service (calibrate, continue, trending, series detail, search). The prefix
+      // is stripped so same-origin /catalog/* forwards here in dev (see api/catalog.ts + config.ts).
+      "/catalog": { target: "http://127.0.0.1:8096", changeOrigin: true, rewrite: (p) => p.replace(/^\/catalog/, "") },
     },
   },
   test: {

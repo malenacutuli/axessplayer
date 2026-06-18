@@ -9,6 +9,7 @@ import { Root } from "./Root.js";
 import { buildClients } from "./clients.js";
 import { staticSession } from "./api/session.js";
 import { AuthProvider } from "./auth/index.js";
+import { RouterProvider } from "./router/router.js";
 // Shared design-system fonts + tokens (the --axp-* set), imported ALONGSIDE the existing brand tokens so
 // both --bg/--ink and --axp-* are available. Order: design-system fonts/tokens first, then the brand
 // tokens (the official guideline variables), then the app styles that consume them, then auth styles.
@@ -16,6 +17,7 @@ import "@axessplayer/ui/fonts.css";
 import "@axessplayer/ui/tokens.css";
 import "./styles/brand-tokens.css";
 import "./styles.css";
+import "./styles/discover.css";
 import "./auth/auth.css";
 
 const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {};
@@ -32,9 +34,11 @@ const rootEl = document.getElementById("root");
 if (rootEl) {
   createRoot(rootEl).render(
     <StrictMode>
-      <AuthProvider>
-        <Root clients={clients} seriesId={SERIES_ID} userId={DEMO_USER} />
-      </AuthProvider>
+      <RouterProvider>
+        <AuthProvider>
+          <Root clients={clients} seriesId={SERIES_ID} userId={DEMO_USER} />
+        </AuthProvider>
+      </RouterProvider>
     </StrictMode>,
   );
 }

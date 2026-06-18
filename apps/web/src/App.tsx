@@ -19,6 +19,13 @@ import { StatusBar } from "./ui/StatusBar.js";
 import type { ConsentControls } from "./consent/useConsent.js";
 import { useAuth } from "./auth/AuthProvider.js";
 import { SignInPrompt } from "./auth/SignInPrompt.js";
+import { useRouter, matchPath } from "./router/router.js";
+import { createViewerAnalytics } from "./analytics/analytics.js";
+import { Onboarding } from "./onboarding/Onboarding.js";
+import { Home as Discover } from "./discover/Home.js";
+import { SeriesDetail } from "./discover/SeriesDetail.js";
+import { Search } from "./discover/Search.js";
+import { Channel } from "./discover/Channel.js";
 
 export interface AppProps {
   clients: Clients;
@@ -95,6 +102,15 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
 
   const coins = wallet?.balance ?? null;
 
+  // The client router (dependency-free, History API). The existing feed/player/wallet/profile experience
+  // lives under "/" and "/home" and keeps switching via the `screen` state; the 20-V1 / 20-V3 surfaces are
+  // real, linkable, back-button-safe routes added additively on top.
+  const router = useRouter();
+
+  // The viewer-surface analytics emitter (canonical taxonomy from @axessplayer/analytics-sdk). One
+  // instance per session id so onboarding, discover, detail, and search all emit with one envelope.
+  const analytics = useMemo(() => createViewerAnalytics({ sessionId: userId }), [userId]);
+
   // Phase 0 capture is consent-gated: only when the viewer granted analytics_personalization do we measure
   // real signals for /decide and emit beat-level events. Otherwise a noop capture and personalize=false.
   const personalize = consent?.record?.purposes.analytics_personalization ?? false;
@@ -109,7 +125,16 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
   const auth = useAuth();
   const onNavigate = useCallback(
     (tab: Tab) => {
+      // Search is a real route (20-V3). Navigating there leaves the home screen machine and the back
+      // button returns the viewer here.
+      if (tab === "search") {
+        if (router.path !== "/") router.navigate("/");
+        setScreen("feed");
+        router.navigate("/search");
+        return;
+      }
       if (tab === "home") {
+        if (router.path !== "/") router.navigate("/");
         setScreen("feed");
         void refreshFeed();
         return;
@@ -118,15 +143,30 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
       // When auth is not configured in this environment, preserve the existing live experience: the wallet
       // and profile remain reachable (the demo session drives them). When auth IS configured, enforce the
       // C12 boundary and resume to the target on a successful sign in.
+      const goHomeRoute = () => {
+        if (router.path !== "/") router.navigate("/");
+      };
       if (!auth.configured) {
+        goHomeRoute();
         setScreen(target);
         return;
       }
       void auth.requireAuth(target).then((ok) => {
-        if (ok) setScreen(target);
+        if (ok) {
+          goHomeRoute();
+          setScreen(target);
+        }
       });
     },
-    [refreshFeed, auth],
+    [refreshFeed, auth, router],
+  );
+
+  // Open a series DETAIL route (20-V3 merchandising) by id. Used by the discover rails and search.
+  const openSeriesDetail = useCallback(
+    (id: string) => {
+      router.navigate(`/series/${encodeURIComponent(id)}`);
+    },
+    [router],
   );
 
   const content = () => {
@@ -214,11 +254,106 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
     );
   };
 
+  // Route the 20-V1 / 20-V3 surfaces. These are additive: when the path is "/" or "/home" we fall through
+  // to the existing feed/player/wallet/profile screen machine, so the live experience is untouched.
+  const routed = (): JSX.Element | null => {
+    const path = router.path;
+
+    if (path === "/onboarding") {
+      return (
+        <div className="scr" data-testid="route-onboarding">
+          <StatusBar />
+          <Onboarding
+            catalog={clients.catalog}
+            analytics={analytics}
+            seriesId={seriesId}
+            onPlay={() => {
+              // Play episode 1 triggers the first /decide using the calibration: open the live player.
+              router.navigate("/");
+              void openSeries(seriesId);
+            }}
+            onSkip={() => {
+              router.navigate("/");
+              setScreen("feed");
+            }}
+          />
+        </div>
+      );
+    }
+
+    if (path === "/discover") {
+      return (
+        <div className="scr" data-testid="route-discover">
+          <StatusBar />
+          <Discover
+            catalog={clients.catalog}
+            analytics={analytics}
+            coins={coins}
+            onResume={(item) => {
+              router.navigate("/");
+              void openSeries(item.seriesId);
+            }}
+            onOpenSeries={openSeriesDetail}
+            onOpenSearch={() => router.navigate("/search")}
+          />
+          <BottomNav active="home" onNavigate={onNavigate} />
+        </div>
+      );
+    }
+
+    if (path === "/search") {
+      return (
+        <div className="scr" data-testid="route-search">
+          <StatusBar />
+          <Search
+            catalog={clients.catalog}
+            analytics={analytics}
+            onBack={() => router.back()}
+            onOpenSeries={openSeriesDetail}
+            onOpenChannel={(id) => router.navigate(`/channel/${encodeURIComponent(id)}`)}
+          />
+          <BottomNav active="search" onNavigate={onNavigate} />
+        </div>
+      );
+    }
+
+    const seriesMatch = matchPath("/series/:id", path);
+    if (seriesMatch) {
+      return (
+        <div className="scr" data-testid="route-series-detail">
+          <StatusBar />
+          <SeriesDetail
+            seriesId={seriesMatch.id}
+            catalog={clients.catalog}
+            analytics={analytics}
+            onBack={() => router.back()}
+            onPlay={() => {
+              router.navigate("/");
+              void openSeries(seriesMatch.id);
+            }}
+          />
+        </div>
+      );
+    }
+
+    const channelMatch = matchPath("/channel/:id", path);
+    if (channelMatch) {
+      return (
+        <div className="scr" data-testid="route-channel">
+          <StatusBar />
+          <Channel channelId={channelMatch.id} analytics={analytics} onBack={() => router.back()} />
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="app-stage">
       <div className="phone">
         <div className="notch" />
-        {content()}
+        {routed() ?? content()}
         {/* C12 reusable sign-in gate. Renders nothing until a gated action calls requireAuth(). */}
         <SignInPrompt seriesId={seriesId} />
       </div>

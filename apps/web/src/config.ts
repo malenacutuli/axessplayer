@@ -11,6 +11,9 @@ export interface AppConfig {
   // "/identity" prefix that the Vite proxy forwards to the local identity service; in production set
   // VITE_IDENTITY_BASE_URL to the deployed origin. Empty/same-origin is the dev default.
   identityBaseUrl: string;
+  // 20-V1 / 20-V3 catalog service (calibrate, continue, trending, series detail, search). Base from
+  // VITE_CATALOG_BASE_URL. Defaults to the same-origin "/catalog" prefix forwarded by the Vite dev proxy.
+  catalogBaseUrl: string;
 }
 
 // import.meta.env is typed by vite/client; we read defensively so tests and SSR-less builds work.
@@ -33,6 +36,9 @@ export function loadConfig(env: EnvBag = readEnv()): AppConfig {
     // Default to the same-origin "/identity" prefix forwarded by the Vite dev proxy. A deployed build
     // overrides this with the absolute identity origin.
     identityBaseUrl: env.VITE_IDENTITY_BASE_URL ?? "/identity",
+    // Default to the same-origin "/catalog" prefix forwarded by the Vite dev proxy. A deployed build
+    // overrides this with the absolute catalog origin (VITE_CATALOG_BASE_URL).
+    catalogBaseUrl: env.VITE_CATALOG_BASE_URL ?? "/catalog",
   };
 }
 

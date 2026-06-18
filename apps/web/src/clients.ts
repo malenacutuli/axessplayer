@@ -4,6 +4,7 @@
 
 import { loadConfig, type AppConfig } from "./config.js";
 import { createContentClient, type ContentClient } from "./api/content.js";
+import { createCatalogClient, type CatalogClient } from "./api/catalog.js";
 import { createEconomyClient, type EconomyClient } from "./api/economy.js";
 import { createRewardsClient, type RewardsClient } from "./api/rewards.js";
 import { createWebTransport } from "./player/webTransport.js";
@@ -13,6 +14,8 @@ import type { Transport } from "@axessplayer/player-sdk";
 export interface Clients {
   config: AppConfig;
   content: ContentClient;
+  // 20-V1 / 20-V3 catalog read + calibration surface (CATALOG API CONTRACT).
+  catalog: CatalogClient;
   economy: EconomyClient;
   // Server-side reward callbacks (rewarded ad, check-in, follow). The browser never mints coins.
   rewards: RewardsClient;
@@ -32,6 +35,11 @@ export function buildClients(opts: BuildClientsOptions): Clients {
     config,
     content: createContentClient({
       baseUrl: config.contentBaseUrl,
+      session: opts.session,
+      fetch: opts.fetch,
+    }),
+    catalog: createCatalogClient({
+      baseUrl: config.catalogBaseUrl,
       session: opts.session,
       fetch: opts.fetch,
     }),
