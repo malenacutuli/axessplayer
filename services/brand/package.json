@@ -1,0 +1,21 @@
+{
+  "name": "@axessplayer/brand",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Brand revenue rail (prompt 19): brand/agency accounts + campaigns, generation-time placement on GROUND-TRUTH scene metadata (no CV, no tracking), brand-safety + canon-safety HARD filters, licensed demand-rail ADAPTER interface (Magnite/GAM/SSAI stubs, license-not-build), the SEPARATE brand-performance flywheel behind the content/ad firewall, and TEST-mode double-entry billing reconciled to ledger entries. node:http PORT 8104, advertiser/operator verifier stub, production cutover-gate. Not in render.yaml. No em dashes.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo lint ok",
+    "serve": "node --import tsx src/serve.ts",
+    "test": "node --import tsx --test $(find src -name '*.test.ts' 2>/dev/null)"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.11.0",
+    "pg": "^8.12.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}

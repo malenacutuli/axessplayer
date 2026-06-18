@@ -745,3 +745,69 @@ export function accessibilityCoverageSql(): Sql {
     values: [],
   };
 }
+
+// ---- Brand rail: brands / campaigns / placements / performance (sections 7-8) -----------------------
+//
+// The AD PLANE reads. The brand rail tables (brand_accounts, brand_campaigns, placement_slots,
+// brand_performance) are landed by SLICE A under mobile and may be UNAPPLIED on a given project. A tolerant
+// catalog probe decides between a real read and an empty + source:"unwired" view (rows are never
+// fabricated). Each probe reads ONLY information_schema (no brand rows), so it is safe pre-apply.
+//
+// CONTENT/AD FIREWALL (HARD GATE): every SELECT below reads ONLY the brand rail tables. None of them may
+// reference, join, or read any content-ranking / decision surface (decision_log, beat_variants, beats,
+// series, engagement_events). Brand performance is a SEPARATE objective log: it re-ranks brand-matching
+// only and NEVER feeds the content reward function. The firewall test asserts the SQL text of these
+// builders contains none of the content-ranking relation names.
+
+// Probe: does a given brand rail table exist in the mobile schema? One catalog row when present.
+export function brandTableProbeSql(table: "brand_accounts" | "brand_campaigns" | "placement_slots" | "brand_performance"): Sql {
+  return {
+    text:
+      "select table_name from information_schema.tables " +
+      "where table_schema = 'mobile' and table_name = $1 limit 1",
+    values: [table],
+  };
+}
+
+// Brand accounts. Read-only over the brand rail only. Newest first, bounded.
+export function brandAccountsSql(limit = 200): Sql {
+  return {
+    text:
+      "select id, name, status from brand_accounts " +
+      "order by created_at desc nulls last, id limit $1",
+    values: [limit],
+  };
+}
+
+// Brand campaigns. Read-only over the brand rail only (no content/decision join). Newest first, bounded.
+export function brandCampaignsSql(limit = 200): Sql {
+  return {
+    text:
+      "select id, brand_id, name, status, starts_at, ends_at from brand_campaigns " +
+      "order by created_at desc nulls last, id limit $1",
+    values: [limit],
+  };
+}
+
+// Placement slots. Read-only over the brand rail only. The slot field is the in-scene anchor label; the
+// read deliberately does NOT join beat_variants (the firewall: ground-truth scene metadata lives on the
+// brand rail row, not via a content-ranking join). Newest first, bounded.
+export function placementSlotsSql(limit = 200): Sql {
+  return {
+    text:
+      "select id, campaign_id, slot, status from placement_slots " +
+      "order by created_at desc nulls last, id limit $1",
+    values: [limit],
+  };
+}
+
+// Brand performance. A SEPARATE objective surface: brand-matching metrics only, never the content reward
+// function. Read-only over the brand rail only. Bounded.
+export function brandPerformanceSql(limit = 200): Sql {
+  return {
+    text:
+      "select campaign_id, impressions, completions, brand_recall from brand_performance " +
+      "order by campaign_id limit $1",
+    values: [limit],
+  };
+}

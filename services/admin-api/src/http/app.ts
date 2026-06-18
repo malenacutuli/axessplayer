@@ -30,6 +30,7 @@ import {
   buildBrands,
   buildCampaigns,
   buildPlacements,
+  buildBrandPerformance,
   buildUsersPage,
   buildUserDetail,
   buildCreators,
@@ -193,9 +194,15 @@ export function createAdminApp(deps: AppDeps): Hono {
   });
 
   // ---- Section 7-8: AD PLANE (brands / campaigns / placements) --------------------------------------
-  // The hosted schema has no ad-plane tables yet (prompt 19). Each returns a real EMPTY list + source:
-  // "unwired". RBAC scopes these to the ad-plane roles (Marketing/Admin/Owner write; others read). The
-  // content/ad firewall holds: these handlers issue no content-ranking read.
+  // Each handler PROBES information_schema for its brand rail table (mobile.brand_accounts /
+  // brand_campaigns / placement_slots, landed by slice A): present -> SELECT real rows (source:"hosted");
+  // absent -> the empty + source:"unwired" shape (works before the SQL is applied). RBAC scopes these to
+  // the ad-plane roles (Marketing/Admin/Owner write; every operator reads). The CONTENT/AD FIREWALL holds:
+  // these reads touch ONLY the brand rail, never a content-ranking / decision table.
+  //
+  // /admin/brands/performance is a SEPARATE objective surface (brand-matching metrics), registered before
+  // /admin/brands so the more specific path wins; it classifies to the brands RBAC key (read-broad).
+  app.get("/admin/brands/performance", async (c) => c.json(await buildBrandPerformance(db)));
   app.get("/admin/brands", async (c) => c.json(await buildBrands(db)));
   app.get("/admin/campaigns", async (c) => c.json(await buildCampaigns(db)));
   app.get("/admin/placements", async (c) => c.json(await buildPlacements(db)));

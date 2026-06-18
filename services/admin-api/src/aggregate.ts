@@ -39,6 +39,11 @@ import {
   usersEngagementCountsSql,
   usersWalletBalancesSql,
   seriesOwnerColumnProbeSql,
+  brandTableProbeSql,
+  brandAccountsSql,
+  brandCampaignsSql,
+  placementSlotsSql,
+  brandPerformanceSql,
   type Sql,
 } from "./queries.js";
 import {
@@ -540,12 +545,15 @@ export async function buildAccessibility(db: QueryPort): Promise<AccessibilityRe
 
 // ---- Brands / Campaigns / Placements (sections 7-8, GET /admin/brands|campaigns|placements) ----------
 //
-// The AD PLANE. The hosted schema has NO brand/campaign/placement tables yet (prompt 19 lands them). These
-// return REAL EMPTY arrays with a typed shape and source:"unwired" plus a note, so the console renders a
-// real empty state. We do NOT fabricate rows. CONTENT/AD FIREWALL: there is deliberately no DB read here at
-// all this wave, and when prompt-19 wires these, the reads must stay on the brand/campaign/placement tables
-// and NEVER join content-ranking or decision tables. The shapes below are the contract the console codes
-// against now so wiring prompt-19 is a data swap, not a shape change.
+// The AD PLANE. The brand rail tables (mobile.brand_accounts / brand_campaigns / placement_slots) are
+// landed by SLICE A and may be UNAPPLIED on a given project. Each builder PROBES information_schema for its
+// table: PRESENT -> SELECT and return real rows (source:"hosted"); ABSENT -> the empty + source:"unwired"
+// typed shape (so the console renders a real empty state before the SQL is applied). Rows are never
+// fabricated.
+//
+// CONTENT/AD FIREWALL (HARD GATE): these reads touch ONLY the brand rail tables. They never reference,
+// join, or read any content-ranking / decision surface (decision_log, beat_variants, beats, series,
+// engagement_events). The SQL builders enforce this; the firewall test asserts it on the SQL text.
 
 export interface BrandRow {
   id: string;
@@ -573,23 +581,124 @@ export interface UnwiredList<T> {
   note: string;
 }
 
-const PROMPT19_NOTE =
-  "brand/campaign/placement tables are not in the hosted schema yet; wire the prompt-19 ad-plane tables (firewalled from content ranking)";
+const brandRailUnwiredNote = (table: string): string =>
+  `mobile.${table} is not applied on this project (the brand rail tables land via slice A); the surface is empty and unwired (rows are never fabricated). Applying the additive table swaps source to hosted with no shape change`;
 
-// All three accept the db port so the signature is stable once prompt-19 wires a firewalled read, but they
-// do NOT query this wave: there is no table to read, and issuing a query would risk touching the wrong
-// surface. Empty + unwired is the honest answer.
-export async function buildBrands(_db: QueryPort): Promise<UnwiredList<BrandRow>> {
-  void _db;
-  return { items: [], source: "unwired", note: PROMPT19_NOTE };
+// Has a given brand rail table been applied? Reads only information_schema (no brand rows), safe pre-apply.
+async function brandTablePresent(
+  db: QueryPort,
+  table: "brand_accounts" | "brand_campaigns" | "placement_slots" | "brand_performance",
+): Promise<boolean> {
+  const rows = await run<{ table_name: string }>(db, brandTableProbeSql(table));
+  return rows.length > 0;
 }
-export async function buildCampaigns(_db: QueryPort): Promise<UnwiredList<CampaignRow>> {
-  void _db;
-  return { items: [], source: "unwired", note: PROMPT19_NOTE };
+
+interface BrandAccountRow {
+  id: string;
+  name: string | null;
+  status: string | null;
 }
-export async function buildPlacements(_db: QueryPort): Promise<UnwiredList<PlacementRow>> {
-  void _db;
-  return { items: [], source: "unwired", note: PROMPT19_NOTE };
+interface BrandCampaignRow {
+  id: string;
+  brand_id: string;
+  name: string | null;
+  status: string | null;
+  starts_at: unknown;
+  ends_at: unknown;
+}
+interface PlacementSlotRow {
+  id: string;
+  campaign_id: string;
+  slot: string | null;
+  status: string | null;
+}
+
+// Brands. Probe brand_accounts; present -> SELECT real rows, absent -> empty + unwired.
+export async function buildBrands(db: QueryPort): Promise<UnwiredList<BrandRow>> {
+  if (!(await brandTablePresent(db, "brand_accounts"))) {
+    return { items: [], source: "unwired", note: brandRailUnwiredNote("brand_accounts") };
+  }
+  const rows = await run<BrandAccountRow>(db, brandAccountsSql());
+  return {
+    items: rows.map((r) => ({ id: String(r.id), name: r.name ?? "", status: r.status ?? "unknown" })),
+    source: "hosted",
+    note: "brand accounts read from the mobile.brand_accounts rail (firewalled from content ranking)",
+  };
+}
+
+// Campaigns. Probe brand_campaigns; present -> SELECT real rows, absent -> empty + unwired.
+export async function buildCampaigns(db: QueryPort): Promise<UnwiredList<CampaignRow>> {
+  if (!(await brandTablePresent(db, "brand_campaigns"))) {
+    return { items: [], source: "unwired", note: brandRailUnwiredNote("brand_campaigns") };
+  }
+  const rows = await run<BrandCampaignRow>(db, brandCampaignsSql());
+  return {
+    items: rows.map((r) => ({
+      id: String(r.id),
+      brandId: String(r.brand_id),
+      name: r.name ?? "",
+      status: r.status ?? "unknown",
+      startsAt: isoOrNull(r.starts_at),
+      endsAt: isoOrNull(r.ends_at),
+    })),
+    source: "hosted",
+    note: "brand campaigns read from the mobile.brand_campaigns rail (firewalled from content ranking)",
+  };
+}
+
+// Placements. Probe placement_slots; present -> SELECT real rows, absent -> empty + unwired.
+export async function buildPlacements(db: QueryPort): Promise<UnwiredList<PlacementRow>> {
+  if (!(await brandTablePresent(db, "placement_slots"))) {
+    return { items: [], source: "unwired", note: brandRailUnwiredNote("placement_slots") };
+  }
+  const rows = await run<PlacementSlotRow>(db, placementSlotsSql());
+  return {
+    items: rows.map((r) => ({
+      id: String(r.id),
+      campaignId: String(r.campaign_id),
+      slot: r.slot ?? "",
+      status: r.status ?? "unknown",
+    })),
+    source: "hosted",
+    note: "placement slots read from the mobile.placement_slots rail (firewalled from content ranking)",
+  };
+}
+
+// ---- Brand performance (section 7, GET /admin/brands/performance) -----------------------------------
+//
+// A SEPARATE OBJECTIVE SURFACE. Brand-matching metrics (impressions / completions / brand recall) read from
+// mobile.brand_performance when present, else empty + unwired. This log re-ranks BRAND MATCHING ONLY and is
+// NEVER joined to or fed into the content reward function (the firewall). Read-only.
+
+export interface BrandPerformanceRow {
+  campaignId: string;
+  impressions: number;
+  completions: number;
+  brandRecall: number;
+}
+
+interface BrandPerformanceDbRow {
+  campaign_id: string;
+  impressions: unknown;
+  completions: unknown;
+  brand_recall: unknown;
+}
+
+export async function buildBrandPerformance(db: QueryPort): Promise<UnwiredList<BrandPerformanceRow>> {
+  if (!(await brandTablePresent(db, "brand_performance"))) {
+    return { items: [], source: "unwired", note: brandRailUnwiredNote("brand_performance") };
+  }
+  const rows = await run<BrandPerformanceDbRow>(db, brandPerformanceSql());
+  return {
+    items: rows.map((r) => ({
+      campaignId: String(r.campaign_id),
+      impressions: num(r.impressions),
+      completions: num(r.completions),
+      brandRecall: num(r.brand_recall),
+    })),
+    source: "hosted",
+    note: "brand performance read from the mobile.brand_performance objective log (SEPARATE surface; never feeds the content reward function)",
+  };
 }
 
 // ---- Users (section 8, GET /admin/users + /admin/users/:id) -----------------------------------------

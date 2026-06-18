@@ -173,15 +173,58 @@ test("GET /admin/media-factory/jobs and /admin/accessibility are readable", asyn
 
 // ---- Section 7-9 routes -----------------------------------------------------------------------------
 
-test("GET /admin/brands|campaigns|placements are unwired empty arrays (no fabricated rows)", async () => {
-  // The ad-plane handlers must NOT issue a DB query (firewall + nothing to read); a throwing db proves it.
-  const a = app(throwingDb);
-  for (const path of ["/admin/brands", "/admin/campaigns", "/admin/placements"]) {
+test("GET /admin/brands|campaigns|placements|performance are unwired empty arrays when the rail is unapplied", async () => {
+  // The brand rail tables are not applied: the table probe returns no rows, so each handler returns the
+  // empty + source:"unwired" shape (no fabricated rows). The probe reads only information_schema.
+  const db = {
+    async query(text: string) {
+      assert.match(text, /information_schema\.tables/, "only the catalog probe runs when the rail is absent");
+      return { rows: [] };
+    },
+  } as unknown as QueryPort;
+  const a = app(db);
+  for (const path of ["/admin/brands", "/admin/campaigns", "/admin/placements", "/admin/brands/performance"]) {
     const res = await a.request(path, { headers: { authorization: "Bearer operator:Marketing:m1" } });
     assert.equal(res.status, 200, `${path} readable`);
     const body = (await res.json()) as { items: unknown[]; source: string };
     assert.deepEqual(body.items, [], `${path} empty`);
     assert.equal(body.source, "unwired", `${path} unwired`);
+  }
+});
+
+test("GET /admin/brands|campaigns|placements|performance return real rows when the rail is applied", async () => {
+  const db = {
+    async query(text: string) {
+      if (/information_schema\.tables/.test(text)) return { rows: [{ table_name: "x" }] };
+      if (/from brand_accounts/.test(text)) return { rows: [{ id: "b1", name: "Acme", status: "active" }] };
+      if (/from brand_campaigns/.test(text)) {
+        return { rows: [{ id: "c1", brand_id: "b1", name: "Spring", status: "live", starts_at: "2026-01-01T00:00:00Z", ends_at: null }] };
+      }
+      if (/from placement_slots/.test(text)) return { rows: [{ id: "p1", campaign_id: "c1", slot: "cafe-table", status: "filled" }] };
+      if (/from brand_performance/.test(text)) return { rows: [{ campaign_id: "c1", impressions: 100, completions: 80, brand_recall: 12 }] };
+      return { rows: [] };
+    },
+  } as unknown as QueryPort;
+  const a = app(db);
+  const brands = (await (await a.request("/admin/brands", { headers: { authorization: "Bearer operator:Marketing:m1" } })).json()) as { items: Array<Record<string, unknown>>; source: string };
+  assert.equal(brands.source, "hosted");
+  assert.equal(brands.items[0].name, "Acme");
+  const perf = (await (await a.request("/admin/brands/performance", { headers: { authorization: "Bearer operator:Marketing:m1" } })).json()) as { items: Array<Record<string, unknown>>; source: string };
+  assert.equal(perf.source, "hosted");
+  assert.equal(perf.items[0].impressions, 100);
+  assert.equal(perf.items[0].brandRecall, 12);
+});
+
+test("brand-rail reads are readable by every operator role (read-broad RBAC)", async () => {
+  const db = {
+    async query() {
+      return { rows: [] };
+    },
+  } as unknown as QueryPort;
+  const a = app(db);
+  for (const role of ["ReadOnly", "Support", "Content"]) {
+    const res = await a.request("/admin/brands/performance", { headers: { authorization: `Bearer operator:${role}:u1` } });
+    assert.equal(res.status, 200, `${role} may read brand performance`);
   }
 });
 
