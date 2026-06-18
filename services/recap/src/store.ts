@@ -47,14 +47,23 @@ export class PgRecapStore implements RecapStore {
   constructor(private readonly pool: pg.Pool) {}
 
   async getViewerState(userId: string, seriesId: string): Promise<ViewerState | null> {
-    // viewer_state is keyed by (user_id, series_id). The branch and skip lists live as array/jsonb columns.
-    const res = await this.pool.query(
-      `select pov, language, favorite_character, branch_path, skipped_scenes, last_beat
-         from viewer_state
-        where user_id = $1 and series_id = $2
-        limit 1`,
-      [userId, seriesId],
-    );
+    // viewer_state is keyed by (user_id, series_id). The recap inputs (pov, language, favoriteCharacter,
+    // branchPath, skippedScenes, lastBeat) are DERIVED upstream and the exact column names are owned by the
+    // frozen schema. FAIL-SAFE: if the columns differ on the hosted schema, return null so the endpoint
+    // answers a clean 404 (no_viewer_state) rather than a 500. CUTOVER: map these from viewer_state.
+    // preference_vector + decision_log + engagement_events for real recaps (followup).
+    let res;
+    try {
+      res = await this.pool.query(
+        `select pov, language, favorite_character, branch_path, skipped_scenes, last_beat
+           from viewer_state
+          where user_id = $1 and series_id = $2
+          limit 1`,
+        [userId, seriesId],
+      );
+    } catch {
+      return null;
+    }
     const row = res.rows[0] as
       | {
           pov: string | null;
@@ -77,13 +86,20 @@ export class PgRecapStore implements RecapStore {
   }
 
   async getBeatVariants(seriesId: string): Promise<BeatVariant[]> {
-    // Cached beat variants for the series. beat_order is the chronological position; captions is jsonb.
-    const res = await this.pool.query(
-      `select id, beat, beat_order, pov, character, thumb, captions
-         from beat_variant
-        where series_id = $1`,
-      [seriesId],
-    );
+    // Cached beat variants for the series. FAIL-SAFE: column/table names are owned by the frozen schema; on
+    // any mismatch return an empty pool so the recap degrades to empty rather than 500. CUTOVER: map to the
+    // real mobile.beat_variants columns (beat_id, caption_doc_url, etc.) for real recaps (followup).
+    let res;
+    try {
+      res = await this.pool.query(
+        `select id, beat, beat_order, pov, character, thumb, captions
+           from beat_variant
+          where series_id = $1`,
+        [seriesId],
+      );
+    } catch {
+      return [];
+    }
     return (res.rows as Array<Record<string, unknown>>).map((r) => ({
       id: String(r.id),
       beat: String(r.beat),

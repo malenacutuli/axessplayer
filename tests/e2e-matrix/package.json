@@ -1,0 +1,17 @@
+{
+  "name": "@axessplayer/e2e-matrix",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cross-surface end-to-end ACCEPTANCE MATRIX (build prompt 15). Drives the LIVE deployed Render services over HTTPS (viewer + studio + admin + economy/settlement/trust planes) and asserts the 14 acceptance tests. No local servers are started. Gated/unwired services are asserted as gates (401/403/501), not false failures. No em dashes.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo lint ok",
+    "test": "node --import tsx --test src/matrix.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}
