@@ -1351,6 +1351,188 @@ export function mapRevenueByCohort(rows: Array<Record<string, unknown>>): Revenu
   });
 }
 
+// ===================================================================================================
+// GET /channel/:id/analytics (CREATOR-SCOPED; session-authed creator bearer).
+//
+// CATALOG API CONTRACT: { followers, followerTrend:[...], seriesPerformance:[{seriesId,title,views,
+// completion}], notificationAudience, brandDeals:[] }. The channel-owning creator opens their channel
+// dashboard; the studio sends a creator session bearer that the route verifies before any DB read.
+//
+//   - followers: total rows in channel_follows for the channel (the follower count headline).
+//   - followerTrend: channel_follows bucketed by created_at day over a recent window, as a cumulative
+//     follower count per bucket so the trend line reads as "followers over time" not raw daily adds.
+//   - seriesPerformance: the channel's mapped series (series_channels -> series) LEFT JOINed to
+//     engagement_events for views (play count) and completion (completion_50 / play), per series.
+//   - notificationAudience: channel_follows where notify=true (the bell-on audience the creator can push to).
+//   - brandDeals: ALWAYS empty with source 'unwired'. Brand tables are NOT in the hosted schema; we never
+//     fabricate a brand deal. The content/ad firewall + brand-permission gates mean this stays a marked
+//     placeholder until a real brand-offers source is wired.
+//
+// Reads channel_follows + series_channels + series + engagement_events ONLY. SELECT-only / read-only.
+// Unqualified names so search_path=mobile resolves the overlay. No reward weights read or returned.
+// ---------------------------------------------------------------------------------------------------
+
+// Channel existence gate: a single-row lookup so an unknown channel is a clean 404 rather than an
+// empty-but-present analytics payload. Mirrors buildSeriesExistsQuery.
+export function buildChannelExistsQuery(channelId: string): SqlSpec {
+  return { text: `select c.id as id from channels c where c.id = $1`, values: [channelId] };
+}
+
+// Total follower count for the channel. A single scalar the route reads directly.
+export function buildChannelFollowerCountQuery(channelId: string): SqlSpec {
+  return {
+    text: `select count(*)::int as followers
+       from channel_follows cf
+      where cf.channel_id = $1`,
+    values: [channelId],
+  };
+}
+
+// Follower adds bucketed by UTC day over the recent window (default 30 days). Per-day NEW-follow counts;
+// the mapper turns these into a cumulative running total so the trend reads as followers-over-time. Only
+// follows whose created_at falls inside the window are bucketed; the cumulative base is the count of
+// follows that already existed BEFORE the window opened, supplied separately by the priors query so the
+// running total starts from the real historical follower base, not zero.
+export function buildChannelFollowerTrendQuery(channelId: string, windowDays = 30): SqlSpec {
+  return {
+    text: `select to_char(date_trunc('day', cf.created_at), 'YYYY-MM-DD') as day,
+            count(*)::int as adds
+       from channel_follows cf
+      where cf.channel_id = $1
+        and cf.created_at >= now() - ($2 || ' days')::interval
+      group by date_trunc('day', cf.created_at)
+      order by date_trunc('day', cf.created_at) asc`,
+    values: [channelId, String(windowDays)],
+  };
+}
+
+// The follower base BEFORE the trend window opened: follows created earlier than (now - windowDays).
+// A single scalar so the cumulative running total in the mapper starts from the real historical base.
+export function buildChannelFollowerPriorsQuery(channelId: string, windowDays = 30): SqlSpec {
+  return {
+    text: `select count(*)::int as prior
+       from channel_follows cf
+      where cf.channel_id = $1
+        and cf.created_at < now() - ($2 || ' days')::interval`,
+    values: [channelId, String(windowDays)],
+  };
+}
+
+// notificationAudience: the bell-on subset of followers (notify=true) the creator can push a notification
+// to. A single scalar the route reads directly. notify defaults true in the overlay, so this is at most
+// the follower count and is the real opt-in audience size.
+export function buildChannelNotificationAudienceQuery(channelId: string): SqlSpec {
+  return {
+    text: `select count(*)::int as audience
+       from channel_follows cf
+      where cf.channel_id = $1
+        and cf.notify = true`,
+    values: [channelId],
+  };
+}
+
+// Per-series performance for the channel's mapped series. series_channels -> series for the card identity;
+// LEFT JOIN engagement_events so a series with zero events still appears (views 0, completion 0). views is
+// the count of 'play' events; completions is the count of 'completion_50' events; the mapper derives the
+// completion FRACTION (completion_50 / play, 0..1, no divide-by-zero). Mirrors buildSeriesCompletionQuery's
+// definition of completion so the per-series number is consistent with the series-level analytics endpoint.
+// Grouped per series; ordered by views desc then title for a stable, performance-ranked grid.
+export function buildChannelSeriesPerformanceQuery(channelId: string): SqlSpec {
+  return {
+    text: `select s.id as series_id,
+            s.title as title,
+            count(e.id) filter (where e.type = 'play')::int as views,
+            count(e.id) filter (where e.type = 'completion_50')::int as completions
+       from series_channels sc
+       join series s on s.id = sc.series_id
+       left join engagement_events e on e.series_id = s.id
+      where sc.channel_id = $1
+      group by s.id, s.title
+      order by views desc, s.title asc`,
+    values: [channelId],
+  };
+}
+
+export interface FollowerTrendPoint {
+  // UTC day bucket, 'YYYY-MM-DD'.
+  day: string;
+  // New follows that landed on this day.
+  adds: number;
+  // Cumulative follower count through end of this day (prior base + adds up to and including this day).
+  cumulative: number;
+}
+
+export interface ChannelSeriesPerformance {
+  seriesId: string;
+  title: string;
+  views: number;
+  // 0..1 share of views that reached the completion_50 milestone. views 0 -> completion 0 (no evidence).
+  completion: number;
+}
+
+export interface ChannelAnalytics {
+  followers: number;
+  followerTrend: FollowerTrendPoint[];
+  seriesPerformance: ChannelSeriesPerformance[];
+  notificationAudience: number;
+  // ALWAYS empty. source 'unwired' is the honest marker that brand tables are not in the hosted schema, so
+  // no brand deal is ever fabricated. The shape stays a marked placeholder behind the brand-permission gate.
+  brandDeals: never[];
+  brandDealsSource: "unwired";
+}
+
+// Turn the windowed per-day adds into a cumulative followers-over-time trend, seeding the running total
+// from the pre-window follower base (prior) so the line starts at the real historical count. Pure.
+export function mapFollowerTrend(
+  rows: Array<Record<string, unknown>>,
+  prior: number
+): FollowerTrendPoint[] {
+  let running = Math.max(0, toInt(prior));
+  return rows.map((r) => {
+    const adds = toInt(r.adds);
+    running += adds;
+    return { day: String(r.day ?? ""), adds, cumulative: running };
+  });
+}
+
+// Map the per-series performance rows, deriving the completion fraction the same way the series-level
+// analytics endpoint does (completion_50 / play, clamped 0..1, honest 0 when no plays). Pure.
+export function mapChannelSeriesPerformance(
+  rows: Array<Record<string, unknown>>
+): ChannelSeriesPerformance[] {
+  return rows.map((r) => {
+    const views = toInt(r.views);
+    const completions = toInt(r.completions);
+    const completion = views > 0 ? Math.max(0, Math.min(1, completions / views)) : 0;
+    return { seriesId: String(r.series_id), title: String(r.title ?? ""), views, completion };
+  });
+}
+
+// Compose the channel analytics payload from the five result sets. Pure mapping; returns null when the
+// channel header is absent (existsRows empty) so the route can answer 404. brandDeals is ALWAYS the empty
+// list with source 'unwired' (no brand source in the hosted schema; never fabricated).
+export function composeChannelAnalytics(
+  existsRows: Array<Record<string, unknown>>,
+  followerCountRows: Array<Record<string, unknown>>,
+  trendRows: Array<Record<string, unknown>>,
+  priorRows: Array<Record<string, unknown>>,
+  audienceRows: Array<Record<string, unknown>>,
+  seriesPerfRows: Array<Record<string, unknown>>
+): ChannelAnalytics | null {
+  if (existsRows[0] == null) return null;
+  const followers = toInt((followerCountRows[0] ?? {}).followers);
+  const prior = toInt((priorRows[0] ?? {}).prior);
+  const notificationAudience = toInt((audienceRows[0] ?? {}).audience);
+  return {
+    followers,
+    followerTrend: mapFollowerTrend(trendRows, prior),
+    seriesPerformance: mapChannelSeriesPerformance(seriesPerfRows),
+    notificationAudience,
+    brandDeals: [],
+    brandDealsSource: "unwired",
+  };
+}
+
 // Compose the full revenue payload. totalGross is the sum of the by-source gross (the authoritative gross
 // the split is applied to); creator70/platform30 are the split of THAT total computed once with
 // revenueShare() so the headline split has no rounding leak and is internally consistent with bySource.

@@ -142,9 +142,10 @@ describe("CreatorStudio", () => {
     for (const id of ["dashboard", "create", "upload", "library", "branch", "media", "process", "poster", "analytics", "monetization", "channel", "settings"]) {
       expect(screen.getByTestId(`nav-${id}`)).toBeInTheDocument();
     }
-    // Channel is not built yet: reachable coming-soon, with a back action (no dead end).
-    await user.click(screen.getByTestId("nav-channel"));
-    expect(await screen.findByTestId("panel-channel")).toBeInTheDocument();
+    // Rights is not built yet: reachable coming-soon, with a back action (no dead end). Pro mode reveals it.
+    await user.click(screen.getByRole("switch", { name: /Pro mode/i }));
+    await user.click(screen.getByTestId("nav-rights"));
+    expect(await screen.findByTestId("panel-rights")).toBeInTheDocument();
     expect(screen.getByTestId("coming-soon-back")).toBeInTheDocument();
     await user.click(screen.getByTestId("coming-soon-back"));
     expect(await screen.findByTestId("panel-dashboard")).toBeInTheDocument();
@@ -177,13 +178,13 @@ describe("CreatorStudio", () => {
     renderStudio();
     await screen.findByTestId("dashboard-loaded");
     // Brand/Team/Rights are pro-only: present in the DOM but hidden in Simple mode.
-    expect(screen.getByTestId("nav-brand")).toHaveAttribute("hidden");
-    expect(screen.getByTestId("nav-brand")).toHaveAttribute("data-pro-only", "true");
+    expect(screen.getByTestId("nav-brands")).toHaveAttribute("hidden");
+    expect(screen.getByTestId("nav-brands")).toHaveAttribute("data-pro-only", "true");
 
     // Flip Pro on via the rail toggle.
     await user.click(screen.getByRole("switch", { name: /Pro mode/i }));
     expect(screen.getByTestId("mode-label")).toHaveTextContent("Pro");
-    expect(screen.getByTestId("nav-brand")).not.toHaveAttribute("hidden");
+    expect(screen.getByTestId("nav-brands")).not.toHaveAttribute("hidden");
   });
 
   it("routes the rail to the authoring workflow (Library) without a second rail", async () => {

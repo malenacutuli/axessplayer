@@ -40,6 +40,15 @@ import {
   mapTrendingRows,
   parseCalibrateInput,
   TRENDING_EVENT_TYPES,
+  buildChannelExistsQuery,
+  buildChannelFollowerCountQuery,
+  buildChannelFollowerTrendQuery,
+  buildChannelFollowerPriorsQuery,
+  buildChannelNotificationAudienceQuery,
+  buildChannelSeriesPerformanceQuery,
+  mapFollowerTrend,
+  mapChannelSeriesPerformance,
+  composeChannelAnalytics,
   type Queryable,
 } from "../src/queries.js";
 
@@ -469,4 +478,114 @@ test("a builder spec round-trips through the fake pg query() unchanged", async (
   assert.equal(calls[0].text, spec.text);
   assert.deepEqual(calls[0].values, ["s1"]);
   assert.equal(r.rows[0].format, "Film");
+});
+
+// --- channel analytics: follower trend bucketing, series performance join, notify audience ----------
+
+test("buildChannelExistsQuery is a single-row channel lookup gating the 404", () => {
+  const spec = buildChannelExistsQuery("c1");
+  assert.match(spec.text, /from channels c where c\.id = \$1/);
+  assert.deepEqual(spec.values, ["c1"]);
+});
+
+test("buildChannelFollowerCountQuery counts channel_follows for the channel", () => {
+  const spec = buildChannelFollowerCountQuery("c1");
+  assert.match(spec.text, /count\(\*\)::int as followers/);
+  assert.match(spec.text, /from channel_follows cf/);
+  assert.match(spec.text, /cf\.channel_id = \$1/);
+  assert.deepEqual(spec.values, ["c1"]);
+});
+
+test("buildChannelFollowerTrendQuery buckets follows by day inside the window", () => {
+  const spec = buildChannelFollowerTrendQuery("c1", 30);
+  assert.match(spec.text, /from channel_follows cf/);
+  assert.match(spec.text, /date_trunc\('day', cf\.created_at\)/);
+  assert.match(spec.text, /cf\.created_at >= now\(\) - \(\$2 \|\| ' days'\)::interval/);
+  assert.match(spec.text, /group by date_trunc\('day', cf\.created_at\)/);
+  assert.match(spec.text, /order by date_trunc\('day', cf\.created_at\) asc/);
+  assert.deepEqual(spec.values, ["c1", "30"]);
+});
+
+test("buildChannelFollowerPriorsQuery counts follows BEFORE the window opens", () => {
+  const spec = buildChannelFollowerPriorsQuery("c1", 30);
+  assert.match(spec.text, /count\(\*\)::int as prior/);
+  assert.match(spec.text, /cf\.created_at < now\(\) - \(\$2 \|\| ' days'\)::interval/);
+  assert.deepEqual(spec.values, ["c1", "30"]);
+});
+
+test("buildChannelNotificationAudienceQuery counts only notify=true follows", () => {
+  const spec = buildChannelNotificationAudienceQuery("c1");
+  assert.match(spec.text, /count\(\*\)::int as audience/);
+  assert.match(spec.text, /from channel_follows cf/);
+  assert.match(spec.text, /cf\.notify = true/);
+  assert.deepEqual(spec.values, ["c1"]);
+});
+
+test("buildChannelSeriesPerformanceQuery joins channel series to engagement_events for views + completions", () => {
+  const spec = buildChannelSeriesPerformanceQuery("c1");
+  assert.match(spec.text, /from series_channels sc/);
+  assert.match(spec.text, /join series s on s\.id = sc\.series_id/);
+  assert.match(spec.text, /left join engagement_events e on e\.series_id = s\.id/);
+  assert.match(spec.text, /filter \(where e\.type = 'play'\)::int as views/);
+  assert.match(spec.text, /filter \(where e\.type = 'completion_50'\)::int as completions/);
+  assert.match(spec.text, /sc\.channel_id = \$1/);
+  assert.match(spec.text, /order by views desc, s\.title asc/);
+  assert.deepEqual(spec.values, ["c1"]);
+});
+
+test("mapFollowerTrend accumulates per-day adds onto the pre-window prior base", () => {
+  const out = mapFollowerTrend(
+    [
+      { day: "2026-06-01", adds: 3 },
+      { day: "2026-06-02", adds: 0 },
+      { day: "2026-06-03", adds: 5 },
+    ],
+    100
+  );
+  assert.deepEqual(out, [
+    { day: "2026-06-01", adds: 3, cumulative: 103 },
+    { day: "2026-06-02", adds: 0, cumulative: 103 },
+    { day: "2026-06-03", adds: 5, cumulative: 108 },
+  ]);
+});
+
+test("mapFollowerTrend floors a negative/garbage prior to 0", () => {
+  const out = mapFollowerTrend([{ day: "2026-06-01", adds: 2 }], -5);
+  assert.deepEqual(out, [{ day: "2026-06-01", adds: 2, cumulative: 2 }]);
+});
+
+test("mapChannelSeriesPerformance derives completion = completion_50/play with an honest 0 on no plays", () => {
+  const out = mapChannelSeriesPerformance([
+    { series_id: "s1", title: "A", views: 200, completions: 50 },
+    { series_id: "s2", title: "B", views: 0, completions: 0 },
+  ]);
+  assert.deepEqual(out, [
+    { seriesId: "s1", title: "A", views: 200, completion: 0.25 },
+    { seriesId: "s2", title: "B", views: 0, completion: 0 },
+  ]);
+});
+
+test("composeChannelAnalytics returns null when the channel is absent (404 path)", () => {
+  assert.equal(composeChannelAnalytics([], [], [], [], [], []), null);
+});
+
+test("composeChannelAnalytics builds the contract shape with brandDeals always empty + unwired", () => {
+  const body = composeChannelAnalytics(
+    [{ id: "c1" }],
+    [{ followers: 120 }],
+    [{ day: "2026-06-01", adds: 3 }],
+    [{ prior: 100 }],
+    [{ audience: 90 }],
+    [{ series_id: "s1", title: "A", views: 200, completions: 50 }]
+  );
+  assert.ok(body);
+  assert.equal(body.followers, 120);
+  assert.equal(body.notificationAudience, 90);
+  assert.deepEqual(body.followerTrend, [{ day: "2026-06-01", adds: 3, cumulative: 103 }]);
+  assert.deepEqual(body.seriesPerformance, [
+    { seriesId: "s1", title: "A", views: 200, completion: 0.25 },
+  ]);
+  // Brand deals are never fabricated: empty list, marked unwired.
+  assert.deepEqual(body.brandDeals, []);
+  assert.equal(body.brandDealsSource, "unwired");
 });

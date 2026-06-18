@@ -146,6 +146,79 @@ export interface SeriesAnalytics {
 // episode, and cohort. Every monetary figure is in COINS (own-once economy); there is NO live Stripe rail.
 // ---------------------------------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------------------------------
+// GET /channels  and  GET /channel/:id  (existing catalog routes; the studio reuses them for section 13).
+// These mirror the catalog service shapes (ChannelSummary / ChannelDetail) so a drift surfaces as a
+// typecheck break here. No em dashes.
+// ---------------------------------------------------------------------------------------------------
+
+export interface ChannelSummary {
+  id: string;
+  slug: string;
+  name: string;
+  genres: string[];
+  heroUrl: string | null;
+  showCount: number;
+}
+
+export interface ChannelSeriesItem {
+  seriesId: string;
+  title: string;
+  poster: string | null;
+  // 0..5 accessibility-derived rating (no rating column exists; the catalog derives it from a11y coverage).
+  rating: number;
+  episodes: number;
+  badges: { cc: boolean; ad: boolean; sign: boolean };
+}
+
+export interface ChannelDetail {
+  id: string;
+  name: string;
+  heroUrl: string | null;
+  showCount: number;
+  series: ChannelSeriesItem[];
+}
+
+// ---------------------------------------------------------------------------------------------------
+// GET /channel/:id/analytics  (services/catalog additive route, session-authed creator bearer)
+//   -> { followers, followerTrend, seriesPerformance, notificationAudience, brandDeals }
+// Channel-level analytics for the studio Channel section (13). brandDeals is present in the contract but
+// the brand tables are not in the hosted schema yet, so it arrives EMPTY and the studio renders a real
+// empty/coming-soon brand-deals surface (no fabricated deals). No em dashes.
+// ---------------------------------------------------------------------------------------------------
+
+export interface FollowerTrendPoint {
+  // An ISO date or period label for the x-axis (e.g. "2026-05" or a week start).
+  period: string;
+  followers: number;
+}
+
+export interface ChannelSeriesPerformance {
+  seriesId: string;
+  title: string;
+  views: number;
+  // 0..1 completion rate.
+  completion: number;
+}
+
+// A channel-level brand deal row. The brand tables are not in the hosted schema yet, so this array is
+// EMPTY in every current environment; the type exists so the contract addition is honored when it lands.
+export interface ChannelBrandDeal {
+  id: string;
+  brand: string;
+  status: string;
+  revenueCoins: number;
+}
+
+export interface ChannelAnalytics {
+  followers: number;
+  followerTrend: FollowerTrendPoint[];
+  seriesPerformance: ChannelSeriesPerformance[];
+  // The audience reachable by a notification (the notification-bell audience).
+  notificationAudience: number;
+  brandDeals: ChannelBrandDeal[];
+}
+
 // A revenue row by source (e.g. premium_unlock, series_unlock, rewarded_ad, subscription_share). The split
 // is COMPUTED server-side from the gross: creatorShare = gross * 0.70, platformShare = gross * 0.30.
 export interface RevenueBySource {

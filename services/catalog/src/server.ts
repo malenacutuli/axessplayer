@@ -75,6 +75,13 @@ import {
   buildSeriesRevenueByCohortQuery,
   buildSeriesPayoutBalanceQuery,
   composeSeriesRevenue,
+  buildChannelExistsQuery,
+  buildChannelFollowerCountQuery,
+  buildChannelFollowerTrendQuery,
+  buildChannelFollowerPriorsQuery,
+  buildChannelNotificationAudienceQuery,
+  buildChannelSeriesPerformanceQuery,
+  composeChannelAnalytics,
   type SeriesAnalytics,
   type Queryable,
 } from "./queries.js";
@@ -302,6 +309,40 @@ async function handleChannelDetail(db: Queryable, channelId: string): Promise<Ha
   return { status: 200, body: detail };
 }
 
+// CREATOR-SCOPED. Aggregate the channel dashboard analytics from channel_follows + series_channels +
+// series + engagement_events. session-authed: the studio sends a creator session bearer; the route
+// enforces the verified session before any DB read. A missing channel is a 404 (composeChannelAnalytics
+// returns null). Read-only / SELECT-only; brandDeals is always empty with source 'unwired' (no brand
+// tables in the hosted schema; never fabricated). Never reads or returns a reward weight.
+async function handleChannelAnalytics(db: Queryable, channelId: string): Promise<HandlerResult> {
+  const exists = buildChannelExistsQuery(channelId);
+  const xRes = await db.query(exists.text, exists.values);
+  if (xRes.rows[0] == null) return { status: 404, body: { error: "not_found" } };
+
+  const followers = buildChannelFollowerCountQuery(channelId);
+  const trend = buildChannelFollowerTrendQuery(channelId);
+  const priors = buildChannelFollowerPriorsQuery(channelId);
+  const audience = buildChannelNotificationAudienceQuery(channelId);
+  const seriesPerf = buildChannelSeriesPerformanceQuery(channelId);
+  const [fRes, tRes, pRes, aRes, spRes] = await Promise.all([
+    db.query(followers.text, followers.values),
+    db.query(trend.text, trend.values),
+    db.query(priors.text, priors.values),
+    db.query(audience.text, audience.values),
+    db.query(seriesPerf.text, seriesPerf.values),
+  ]);
+  const body = composeChannelAnalytics(
+    xRes.rows,
+    fRes.rows,
+    tRes.rows,
+    pRes.rows,
+    aRes.rows,
+    spRes.rows
+  );
+  if (body == null) return { status: 404, body: { error: "not_found" } };
+  return { status: 200, body };
+}
+
 // ---------------------------------------------------------------------------------------------------
 // Request router. Dispatches by method + path, enforces the session trust boundary on the authed routes,
 // and returns a structured 401/404/400 with the same no-store cache posture the other services use.
@@ -313,6 +354,7 @@ const SERIES_GRAPH_RE = /^\/series\/([^/]+)\/graph$/;
 const SERIES_ANALYTICS_RE = /^\/series\/([^/]+)\/analytics$/;
 const SERIES_REVENUE_RE = /^\/series\/([^/]+)\/revenue$/;
 const CHANNEL_DETAIL_RE = /^\/channel\/([^/]+)$/;
+const CHANNEL_ANALYTICS_RE = /^\/channel\/([^/]+)\/analytics$/;
 
 export async function route(
   db: Queryable,
@@ -350,6 +392,16 @@ export async function route(
 
   if (method === "GET" && path === "/channels") {
     return handleChannels(db);
+  }
+
+  // CREATOR-SCOPED. The channel-owning creator's dashboard analytics. session-authed: the studio sends a
+  // creator session bearer; an absent or invalid token is a 401 BEFORE any DB read. Matched ahead of the
+  // public channel-detail route so the more specific /analytics suffix wins.
+  const channelAnalyticsMatch = method === "GET" ? CHANNEL_ANALYTICS_RE.exec(path) : null;
+  if (channelAnalyticsMatch != null) {
+    const identity = await verifiers.session.verifySession(parseBearer(authorization));
+    if (identity == null) return { status: 401, body: { error: "unauthorized" } };
+    return handleChannelAnalytics(db, decodeURIComponent(channelAnalyticsMatch[1]));
   }
 
   const channelMatch = method === "GET" ? CHANNEL_DETAIL_RE.exec(path) : null;

@@ -327,3 +327,69 @@ test("GET /series/:id/revenue with a valid bearer returns the 70/30 split (200)"
   assert.equal(body.bySource[0].creatorShare, 70);
   assert.equal(body.bySource[0].platformShare, 30);
 });
+
+// --- creator-scoped channel analytics endpoint (session-authed) ------------------------------------
+
+test("GET /channel/:id/analytics without a creator bearer is 401 (no db read)", async () => {
+  const { db, calls } = fakePg([]);
+  const res = await route(db, verifiers, "GET", urlOf("/channel/c1/analytics"), null, undefined);
+  assert.equal(res.status, 401);
+  assert.equal(calls.length, 0);
+});
+
+test("GET /channel/:id/analytics with a valid bearer but unknown channel is 404 (only the exists read)", async () => {
+  const { db, calls } = fakePg([[]]);
+  const res = await route(db, verifiers, "GET", urlOf("/channel/ghost/analytics"), BEARER, undefined);
+  assert.equal(res.status, 404);
+  assert.equal(calls.length, 1); // short-circuits after the existence check
+});
+
+test("GET /channel/:id/analytics with a valid bearer aggregates followers, trend, performance, audience (200)", async () => {
+  const { db } = fakePg([
+    [{ id: "c1" }], // exists
+    [{ followers: 120 }], // follower count
+    [
+      { day: "2026-06-01", adds: 3 },
+      { day: "2026-06-02", adds: 2 },
+    ], // trend window adds
+    [{ prior: 100 }], // pre-window follower base
+    [{ audience: 90 }], // notify=true audience
+    [
+      { series_id: "s1", title: "Show A", views: 200, completions: 50 },
+      { series_id: "s2", title: "Show B", views: 0, completions: 0 },
+    ], // series performance
+  ]);
+  const res = await route(db, verifiers, "GET", urlOf("/channel/c1/analytics"), BEARER, undefined);
+  assert.equal(res.status, 200);
+  const body = res.body as {
+    followers: number;
+    followerTrend: Array<{ day: string; adds: number; cumulative: number }>;
+    seriesPerformance: Array<{ seriesId: string; title: string; views: number; completion: number }>;
+    notificationAudience: number;
+    brandDeals: unknown[];
+    brandDealsSource: string;
+  };
+  assert.equal(body.followers, 120);
+  assert.equal(body.notificationAudience, 90);
+  // cumulative trend seeds from the pre-window base (100) then accrues per-day adds.
+  assert.deepEqual(body.followerTrend, [
+    { day: "2026-06-01", adds: 3, cumulative: 103 },
+    { day: "2026-06-02", adds: 2, cumulative: 105 },
+  ]);
+  assert.equal(body.seriesPerformance[0].completion, 0.25); // 50/200
+  assert.equal(body.seriesPerformance[1].completion, 0); // no plays -> honest 0, not NaN
+  // brandDeals is ALWAYS empty + marked unwired (no brand source in the schema; never fabricated).
+  assert.deepEqual(body.brandDeals, []);
+  assert.equal(body.brandDealsSource, "unwired");
+});
+
+test("GET /channel/:id (detail) still routes to channel detail, not analytics", async () => {
+  const { db } = fakePg([
+    [{ id: "c1", name: "Crime", hero_url: null }], // header
+    [], // series
+  ]);
+  const res = await route(db, verifiers, "GET", urlOf("/channel/c1"), null, undefined);
+  assert.equal(res.status, 200);
+  const body = res.body as { name: string };
+  assert.equal(body.name, "Crime"); // the public detail route is untouched by the analytics addition
+});

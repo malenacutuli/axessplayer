@@ -6,7 +6,14 @@
 // Like the content client, this NEVER sends a user_id in a body (these are GETs, so it is not in play). No
 // em dashes.
 
-import type { SeriesGraphView, SeriesAnalytics, SeriesRevenue } from "./catalogTypes.js";
+import type {
+  SeriesGraphView,
+  SeriesAnalytics,
+  SeriesRevenue,
+  ChannelSummary,
+  ChannelDetail,
+  ChannelAnalytics,
+} from "./catalogTypes.js";
 
 export class CatalogApiError extends Error {
   readonly status: number;
@@ -61,6 +68,23 @@ export class CatalogClient {
   // broken down by source / episode / cohort, plus the aggregate split and payout balance.
   async getSeriesRevenue(seriesId: string): Promise<SeriesRevenue> {
     return this.get<SeriesRevenue>(`/series/${encodeURIComponent(seriesId)}/revenue`);
+  }
+
+  // GET /channels : every channel with its show count (the studio Channel section lists them so the
+  // creator can pick which channel to view).
+  async getChannels(): Promise<ChannelSummary[]> {
+    return this.get<ChannelSummary[]>(`/channels`);
+  }
+
+  // GET /channel/:id : the channel header + its series grid (poster, rating, episodes, a11y badges).
+  async getChannel(channelId: string): Promise<ChannelDetail> {
+    return this.get<ChannelDetail>(`/channel/${encodeURIComponent(channelId)}`);
+  }
+
+  // GET /channel/:id/analytics : channel-level analytics (followers, follower trend, series performance,
+  // notification audience, and channel-level brand deals which arrive empty until the brand tables land).
+  async getChannelAnalytics(channelId: string): Promise<ChannelAnalytics> {
+    return this.get<ChannelAnalytics>(`/channel/${encodeURIComponent(channelId)}/analytics`);
   }
 
   private async get<T>(path: string): Promise<T> {

@@ -243,7 +243,7 @@ function NextBestAction({
     body = (
       <>
         <p className="muted">Your catalog is in great shape. Explore a brand offer for your top series.</p>
-        <Button variant="secondary" data-testid="nba-action" onClick={() => onNavigate("brand")}>
+        <Button variant="secondary" data-testid="nba-action" onClick={() => onNavigate("brands")}>
           View brand offers
         </Button>
       </>

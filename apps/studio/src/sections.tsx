@@ -12,7 +12,7 @@ export type SectionId =
   | "media"
   | "process"
   | "accessibility"
-  | "brand"
+  | "brands"
   | "poster"
   | "posters"
   | "analytics"
@@ -47,14 +47,14 @@ export const STUDIO_SECTIONS: StudioSection[] = [
     built: true,
     blurb: "Set targets once; the factory fans out captions, audio description, sign, and dubs.",
   },
-  { id: "brand", label: "Brand", built: false, proOnly: true, blurb: "Brand offers and sponsorship, firewalled from content decisions." },
+  { id: "brands", label: "Brand", built: true, proOnly: true, blurb: "Brand offers and sponsorship, firewalled from content decisions." },
   { id: "poster", label: "Poster", built: true, blurb: "Generate and set the series poster." },
   { id: "posters", label: "Posters and marketing", built: true, blurb: "Posters, A/B variants, localized art, channel creatives, and marketing clips." },
   { id: "analytics", label: "Analytics", built: true, blurb: "Retention and counterfactual lift, shown as bands." },
   { id: "monetization", label: "Monetization", built: true, blurb: "Pricing, the 70/30 revenue share, and payouts." },
   { id: "content", label: "Modify content", built: true, blurb: "Edit a published title: unpublish, replace, enhance, re-run, exclusions." },
-  { id: "channel", label: "Channel", built: false, blurb: "Your public channel page and publishing schedule." },
-  { id: "team", label: "Team", built: false, proOnly: true, blurb: "Seats, roles, and approvals (Production tier)." },
+  { id: "channel", label: "Channel", built: true, blurb: "Your public channel page and publishing schedule." },
+  { id: "team", label: "Team", built: true, proOnly: true, blurb: "Seats, roles, and approvals (Agency and Production tiers)." },
   { id: "rights", label: "Rights", built: false, proOnly: true, blurb: "Licensing, territories, and content rights." },
   { id: "settings", label: "Settings", built: true, blurb: "Account, tier, and studio preferences." },
 ];
@@ -119,7 +119,7 @@ export const SECTION_ICONS: Record<SectionId, JSX.Element> = {
       <path d="M4 8h16M12 8v6M9 21l3-7 3 7" />
     </svg>
   ),
-  brand: (
+  brands: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
       <path d="M20 12l-8 8-8-8 8-8h6a2 2 0 0 1 2 2z" />
       <circle cx="16" cy="8" r="1.4" />

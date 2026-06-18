@@ -28,6 +28,9 @@ import { AnalyticsSection } from "./studio/AnalyticsSection.js";
 import { PostersMarketingSection } from "./studio/PostersMarketingSection.js";
 import { MonetizationSection } from "./studio/MonetizationSection.js";
 import { ModifyContentSection } from "./studio/ModifyContentSection.js";
+import { BrandIntegrationSection } from "./studio/BrandIntegrationSection.js";
+import { ChannelSection } from "./studio/ChannelSection.js";
+import { TeamSection } from "./studio/TeamSection.js";
 import { sectionById, type SectionId } from "../sections.js";
 import { useStudioRoute } from "../router.js";
 import { useCreatorAuth } from "../auth/creatorAuth.js";
@@ -56,6 +59,9 @@ const DEDICATED_SECTIONS = new Set<SectionId>([
   "posters",
   "monetization",
   "content",
+  "brands",
+  "channel",
+  "team",
 ]);
 
 export function CreatorStudio(): JSX.Element {
@@ -147,6 +153,21 @@ export function CreatorStudio(): JSX.Element {
                   seriesId={param}
                   onSelectSeries={(id) => (id ? navigateParam("content", id) : navigate("content"))}
                 />
+              </div>
+            )}
+            {active.id === "brands" && (
+              <div className="smain">
+                <BrandIntegrationSection />
+              </div>
+            )}
+            {active.id === "channel" && (
+              <div className="smain">
+                <ChannelSection />
+              </div>
+            )}
+            {active.id === "team" && (
+              <div className="smain">
+                <TeamSection onNavigate={onSelect} />
               </div>
             )}
             {workflow && (
