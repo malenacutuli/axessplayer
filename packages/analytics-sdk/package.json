@@ -3,10 +3,18 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./events": "./src/events.ts"
+  },
   "scripts": {
-    "build": "echo build ok",
-    "typecheck": "echo typecheck ok",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo lint ok",
     "test": "echo test ok"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^20.0.0"
   }
 }

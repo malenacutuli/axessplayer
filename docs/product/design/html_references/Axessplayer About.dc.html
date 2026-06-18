@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: #FAFAF8; color: #111114; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  ::selection { background: #FF2E6E; color: #fff; }
+  @keyframes apRise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+  @keyframes apPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+  .ap-cta { transition: transform .18s ease, box-shadow .18s ease; }
+  .ap-cta:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -10px rgba(255,46,110,0.6); }
+  .ap-navlink { transition: color .16s ease; }
+  .ap-navlink:hover { color: #111114 !important; }
+  .ap-card { transition: transform .2s ease, box-shadow .2s ease; }
+  .ap-card:hover { transform: translateY(-4px); box-shadow: 0 22px 44px -22px rgba(17,17,20,0.28); }
+</style>
+</helmet>
+
+<div style="background:#FAFAF8;font-family:Inter,sans-serif;overflow-x:hidden;">
+
+  <!-- NAV -->
+  <nav style="position:sticky;top:0;z-index:60;background:rgba(11,11,13,0.72);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,0.08);">
+    <div style="max-width:1240px;margin:0 auto;padding:0 40px;height:68px;display:flex;align-items:center;justify-content:space-between;gap:24px;">
+      <a href="Axessplayer Home.dc.html" style="display:flex;align-items:center;gap:11px;text-decoration:none;">
+        <svg style="width:27px;height:27px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg>
+        <span style="font-family:Outfit;font-weight:600;font-size:19px;letter-spacing:-0.04em;color:#FFFFFF">axess<span style="color:#FF2E6E">player</span></span>
+      </a>
+      <div style="display:flex;align-items:center;gap:30px;">
+        <a href="Axessplayer Home.dc.html#how" class="ap-navlink" style="font-family:Inter;font-weight:500;font-size:14px;color:#B4B4BA;text-decoration:none">Product</a>
+        <a href="Axessplayer Enterprise.dc.html" class="ap-navlink" style="font-family:Inter;font-weight:500;font-size:14px;color:#B4B4BA;text-decoration:none">Enterprise</a>
+        <a href="Axessplayer About.dc.html" class="ap-navlink" style="font-family:Inter;font-weight:500;font-size:14px;color:#FFFFFF;text-decoration:none">About</a>
+        <a href="#access" class="ap-cta" style="font-family:Outfit;font-weight:600;font-size:14px;letter-spacing:-0.01em;color:#fff;background:#FF2E6E;text-decoration:none;padding:11px 20px;border-radius:999px;">Get early access</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header style="position:relative;background:#0B0B0D;color:#FAFAF8;overflow:hidden;">
+    <div style="position:absolute;top:-180px;left:50%;transform:translateX(-50%);width:1000px;height:620px;background:radial-gradient(closest-side,rgba(255,46,110,0.18),transparent);filter:blur(20px);pointer-events:none;"></div>
+    <div style="position:relative;max-width:1000px;margin:0 auto;padding:104px 40px 110px;text-align:center;">
+      <div style="display:inline-flex;align-items:center;gap:9px;border:1px solid rgba(255,255,255,0.14);border-radius:999px;padding:7px 15px;margin-bottom:28px;animation:apRise .6s ease both;">
+        <span style="width:6px;height:6px;border-radius:50%;background:#FF2E6E;animation:apPulse 2.4s ease-in-out infinite;"></span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;letter-spacing:0.22em;text-transform:uppercase;color:#C9C9CF;">About</span>
+      </div>
+      <h1 style="font-family:Outfit;font-weight:600;font-size:clamp(42px,6vw,84px);letter-spacing:-0.045em;line-height:0.96;margin:0;animation:apRise .6s ease .05s both;">We are building the next way to watch.</h1>
+      <p style="font-family:Inter;font-size:clamp(17px,1.5vw,21px);line-height:1.56;color:#9A9AA0;margin:28px auto 0;max-width:600px;animation:apRise .6s ease .12s both;">Axessible Technologies builds Axessplayer: adaptive cinema that knows who is watching and re-cuts itself, in every language, for everyone.</p>
+    </div>
+  </header>
+
+  <!-- MISSION -->
+  <section style="background:#FAFAF8;padding:108px 40px;">
+    <div style="max-width:1000px;margin:0 auto;">
+      <h2 style="font-family:Outfit;font-weight:600;font-size:clamp(32px,4.4vw,56px);letter-spacing:-0.035em;line-height:1.04;color:#111114;margin:0;max-width:760px;">One story should reach every person.</h2>
+      <p style="font-family:Inter;font-size:clamp(18px,1.6vw,22px);line-height:1.6;color:#3A3A40;margin:28px 0 0;max-width:720px;">For a century, film has been a fixed object: one cut, one language, one version, take it or leave it. We think the next century of entertainment adapts to the viewer. That starts with making every story personal, multilingual, and accessible by default.</p>
+    </div>
+  </section>
+
+  <!-- WHY NOW -->
+  <section style="background:#111114;color:#FAFAF8;padding:108px 40px;">
+    <div style="max-width:1240px;margin:0 auto;display:grid;grid-template-columns:0.9fr 1.1fr;gap:56px;align-items:start;">
+      <div>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:#FF2E6E;">Why now</span>
+        <h2 style="font-family:Outfit;font-weight:600;font-size:clamp(30px,3.8vw,52px);letter-spacing:-0.035em;line-height:1.02;margin:18px 0 0;">Interactive cinema failed once. We know exactly why.</h2>
+      </div>
+      <div>
+        <p style="font-family:Inter;font-size:18px;line-height:1.64;color:#9A9AA0;margin:0;">A decade ago, interactive video was too expensive to produce, too expensive to promote, and trapped behind plugins. All three blockers are gone: AI generates the variants, vertical feeds are the native format, and the swipe is the gesture. We are rebuilding it, this time with the economics on our side.</p>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:32px;">
+          <div style="border:1px solid #2A2A2E;border-radius:14px;padding:20px 18px;background:#16161c;"><div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;color:#6B6B72;">THEN</div><div style="font-family:Inter;font-size:13.5px;line-height:1.45;color:#C9C9CF;margin-top:8px;">Too costly to produce</div><div style="font-family:Outfit;font-weight:600;font-size:13px;color:#FF2E6E;margin-top:10px;">AI generates it</div></div>
+          <div style="border:1px solid #2A2A2E;border-radius:14px;padding:20px 18px;background:#16161c;"><div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;color:#6B6B72;">THEN</div><div style="font-family:Inter;font-size:13.5px;line-height:1.45;color:#C9C9CF;margin-top:8px;">Too costly to promote</div><div style="font-family:Outfit;font-weight:600;font-size:13px;color:#FF2E6E;margin-top:10px;">Vertical feeds</div></div>
+          <div style="border:1px solid #2A2A2E;border-radius:14px;padding:20px 18px;background:#16161c;"><div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;color:#6B6B72;">THEN</div><div style="font-family:Inter;font-size:13.5px;line-height:1.45;color:#C9C9CF;margin-top:8px;">Trapped behind plugins</div><div style="font-family:Outfit;font-weight:600;font-size:13px;color:#FF2E6E;margin-top:10px;">The swipe</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TEAM -->
+  <section style="background:#FAFAF8;padding:108px 40px;">
+    <div style="max-width:1240px;margin:0 auto;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:#FF2E6E;">The team</span>
+      <h2 style="font-family:Outfit;font-weight:600;font-size:clamp(32px,4.4vw,58px);letter-spacing:-0.035em;line-height:1.0;color:#111114;margin:18px 0 0;">The band that built interactive video, back together.</h2>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:56px;">
+        <div class="ap-card" style="background:#FFFFFF;border:1px solid #ECECEC;border-radius:22px;padding:32px;">
+          <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(150deg,#FF2E6E,#cf1d57);display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:24px;color:#fff;">MC</div>
+          <h3 style="font-family:Outfit;font-weight:600;font-size:20px;letter-spacing:-0.02em;color:#111114;margin:22px 0 0;">Malena Cutuli</h3>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#FF2E6E;margin-top:6px;">Founder &amp; CEO</div>
+          <p style="font-family:Inter;font-size:14.5px;line-height:1.6;color:#6B6B72;margin:14px 0 0;">Former CMO of Eko. Took interactive cinema to market once, and holds the post-mortem.</p>
+        </div>
+        <div class="ap-card" style="background:#FFFFFF;border:1px solid #ECECEC;border-radius:22px;padding:32px;">
+          <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(150deg,#1c1c24,#0b0b0d);display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:24px;color:#fff;">YB</div>
+          <h3 style="font-family:Outfit;font-weight:600;font-size:20px;letter-spacing:-0.02em;color:#111114;margin:22px 0 0;">Yoni Bloch</h3>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#FF2E6E;margin-top:6px;">Inventor</div>
+          <p style="font-family:Inter;font-size:14.5px;line-height:1.6;color:#6B6B72;margin:14px 0 0;">Founder of Eko. Inventor of seamless branching video.</p>
+        </div>
+        <div class="ap-card" style="background:#FFFFFF;border:1px solid #ECECEC;border-radius:22px;padding:32px;">
+          <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(150deg,#E8B54B,#c9982f);display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:20px;color:#1a1305;">R&amp;D</div>
+          <h3 style="font-family:Outfit;font-weight:600;font-size:20px;letter-spacing:-0.02em;color:#111114;margin:22px 0 0;">Rabuffetti &amp; Dumont</h3>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#FF2E6E;margin-top:6px;">Story &amp; production</div>
+          <p style="font-family:Inter;font-size:14.5px;line-height:1.6;color:#6B6B72;margin:14px 0 0;">Narrative built for variability: one story, re-cut many ways.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- THE COMPANY -->
+  <section style="background:#FAFAF8;padding:0 40px 108px;">
+    <div style="max-width:1000px;margin:0 auto;border-top:1px solid #ECECEC;padding-top:88px;">
+      <h2 style="font-family:Outfit;font-weight:600;font-size:clamp(30px,3.8vw,48px);letter-spacing:-0.035em;line-height:1.04;color:#111114;margin:0;">Axessible Technologies.</h2>
+      <p style="font-family:Inter;font-size:clamp(18px,1.5vw,21px);line-height:1.62;color:#3A3A40;margin:26px 0 0;max-width:720px;">We started with accessibility because the hardest version of a story to make is the one everyone can watch. That engine, Axessplayer, is now the foundation for adaptive cinema. Accessible by default is not a feature we added. It is where we began.</p>
+    </div>
+  </section>
+
+  <!-- ABOUT CTA -->
+  <section id="access" style="background:#0B0B0D;color:#FAFAF8;padding:120px 40px;position:relative;overflow:hidden;">
+    <div style="position:absolute;top:-140px;left:50%;transform:translateX(-50%);width:900px;height:560px;background:radial-gradient(closest-side,rgba(255,46,110,0.2),transparent);filter:blur(20px);pointer-events:none;"></div>
+    <div style="max-width:760px;margin:0 auto;text-align:center;position:relative;">
+      <h2 style="font-family:Outfit;font-weight:600;font-size:clamp(36px,5vw,68px);letter-spacing:-0.04em;line-height:1.0;margin:0;">Watch the future before everyone else.</h2>
+      <form data-access-form style="margin:38px auto 0;max-width:480px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+        <input type="email" required placeholder="you@email.com" aria-label="Email address" style="flex:1;min-width:220px;font-family:Inter;font-size:16px;color:#FAFAF8;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18);border-radius:999px;padding:15px 22px;outline:none;">
+        <button type="submit" class="ap-cta" style="font-family:Outfit;font-weight:600;font-size:16px;letter-spacing:-0.01em;color:#fff;background:#FF2E6E;border:none;cursor:pointer;padding:15px 28px;border-radius:999px;">Get early access</button>
+        <div data-done style="display:none;align-items:center;gap:10px;width:100%;justify-content:center;font-family:Outfit;font-weight:500;font-size:17px;color:#FAFAF8;"><span style="color:#FF2E6E;">&#10003;</span> You're on the list. Watch your inbox.</div>
+      </form>
+      <a href="Axessplayer About.dc.html" style="display:inline-flex;align-items:center;gap:8px;margin-top:26px;font-family:Outfit;font-weight:600;font-size:15px;letter-spacing:-0.01em;color:#9A9AA0;text-decoration:none;">Work with us <span style="color:#FF2E6E;">&rarr;</span></a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer style="background:#111114;color:#FAFAF8;border-top:1px solid #2A2A2E;">
+    <div style="max-width:1240px;margin:0 auto;padding:72px 40px 40px;">
+      <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1fr;gap:32px;">
+        <div>
+          <div style="display:flex;align-items:center;gap:11px;margin-bottom:18px;">
+            <svg style="width:26px;height:26px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg>
+            <span style="font-family:Outfit;font-weight:600;font-size:19px;letter-spacing:-0.04em;color:#FAFAF8">axess<span style="color:#FF2E6E">player</span></span>
+          </div>
+          <p style="font-family:Inter;font-size:13.5px;line-height:1.6;color:#6B6B72;margin:0;max-width:230px;">Axessplayer, by Axessible Technologies.</p>
+        </div>
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#6B6B72;margin-bottom:16px;">Platform</div>
+          <div style="display:flex;flex-direction:column;gap:11px;">
+            <a href="Axessplayer Home.dc.html#howitworks" style="font-family:Inter;font-size:14px;color:#C9C9CF;text-decoration:none;">How it works</a>
+            <a href="Axessplayer Enterprise.dc.html" style="font-family:Inter;font-size:14px;color:#C9C9CF;text-decoration:none;">Accessibility</a>
+            <a href="Axessplayer Enterprise.dc.html" style="font-family:Inter;font-size:14px;color:#C9C9CF;text-decoration:none;">For brands</a>
+            <a href="Axessplayer Home.dc.html#how" style="font-family:Inter;font-size:14px;color:#C9C9CF;text-decoration:none;">Demo</a>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#6B6B72;margin-bottom:16px;">Enterprise</div>
+          <div style="display:flex;flex-direction:column;gap:11px;">
+            <a href="Axessplayer Enterprise.dc.html" style="font-family:Inter;font-size:14px;color:#C9C9CF;text-decoration:none;">Overview</a>
+            <a href="Axessplayer Enterprise.dc.html" style="font-family:Inter;font-size:14px;color:#C9C9CF;text-decoration:none;">API</a>
+            <a href="Axessplayer Enterprise.dc.html" style="font-family:Inter;font-size:14px;color:#C9C9CF;text-decoration:none;">Compliance</a>
+            <a href="Axessplayer Enterprise.dc.html" style="font-family:Inter;font-size:14px;color:#C9C9CF;text-decoration:none;">Book a demo</a>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#6B6B72;margin-bottom:16px;">Company</div>
+          <div style="display:flex;flex-direction:column;gap:11px;">
+            <a href="Axessplayer About.dc.html" style="font-family:Inter;font-size:14px;color:#C9C9CF;text-decoration:none;">About</a>
+            <a href="Axessplayer About.dc.html" style="font-family:Inter;font-size:14px;color:#C9C9CF;text-decoration:none;">Careers</a>
+            <a href="Axessplayer About.dc.html" style="font-family:Inter;font-size:14px;color:#C9C9CF;text-decoration:none;">Contact</a>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#6B6B72;margin-bottom:16px;">Legal</div>
+          <div style="display:flex;flex-direction:column;gap:11px;">
+            <a href="#" style="font-family:Inter;font-size:14px;color:#C9C9CF;text-decoration:none;">Privacy</a>
+            <a href="#" style="font-family:Inter;font-size:14px;color:#C9C9CF;text-decoration:none;">Terms</a>
+            <a href="#" style="font-family:Inter;font-size:14px;color:#C9C9CF;text-decoration:none;">Accessibility statement</a>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;margin-top:56px;padding-top:28px;border-top:1px solid #2A2A2E;">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.06em;color:#FF2E6E;">One story. Every language. Every person.</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#54545C;">© 2026 Axessible Technologies</span>
+      </div>
+    </div>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  componentDidMount() {
+    const forms = document.querySelectorAll('[data-access-form]');
+    forms.forEach((f) => {
+      f.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = f.querySelector('input');
+        const done = f.querySelector('[data-done]');
+        if (input && !input.value) { input.focus(); return; }
+        if (done) {
+          f.querySelectorAll('input,button').forEach((el) => { el.style.display = 'none'; });
+          done.style.display = 'flex';
+        }
+      });
+    });
+  }
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

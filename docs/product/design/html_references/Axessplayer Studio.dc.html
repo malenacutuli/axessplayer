@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; background: #0B0B0D; -webkit-font-smoothing: antialiased; }
+  ::selection { background: #FF2E6E; color: #fff; }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-thumb { background: #26262d; border-radius: 6px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+</style>
+</helmet>
+
+<div style="display:flex;flex-direction:column;height:100vh;background:#0B0B0D;font-family:Inter,sans-serif;color:#FAFAF8;overflow:hidden;">
+
+  <!-- ===== TOP BAR ===== -->
+  <div style="flex:none;height:60px;border-bottom:1px solid #1f1f25;display:flex;align-items:center;justify-content:space-between;padding:0 22px;background:#0E0E12;">
+    <div style="display:flex;align-items:center;gap:13px;">
+      <svg style="width:26px;height:26px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg>
+      <span style="font-family:Outfit;font-weight:600;font-size:18px;letter-spacing:-0.04em;color:#fff;">axess<span style="color:#FF2E6E">player</span></span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#6B6B72;padding-left:13px;border-left:1px solid #26262d;">Studio</span>
+    </div>
+    <div style="flex:1;max-width:420px;margin:0 28px;background:rgba(255,255,255,0.05);border:1px solid #26262d;border-radius:9px;height:36px;display:flex;align-items:center;gap:9px;padding:0 13px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6B6B72" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg>
+      <span style="font-family:Inter;font-size:13px;color:#6B6B72;">Search series, episodes, brands, users</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <!-- Simple / Pro toggle -->
+      <div data-mode-toggle style="display:flex;background:rgba(255,255,255,0.05);border:1px solid #26262d;border-radius:999px;padding:3px;cursor:pointer;">
+        <span data-mode="simple" style="font-family:Outfit;font-weight:600;font-size:12px;color:#0B0B0D;background:#FF2E6E;border-radius:999px;padding:5px 13px;">Simple</span>
+        <span data-mode="pro" style="font-family:Outfit;font-weight:600;font-size:12px;color:#9A9AA0;padding:5px 13px;">Pro</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;background:rgba(232,181,75,0.14);border:1px solid rgba(232,181,75,0.35);border-radius:999px;padding:5px 11px;"><span style="width:11px;height:11px;border-radius:50%;background:#E8B54B;display:inline-block;"></span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#E8B54B;">Production tier</span></div>
+      <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(150deg,#FF2E6E,#cf1d57);display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:14px;color:#fff;">N</div>
+    </div>
+  </div>
+
+  <div style="flex:1;display:flex;min-height:0;">
+
+    <!-- ===== LEFT RAIL ===== -->
+    <div style="flex:none;width:236px;border-right:1px solid #1f1f25;background:#0E0E12;overflow-y:auto;padding:18px 14px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#54545C;padding:0 10px 10px;">Create</div>
+      <button data-nav="dashboard" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:10px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:14px;color:#9A9AA0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></svg>Dashboard</button>
+      <button data-nav="create" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:10px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:14px;color:#9A9AA0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3v18M3 12h18"></path></svg>Create with AI</button>
+      <button data-nav="library" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:10px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:14px;color:#9A9AA0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18M9 4v16"></path></svg>Content library</button>
+      <button data-nav="series" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:10px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:14px;color:#9A9AA0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="4" width="20" height="14" rx="2"></rect><path d="M8 20h8M10 18v2M14 18v2"></path></svg>Series editor</button>
+      <button data-nav="branch" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:10px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:14px;color:#9A9AA0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="6" cy="6" r="2.5"></circle><circle cx="18" cy="6" r="2.5"></circle><circle cx="12" cy="18" r="2.5"></circle><path d="M6 8.5v3a2 2 0 002 2h8a2 2 0 002-2v-3M12 13.5v2"></path></svg>Branch editor</button>
+      <button data-nav="posters" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:10px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:14px;color:#9A9AA0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="4" y="3" width="16" height="18" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="M5 18l4-4 3 3 4-5 3 4"></path></svg>Posters &amp; marketing</button>
+      <button data-nav="adapter" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:10px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:14px;color:#9A9AA0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 5h12v9H3z"></path><path d="M17 9l4-2v8l-4-2M6 19h6"></path></svg>Live-action adaptation</button>
+
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#54545C;padding:18px 10px 10px;">Grow</div>
+      <button data-nav="channels" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:10px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:14px;color:#9A9AA0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18M9 21V9"></path></svg>Channels</button>
+      <button data-nav="analytics" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:10px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:14px;color:#9A9AA0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 19V5M4 19h16M8 16v-4M12 16V8M16 16v-6M20 16v-2"></path></svg>Analytics</button>
+      <button data-nav="monetize" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:10px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:14px;color:#9A9AA0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 010 3h-3a1.5 1.5 0 000 3h4"></path></svg>Monetization</button>
+
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#54545C;padding:18px 10px 10px;">Operate</div>
+      <button data-nav="users" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:10px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:14px;color:#9A9AA0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.5 3-5.5 6-5.5s6 2 6 5.5M16 5.5a3 3 0 010 5.5M18 20c0-2.5-1-4-2.5-4.8"></path></svg>Users</button>
+      <button data-nav="team" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:10px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:14px;color:#9A9AA0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"></path><path d="M9 12l2 2 4-4"></path></svg>Team &amp; rights</button>
+      <button data-nav="billing" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:10px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:14px;color:#9A9AA0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="5" width="20" height="14" rx="2"></rect><path d="M2 10h20"></path></svg>Billing</button>
+
+      <div style="margin-top:24px;border:1px solid #20202a;border-radius:12px;padding:15px;background:linear-gradient(160deg,#15151b,#120b10);">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;color:#E8B54B;margin-bottom:7px;">GENERATION CREDITS</div>
+        <div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;">18,400</div>
+        <div style="height:5px;border-radius:3px;background:#20202a;margin:9px 0 8px;overflow:hidden;"><div style="width:62%;height:100%;background:#E8B54B;"></div></div>
+        <div style="font-family:Inter;font-size:11px;color:#9A9AA0;">62% of monthly budget left</div>
+      </div>
+    </div>
+
+    <!-- ===== CONTENT AREA ===== -->
+    <div data-content style="flex:1;min-width:0;overflow-y:auto;background:#0B0B0D;">
+
+      <!-- ============ DASHBOARD ============ -->
+      <section data-panel="dashboard" style="padding:30px 36px;">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:26px;">
+          <div>
+            <h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Good evening, Nora Studios</h1>
+            <p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 0;">Here is how your slate performed in the last 28 days.</p>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;border:1px solid #26262d;border-radius:9px;padding:10px 15px;">Last 28 days</div>
+            <div style="font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:#FF2E6E;border-radius:9px;padding:10px 17px;display:flex;align-items:center;gap:7px;"><span style="font-size:14px;">+</span>Create or upload</div>
+          </div>
+        </div>
+
+        <!-- KPI row -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:20px;"><div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#9A9AA0;">VIEWS</div><div style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.02em;color:#fff;margin-top:8px;">4.82M</div><div style="font-family:Inter;font-size:12px;color:#1F8A5B;margin-top:5px;">+18.4% vs prev</div></div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:20px;"><div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#9A9AA0;">WATCH TIME</div><div style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.02em;color:#fff;margin-top:8px;">311k hrs</div><div style="font-family:Inter;font-size:12px;color:#1F8A5B;margin-top:5px;">+12.1% vs prev</div></div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:20px;"><div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#9A9AA0;">REVENUE</div><div style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.02em;color:#fff;margin-top:8px;">$148.6k</div><div style="font-family:Inter;font-size:12px;color:#1F8A5B;margin-top:5px;">+24.0% vs prev</div></div>
+          <div style="border:1px solid rgba(232,181,75,0.35);border-radius:14px;background:linear-gradient(160deg,#1a160d,#15151b);padding:20px;"><div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#E8B54B;">PAYOUT BALANCE</div><div style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.02em;color:#fff;margin-top:8px;">$104.0k</div><div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin-top:5px;">70/30 share applied</div></div>
+        </div>
+
+        <!-- chart + next best action -->
+        <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-top:16px;">
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;"><span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Revenue by source</span><div style="display:flex;gap:14px;font-family:Inter;font-size:12px;"><span style="color:#9A9AA0;"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#FF2E6E;margin-right:5px;"></span>Unlocks</span><span style="color:#9A9AA0;"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#E8B54B;margin-right:5px;"></span>Ads</span><span style="color:#9A9AA0;"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#5aa6ff;margin-right:5px;"></span>Placement</span></div></div>
+            <div style="display:flex;align-items:flex-end;gap:14px;height:200px;">
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:100%;"><div style="height:46%;background:#FF2E6E;border-radius:4px 4px 0 0;"></div><div style="height:20%;background:#E8B54B;"></div><div style="height:9%;background:#5aa6ff;border-radius:0 0 4px 4px;"></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#6B6B72;text-align:center;margin-top:7px;">W1</span></div>
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:100%;"><div style="height:54%;background:#FF2E6E;border-radius:4px 4px 0 0;"></div><div style="height:22%;background:#E8B54B;"></div><div style="height:12%;background:#5aa6ff;border-radius:0 0 4px 4px;"></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#6B6B72;text-align:center;margin-top:7px;">W2</span></div>
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:100%;"><div style="height:50%;background:#FF2E6E;border-radius:4px 4px 0 0;"></div><div style="height:26%;background:#E8B54B;"></div><div style="height:14%;background:#5aa6ff;border-radius:0 0 4px 4px;"></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#6B6B72;text-align:center;margin-top:7px;">W3</span></div>
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:100%;"><div style="height:68%;background:#FF2E6E;border-radius:4px 4px 0 0;"></div><div style="height:30%;background:#E8B54B;"></div><div style="height:18%;background:#5aa6ff;border-radius:0 0 4px 4px;"></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#6B6B72;text-align:center;margin-top:7px;">W4</span></div>
+            </div>
+          </div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;display:flex;flex-direction:column;">
+            <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;margin-bottom:16px;">Next best actions</span>
+            <div style="display:flex;flex-direction:column;gap:11px;">
+              <div style="border:1px solid rgba(255,46,110,0.35);background:rgba(255,46,110,0.08);border-radius:11px;padding:14px;"><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">A Vow in Code is ready to publish</div><div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin-top:3px;">12 languages, all accessibility tracks pass</div></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:14px;"><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Topo Chico wants a placement</div><div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin-top:3px;">Brand offer, $12k, MX region. Review</div></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:14px;"><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">2 sign-language drafts await review</div><div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin-top:3px;">The Director's Daughter, Ep 3 to 4</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- top series -->
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;margin-top:16px;">
+          <div style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;margin-bottom:16px;">Top series</div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:12px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;padding-bottom:12px;border-bottom:1px solid #20202a;"><span>SERIES</span><span>VIEWS</span><span>COMPLETION</span><span>REVENUE</span><span>STATUS</span></div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:12px;align-items:center;padding:13px 0;border-bottom:1px solid #1a1a20;"><span style="display:flex;align-items:center;gap:11px;"><img src="assets/poster_shadow.png" style="width:30px;height:40px;border-radius:5px;object-fit:cover;"><span style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">Shadow Signal</span></span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">1.42M</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">81%</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">$52.1k</span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;background:rgba(31,138,91,0.15);border-radius:5px;padding:4px 8px;">LIVE</span></span></div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:12px;align-items:center;padding:13px 0;border-bottom:1px solid #1a1a20;"><span style="display:flex;align-items:center;gap:11px;"><img src="assets/poster_heiress.png" style="width:30px;height:40px;border-radius:5px;object-fit:cover;"><span style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">The Hidden Heiress</span></span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">1.05M</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">88%</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">$41.7k</span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;background:rgba(31,138,91,0.15);border-radius:5px;padding:4px 8px;">LIVE</span></span></div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:12px;align-items:center;padding:13px 0;"><span style="display:flex;align-items:center;gap:11px;"><img src="assets/poster_vow.png" style="width:30px;height:40px;border-radius:5px;object-fit:cover;"><span style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">A Vow in Code</span></span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">0.31M</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">79%</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">$9.2k</span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#E8B54B;background:rgba(232,181,75,0.15);border-radius:5px;padding:4px 8px;">REVIEW</span></span></div>
+        </div>
+      </section>
+
+      <!-- ============ CREATE WITH AI ============ -->
+      <section data-panel="create" style="padding:30px 36px;display:none;">
+        <h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Create</h1>
+        <p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 20px;">Generate clips with the model you choose, then stitch them into an episode up to 90 seconds. Everything is C2PA-signed and Article 50 labeled by construction.</p>
+        <!-- control bar -->
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px;">
+          <div style="display:flex;flex-direction:column;gap:5px;"><span style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;color:#6B6B72;">CHANNEL</span><div style="background:#15151b;border:1px solid #26262d;border-radius:9px;padding:9px 13px;font-family:Inter;font-size:13px;color:#fff;display:flex;align-items:center;gap:24px;">Telenovela <span style="color:#6B6B72;">&#9662;</span></div></div>
+          <div style="display:flex;flex-direction:column;gap:5px;"><span style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;color:#6B6B72;">EPISODE LENGTH</span><div style="background:#15151b;border:1px solid #26262d;border-radius:9px;padding:9px 13px;display:flex;align-items:center;gap:12px;min-width:200px;"><div style="flex:1;height:5px;border-radius:3px;background:#26262d;position:relative;"><div style="position:absolute;left:0;top:0;bottom:0;width:60%;background:#FF2E6E;border-radius:3px;"></div><div style="position:absolute;left:60%;top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#fff;"></div></div><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#fff;white-space:nowrap;">54s / 90s</span></div></div>
+          <div style="display:flex;flex-direction:column;gap:5px;"><span style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;color:#6B6B72;">BRANCHES</span><div style="display:flex;background:#15151b;border:1px solid #26262d;border-radius:9px;padding:3px;"><span style="font-family:Outfit;font-weight:600;font-size:12px;color:#0B0B0D;background:#FF2E6E;border-radius:7px;padding:7px 14px;">On</span><span style="font-family:Outfit;font-weight:600;font-size:12px;color:#9A9AA0;padding:7px 14px;">Off</span></div></div>
+          <a href="#" style="margin-left:auto;align-self:flex-end;display:inline-flex;align-items:center;gap:8px;text-decoration:none;border:1px solid rgba(232,181,75,0.4);background:rgba(232,181,75,0.08);border-radius:9px;padding:10px 14px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E8B54B" stroke-width="1.9"><path d="M8 5v14l11-7z"></path></svg><span style="font-family:Inter;font-weight:500;font-size:13px;color:#E8B54B;">How to develop viral episodes</span></a>
+        </div>
+        <div style="font-family:Inter;font-size:12px;color:#6B6B72;margin:-6px 0 18px;">Playbook by channel: hook in 3s, escalating timeline, cliffhanger close. Telenovela &middot; Drama &middot; Comedy &middot; Reality &middot; Podcast &middot; Thriller.</div>
+
+        <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:16px;">
+          <!-- prompt + model picker -->
+          <div style="border:1px solid rgba(255,46,110,0.3);border-radius:16px;background:linear-gradient(160deg,#1a1117,#15151b);padding:24px;">
+            <div style="display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,46,110,0.4);background:rgba(255,46,110,0.12);border-radius:999px;padding:6px 13px;margin-bottom:16px;"><span style="width:6px;height:6px;border-radius:50%;background:#FF2E6E;"></span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#FF8FB4;">Generate a clip</span></div>
+            <div style="background:#0B0B0D;border:1px solid #26262d;border-radius:12px;padding:16px;font-family:Inter;font-size:14px;line-height:1.55;color:#C9C9CF;min-height:64px;">Maya finds the hidden letter in the cellar. Tight close-up, candlelight, she gasps as she reads the last line. End on her eyes lifting to the door.</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;color:#6B6B72;margin:16px 0 8px;">GENERATION MODEL</div>
+            <div style="display:flex;flex-direction:column;gap:9px;">
+              <div style="border:1px solid #FF2E6E;background:rgba(255,46,110,0.1);border-radius:11px;padding:12px 14px;display:flex;align-items:center;gap:12px;"><div style="width:30px;height:30px;border-radius:8px;background:rgba(255,46,110,0.2);display:flex;align-items:center;justify-content:center;flex:none;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FF2E6E" stroke-width="1.9"><path d="M5 3v18l15-9z"></path></svg></div><div style="flex:1;"><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Veo 3.1</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;">Vertical hero clips &middot; up to 8s</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#E8B54B;">220 cr</span></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:12px 14px;display:flex;align-items:center;gap:12px;"><div style="width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex:none;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C9C9CF" stroke-width="1.9"><circle cx="12" cy="12" r="9"></circle><path d="M9 9h6v6H9z"></path></svg></div><div style="flex:1;"><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Runway Gen-4</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;">Character-consistent &middot; up to 10s</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#E8B54B;">180 cr</span></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:12px 14px;display:flex;align-items:center;gap:12px;"><div style="width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex:none;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C9C9CF" stroke-width="1.9"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"></path></svg></div><div style="flex:1;"><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Sora</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;">Promo &amp; inserts &middot; up to 12s</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#E8B54B;">260 cr</span></div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:18px;padding-top:16px;border-top:1px solid #20202a;">
+              <div style="display:flex;align-items:center;gap:10px;"><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#6B6B72;">MAX CLIP</span><div style="background:#15151b;border:1px solid #26262d;border-radius:8px;padding:7px 11px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#fff;">8s &#9662;</div><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#E8B54B;">220 cr / clip</span></div>
+              <div style="font-family:Outfit;font-weight:600;font-size:14px;color:#fff;background:#FF2E6E;border-radius:9px;padding:11px 18px;">Generate clip</div>
+            </div>
+          </div>
+          <!-- generated clips -->
+          <div style="border:1px solid #20202a;border-radius:16px;background:#15151b;padding:22px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><span style="font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">Generated clips</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#9A9AA0;">3 clips &middot; 54s</span></div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;gap:11px;align-items:center;"><div style="position:relative;width:74px;height:48px;border-radius:8px;overflow:hidden;flex:none;"><img src="assets/scene_es.png" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;bottom:3px;right:3px;font-family:'JetBrains Mono',monospace;font-size:8px;color:#fff;background:rgba(0,0,0,0.65);border-radius:3px;padding:1px 4px;">8s</div></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:12.5px;color:#fff;">Clip 1 &middot; The letter</div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#6B6B72;">Veo 3.1</div></div><span style="font-family:Inter;font-size:11px;color:#9A9AA0;">Regen</span></div>
+              <div style="display:flex;gap:11px;align-items:center;"><div style="position:relative;width:74px;height:48px;border-radius:8px;overflow:hidden;flex:none;"><img src="assets/cut_frame.png" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;bottom:3px;right:3px;font-family:'JetBrains Mono',monospace;font-size:8px;color:#fff;background:rgba(0,0,0,0.65);border-radius:3px;padding:1px 4px;">10s</div></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:12.5px;color:#fff;">Clip 2 &middot; The door</div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#6B6B72;">Runway Gen-4</div></div><span style="font-family:Inter;font-size:11px;color:#9A9AA0;">Regen</span></div>
+              <div style="display:flex;gap:11px;align-items:center;"><div style="position:relative;width:74px;height:48px;border-radius:8px;overflow:hidden;flex:none;"><img src="assets/scene_lounge.png" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;bottom:3px;right:3px;font-family:'JetBrains Mono',monospace;font-size:8px;color:#fff;background:rgba(0,0,0,0.65);border-radius:3px;padding:1px 4px;">8s</div></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:12.5px;color:#fff;">Clip 3 &middot; Confrontation</div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#6B6B72;">Veo 3.1</div></div><span style="font-family:Inter;font-size:11px;color:#9A9AA0;">Regen</span></div>
+            </div>
+            <div style="border:1px dashed #3a3a42;border-radius:10px;padding:12px;text-align:center;font-family:Inter;font-size:12px;color:#6B6B72;margin-top:10px;">+ Generate another clip</div>
+          </div>
+        </div>
+
+        <!-- stitch / edit box -->
+        <div style="border:1px solid #20202a;border-radius:16px;background:#15151b;padding:22px;margin-top:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;"><div><span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Stitch into episode 1</span><div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin-top:3px;">Drag to reorder. Trim handles on each clip. Episode caps at 90 seconds.</div></div><div style="font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:#FF2E6E;border-radius:9px;padding:11px 18px;">Assemble episode</div></div>
+          <div style="display:flex;gap:6px;align-items:stretch;height:64px;">
+            <div style="width:36%;border-radius:8px;overflow:hidden;position:relative;border:1px solid #FF2E6E;"><img src="assets/scene_es.png" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;inset:0;background:rgba(0,0,0,0.25);"></div><div style="position:absolute;left:6px;bottom:5px;font-family:'JetBrains Mono',monospace;font-size:9px;color:#fff;">1 &middot; 8s</div></div>
+            <div style="width:44%;border-radius:8px;overflow:hidden;position:relative;border:1px solid #FF2E6E;"><img src="assets/cut_frame.png" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;inset:0;background:rgba(0,0,0,0.25);"></div><div style="position:absolute;left:6px;bottom:5px;font-family:'JetBrains Mono',monospace;font-size:9px;color:#fff;">2 &middot; 10s</div></div>
+            <div style="width:36%;border-radius:8px;overflow:hidden;position:relative;border:1px solid #FF2E6E;"><img src="assets/scene_lounge.png" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;inset:0;background:rgba(0,0,0,0.25);"></div><div style="position:absolute;left:6px;bottom:5px;font-family:'JetBrains Mono',monospace;font-size:9px;color:#fff;">3 &middot; 8s</div></div>
+            <div style="flex:1;border:1px dashed #3a3a42;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#6B6B72;font-size:18px;">+</div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;"><div style="flex:1;height:5px;border-radius:3px;background:#26262d;margin-right:14px;position:relative;"><div style="position:absolute;left:0;top:0;bottom:0;width:60%;background:linear-gradient(90deg,#FF2E6E,#E8B54B);border-radius:3px;"></div></div><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#fff;">54s / 90s &middot; branch point after clip 2</span></div>
+        </div>
+
+        <!-- upload + adapt -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+          <div style="border:1px dashed #3a3a42;border-radius:16px;background:#15151b;padding:30px;text-align:center;">
+            <div style="width:48px;height:48px;border-radius:12px;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9A9AA0" stroke-width="1.8"><path d="M12 16V4M7 9l5-5 5 5"></path><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"></path></svg></div>
+            <div style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Upload a 9:16 master</div>
+            <div style="font-family:Inter;font-size:13px;line-height:1.5;color:#9A9AA0;margin-top:7px;">Drag and drop one or many. We auto-encode to HLS and register each as a variant on its beat.</div>
+            <div style="display:inline-block;font-family:Outfit;font-weight:600;font-size:13px;color:#0B0B0D;background:#fff;border-radius:9px;padding:10px 18px;margin-top:16px;">Choose files</div>
+          </div>
+          <div style="border:1px solid #20202a;border-radius:16px;background:#15151b;padding:30px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#FF8FB4;margin-bottom:10px;">AI live-action adaptation</div>
+            <div style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Repurpose existing footage</div>
+            <div style="font-family:Inter;font-size:13px;line-height:1.5;color:#9A9AA0;margin-top:7px;">Adapt old or discarded footage into adaptive variants. One click to re-cut, re-pace, or re-dress per market. Consent-gated.</div>
+            <div data-nav="adapter" style="display:inline-block;font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:rgba(255,255,255,0.08);border:1px solid #26262d;border-radius:9px;padding:10px 18px;margin-top:16px;cursor:pointer;">Open adapter</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ CONTENT LIBRARY ============ -->
+      <section data-panel="library" style="padding:30px 36px;display:none;">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;">
+          <div><h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Content library</h1><p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 0;">Every series, episode, beat, and variant. Search, filter, and manage at scale.</p></div>
+          <div style="font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:#FF2E6E;border-radius:9px;padding:10px 17px;">New series</div>
+        </div>
+        <!-- filter bar -->
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:240px;background:rgba(255,255,255,0.05);border:1px solid #26262d;border-radius:9px;height:38px;display:flex;align-items:center;gap:9px;padding:0 13px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6B6B72" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg><span style="font-family:Inter;font-size:13px;color:#6B6B72;">Search titles</span></div>
+          <div style="font-family:Inter;font-size:13px;color:#C9C9CF;border:1px solid #26262d;border-radius:9px;padding:0 14px;height:38px;display:flex;align-items:center;gap:7px;">Status: All <span style="color:#6B6B72;">▾</span></div>
+          <div style="font-family:Inter;font-size:13px;color:#C9C9CF;border:1px solid #26262d;border-radius:9px;padding:0 14px;height:38px;display:flex;align-items:center;gap:7px;">Channel: All <span style="color:#6B6B72;">▾</span></div>
+          <div style="font-family:Inter;font-size:13px;color:#C9C9CF;border:1px solid #26262d;border-radius:9px;padding:0 14px;height:38px;display:flex;align-items:center;gap:7px;">Bulk actions <span style="color:#6B6B72;">▾</span></div>
+        </div>
+        <!-- table -->
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:32px 2.4fr 1fr 1.4fr 1fr 1fr 0.6fr;gap:14px;align-items:center;padding:14px 18px;border-bottom:1px solid #20202a;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;"><span></span><span>TITLE</span><span>STATUS</span><span>ACCESSIBILITY</span><span>PROVENANCE</span><span>EPISODES</span><span></span></div>
+          <div data-row style="display:grid;grid-template-columns:32px 2.4fr 1fr 1.4fr 1fr 1fr 0.6fr;gap:14px;align-items:center;padding:14px 18px;border-bottom:1px solid #1a1a20;"><span style="width:16px;height:16px;border:1.5px solid #3a3a42;border-radius:4px;"></span><span style="display:flex;align-items:center;gap:11px;"><img src="assets/poster_shadow.png" style="width:30px;height:40px;border-radius:5px;object-fit:cover;"><span style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">Shadow Signal</span></span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;background:rgba(31,138,91,0.15);border-radius:5px;padding:4px 8px;">LIVE</span></span><span style="display:flex;align-items:center;gap:8px;"><span style="flex:1;height:5px;border-radius:3px;background:#20202a;overflow:hidden;"><span style="display:block;width:100%;height:100%;background:#1F8A5B;"></span></span><span style="font-family:Inter;font-size:11px;color:#9A9AA0;">100%</span></span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;">C2PA ✓</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">10</span><span style="color:#6B6B72;">⋯</span></div>
+          <div data-row style="display:grid;grid-template-columns:32px 2.4fr 1fr 1.4fr 1fr 1fr 0.6fr;gap:14px;align-items:center;padding:14px 18px;border-bottom:1px solid #1a1a20;"><span style="width:16px;height:16px;border:1.5px solid #3a3a42;border-radius:4px;"></span><span style="display:flex;align-items:center;gap:11px;"><img src="assets/poster_vow.png" style="width:30px;height:40px;border-radius:5px;object-fit:cover;"><span style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">A Vow in Code</span></span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#E8B54B;background:rgba(232,181,75,0.15);border-radius:5px;padding:4px 8px;">IN REVIEW</span></span><span style="display:flex;align-items:center;gap:8px;"><span style="flex:1;height:5px;border-radius:3px;background:#20202a;overflow:hidden;"><span style="display:block;width:92%;height:100%;background:#E8B54B;"></span></span><span style="font-family:Inter;font-size:11px;color:#9A9AA0;">92%</span></span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;">C2PA ✓</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">12</span><span style="color:#6B6B72;">⋯</span></div>
+          <div data-row style="display:grid;grid-template-columns:32px 2.4fr 1fr 1.4fr 1fr 1fr 0.6fr;gap:14px;align-items:center;padding:14px 18px;border-bottom:1px solid #1a1a20;"><span style="width:16px;height:16px;border:1.5px solid #3a3a42;border-radius:4px;"></span><span style="display:flex;align-items:center;gap:11px;"><img src="assets/poster_director.png" style="width:30px;height:40px;border-radius:5px;object-fit:cover;"><span style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">The Director's Daughter</span></span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#5aa6ff;background:rgba(90,166,255,0.15);border-radius:5px;padding:4px 8px;">PROCESSING</span></span><span style="display:flex;align-items:center;gap:8px;"><span style="flex:1;height:5px;border-radius:3px;background:#20202a;overflow:hidden;"><span style="display:block;width:64%;height:100%;background:#5aa6ff;"></span></span><span style="font-family:Inter;font-size:11px;color:#9A9AA0;">64%</span></span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;">C2PA ✓</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">12</span><span style="color:#6B6B72;">⋯</span></div>
+          <div data-row style="display:grid;grid-template-columns:32px 2.4fr 1fr 1.4fr 1fr 1fr 0.6fr;gap:14px;align-items:center;padding:14px 18px;"><span style="width:16px;height:16px;border:1.5px solid #3a3a42;border-radius:4px;"></span><span style="display:flex;align-items:center;gap:11px;"><img src="assets/poster_luna.png" style="width:30px;height:40px;border-radius:5px;object-fit:cover;"><span style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">Luna Rewired</span></span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;background:rgba(255,255,255,0.06);border-radius:5px;padding:4px 8px;">DRAFT</span></span><span style="display:flex;align-items:center;gap:8px;"><span style="flex:1;height:5px;border-radius:3px;background:#20202a;overflow:hidden;"><span style="display:block;width:20%;height:100%;background:#6B6B72;"></span></span><span style="font-family:Inter;font-size:11px;color:#9A9AA0;">20%</span></span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#6B6B72;">pending</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">8</span><span style="color:#6B6B72;">⋯</span></div>
+        </div>
+      </section>
+
+      <!-- ============ SERIES EDITOR ============ -->
+      <section data-panel="series" style="padding:30px 36px;display:none;">
+        <div style="display:flex;align-items:center;gap:10px;font-family:Inter;font-size:13px;color:#6B6B72;margin-bottom:14px;">Library <span>›</span> <span style="color:#C9C9CF;">A Vow in Code</span></div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;">
+          <div style="display:flex;gap:18px;align-items:flex-start;"><img src="assets/poster_vow.png" style="width:74px;height:99px;border-radius:10px;object-fit:cover;"><div><h1 style="font-family:Outfit;font-weight:600;font-size:27px;letter-spacing:-0.03em;color:#fff;margin:0;">A Vow in Code</h1><div style="display:flex;gap:8px;margin-top:10px;"><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#E8B54B;background:rgba(232,181,75,0.15);border-radius:5px;padding:4px 9px;">IN REVIEW</span><span style="font-family:Inter;font-size:12px;color:#9A9AA0;">Telenovela · 12 episodes · 4 endings</span></div></div></div>
+          <div style="display:flex;gap:10px;"><div style="font-family:Inter;font-weight:500;font-size:13px;color:#C9C9CF;border:1px solid #26262d;border-radius:9px;padding:10px 16px;">Preview</div><div style="font-family:Outfit;font-weight:600;font-size:13px;color:#0B0B0D;background:#fff;border-radius:9px;padding:10px 18px;">Publish</div></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:16px;">
+          <!-- episodes -->
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;"><span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Episodes</span><span style="font-family:Outfit;font-weight:600;font-size:12px;color:#fff;background:rgba(255,255,255,0.08);border:1px solid #26262d;border-radius:8px;padding:7px 13px;">+ Add episode</span></div>
+            <div style="display:flex;flex-direction:column;gap:9px;">
+              <div style="display:flex;gap:13px;align-items:center;padding:11px;border:1px solid #20202a;border-radius:11px;"><div style="width:54px;height:34px;border-radius:6px;overflow:hidden;flex:none;"><img src="assets/cut_frame.png" style="width:100%;height:100%;object-fit:cover;"></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">1 · The wrap party</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;">Master + 12 langs · ready</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;">✓</span></div>
+              <div style="display:flex;gap:13px;align-items:center;padding:11px;border:1px solid #20202a;border-radius:11px;"><div style="width:54px;height:34px;border-radius:6px;overflow:hidden;flex:none;"><img src="assets/scene_es.png" style="width:100%;height:100%;object-fit:cover;"></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">2 · The first lie</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;">Master + 12 langs · ready</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;">✓</span></div>
+              <div style="display:flex;gap:13px;align-items:center;padding:11px;border:1px solid #20202a;border-radius:11px;"><div style="width:54px;height:34px;border-radius:6px;overflow:hidden;flex:none;"><img src="assets/scene_lounge.png" style="width:100%;height:100%;object-fit:cover;"></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">3 · Smoke</div><div style="font-family:Inter;font-size:11px;color:#5aa6ff;">Processing AD · 64%</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#5aa6ff;">···</span></div>
+            </div>
+          </div>
+          <!-- details + podcast -->
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+              <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Details</span>
+              <div style="display:flex;flex-direction:column;gap:13px;margin-top:16px;">
+                <div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;margin-bottom:6px;">CHANNEL</div><div style="background:#0B0B0D;border:1px solid #26262d;border-radius:8px;padding:10px 13px;font-family:Inter;font-size:13px;color:#fff;display:flex;justify-content:space-between;">Telenovela <span style="color:#6B6B72;">▾</span></div></div>
+                <div style="display:flex;gap:11px;"><div style="flex:1;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;margin-bottom:6px;">GENRE</div><div style="background:#0B0B0D;border:1px solid #26262d;border-radius:8px;padding:10px 13px;font-family:Inter;font-size:13px;color:#fff;">Romance</div></div><div style="flex:1;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;margin-bottom:6px;">MATURITY</div><div style="background:#0B0B0D;border:1px solid #26262d;border-radius:8px;padding:10px 13px;font-family:Inter;font-size:13px;color:#fff;">16+</div></div></div>
+                <div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;margin-bottom:6px;">FORMAT</div><div style="display:flex;gap:8px;"><span style="font-family:Inter;font-size:12px;color:#fff;background:#FF2E6E;border-radius:7px;padding:7px 13px;">Series</span><span style="font-family:Inter;font-size:12px;color:#9A9AA0;border:1px solid #26262d;border-radius:7px;padding:7px 13px;">Podcast</span><span style="font-family:Inter;font-size:12px;color:#9A9AA0;border:1px solid #26262d;border-radius:7px;padding:7px 13px;">Film</span></div></div>
+              </div>
+            </div>
+            <!-- accessibility targets -->
+            <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Accessibility &amp; languages</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;background:rgba(31,138,91,0.15);border-radius:5px;padding:4px 8px;">ALL ON</span></div>
+              <div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin:8px 0 14px;">Set once, the factory fans out. You opt out, never in.</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">Captions + audio description</span><div style="width:38px;height:22px;border-radius:999px;background:#FF2E6E;position:relative;"><div style="position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:#fff;"></div></div></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">Sign language (ASL + LSE)</span><div style="width:38px;height:22px;border-radius:999px;background:#FF2E6E;position:relative;"><div style="position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:#fff;"></div></div></div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;margin:14px 0 8px;">TARGET LANGUAGES</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#fff;background:#FF2E6E;border-radius:6px;padding:5px 9px;">ES</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#fff;background:#FF2E6E;border-radius:6px;padding:5px 9px;">EN</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#fff;background:#FF2E6E;border-radius:6px;padding:5px 9px;">PT</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#fff;background:#FF2E6E;border-radius:6px;padding:5px 9px;">AR</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#C9C9CF;border:1px solid #26262d;border-radius:6px;padding:5px 9px;">+8</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-top:18px;padding-top:16px;border-top:1px solid #20202a;"><div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#6B6B72;">FAN-OUT PLAN</div><div style="font-family:Inter;font-size:13px;color:#fff;">12 langs × 4 tracks = 48 renders</div></div><div style="font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:#FF2E6E;border-radius:9px;padding:10px 18px;">Process</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ BRANCH EDITOR ============ -->
+      <section data-panel="branch" style="padding:30px 36px;display:none;">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;">
+          <div><h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Branch editor</h1><p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 0;">A Vow in Code · beats are nodes, choices are edges. Invalid graphs cannot publish.</p></div>
+          <div style="display:flex;gap:8px;"><span style="font-family:Inter;font-size:12px;color:#9A9AA0;border:1px solid #26262d;border-radius:8px;padding:8px 13px;">Simple</span><span data-pro-only style="font-family:Inter;font-size:12px;color:#fff;background:#FF2E6E;border-radius:8px;padding:8px 13px;">Pro graph</span></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:16px;">
+          <!-- graph -->
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:26px;position:relative;overflow:hidden;">
+            <div style="position:absolute;inset:0;background-image:radial-gradient(#1d1d24 1px,transparent 1px);background-size:22px 22px;opacity:0.5;"></div>
+            <div style="position:relative;display:flex;flex-direction:column;gap:0;">
+              <div style="display:flex;align-items:center;gap:14px;">
+                <div style="background:#1F8A5B;border-radius:10px;padding:11px 16px;font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Beat 1 · Cold open</div>
+                <div style="flex:1;height:2px;background:#FF2E6E;"></div>
+                <div style="background:#16161c;border:1px solid #26262d;border-radius:10px;padding:11px 16px;font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Beat 2 · The lie</div>
+              </div>
+              <div style="margin:14px 0 14px 60px;display:flex;gap:30px;">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:8px;"><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#FF8FB4;">choice: trust</span><div style="background:#16161c;border:1px solid #26262d;border-radius:10px;padding:11px 16px;font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Beat 3a · Alliance</div></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:8px;"><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#FF8FB4;">choice: walk</span><div style="background:#16161c;border:1px solid #26262d;border-radius:10px;padding:11px 16px;font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Beat 3b · Exposed</div></div>
+              </div>
+              <div style="display:flex;gap:14px;margin-left:60px;">
+                <div style="background:rgba(255,46,110,0.12);border:1px solid #FF2E6E;border-radius:10px;padding:11px 16px;font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Ending A · Redemption</div>
+                <div style="background:rgba(232,181,75,0.12);border:1px solid rgba(232,181,75,0.5);border-radius:10px;padding:11px 16px;font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Ending B · Ruin <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#E8B54B;">PREMIUM</span></div>
+              </div>
+            </div>
+            <div style="position:relative;margin-top:22px;display:flex;align-items:center;gap:9px;font-family:Inter;font-size:12px;color:#1F8A5B;"><span style="width:8px;height:8px;border-radius:50%;background:#1F8A5B;"></span>Graph valid · no broken links · canon constraints pass</div>
+          </div>
+          <!-- alternate endings / premium cuts -->
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Premium cuts</span>
+            <div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin:7px 0 16px;">Merchandised purchasable variants. Upload or AI-generate; they slot into the graph and the upsell automatically.</div>
+            <div style="display:flex;flex-direction:column;gap:11px;">
+              <div style="border:1px solid #26262d;border-radius:11px;padding:14px;display:flex;align-items:center;justify-content:space-between;"><div><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Alternate ending · Ruin</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:2px;">AI-generated · in graph</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">80</span></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:14px;display:flex;align-items:center;justify-content:space-between;"><div><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">His POV cut</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:2px;">same scene, his side</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">60</span></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:14px;display:flex;align-items:center;justify-content:space-between;"><div><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Intensity + cut</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:2px;">darker, sharper</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">40</span></div>
+            </div>
+            <div style="font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:rgba(255,255,255,0.08);border:1px solid #26262d;border-radius:9px;padding:11px;text-align:center;margin-top:14px;">+ Add premium cut</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ CHANNELS ============ -->
+      <section data-panel="channels" style="padding:30px 36px;display:none;">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;">
+          <div><h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Channels</h1><p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 0;">Your branded channel pages, followers, and channel-level deals.</p></div>
+          <div style="font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:#FF2E6E;border-radius:9px;padding:10px 17px;">+ Create channel</div>
+        </div>
+        <!-- channel header -->
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;overflow:hidden;margin-bottom:16px;">
+          <div style="position:relative;height:120px;"><img src="assets/scene_lounge.png" style="width:100%;height:100%;object-fit:cover;object-position:center 30%;"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,8,10,0.2),#15151b);"></div></div>
+          <div style="padding:0 22px 20px;margin-top:-30px;position:relative;">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;">
+              <div style="display:flex;align-items:flex-end;gap:15px;"><div style="width:64px;height:64px;border-radius:16px;background:linear-gradient(150deg,#FF2E6E,#cf1d57);border:3px solid #15151b;display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:26px;color:#fff;">N</div><div style="padding-bottom:4px;"><div style="font-family:Outfit;font-weight:600;font-size:20px;letter-spacing:-0.02em;color:#fff;">Nora Studios</div><div style="font-family:Inter;font-size:12px;color:#9A9AA0;">412k followers · 6 series · Telenovela, Drama</div></div></div>
+              <div style="display:flex;gap:8px;padding-bottom:4px;"><span style="font-family:Inter;font-size:12px;color:#C9C9CF;border:1px solid #26262d;border-radius:8px;padding:8px 13px;">Edit page</span><span style="font-family:Inter;font-size:12px;color:#fff;background:rgba(255,255,255,0.08);border:1px solid #26262d;border-radius:8px;padding:8px 13px;">Notify followers</span></div>
+            </div>
+          </div>
+        </div>
+        <!-- channel stats + series grid -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px;">
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">FOLLOWERS</div><div style="font-family:Outfit;font-weight:600;font-size:24px;color:#fff;margin-top:6px;">412k</div></div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">AVG COMPLETION</div><div style="font-family:Outfit;font-weight:600;font-size:24px;color:#fff;margin-top:6px;">83%</div></div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">CHANNEL REVENUE</div><div style="font-family:Outfit;font-weight:600;font-size:24px;color:#fff;margin-top:6px;">$103k</div></div>
+          <div style="border:1px solid rgba(232,181,75,0.35);border-radius:14px;background:linear-gradient(160deg,#1a160d,#15151b);padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#E8B54B;">BRAND DEALS</div><div style="font-family:Outfit;font-weight:600;font-size:24px;color:#fff;margin-top:6px;">3 active</div></div>
+        </div>
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+          <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Series in this channel</span>
+          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-top:16px;">
+            <div><div style="border-radius:9px;overflow:hidden;aspect-ratio:2/3;"><img src="assets/poster_shadow.png" style="width:100%;height:100%;object-fit:cover;"></div></div>
+            <div><div style="border-radius:9px;overflow:hidden;aspect-ratio:2/3;"><img src="assets/poster_vow.png" style="width:100%;height:100%;object-fit:cover;"></div></div>
+            <div><div style="border-radius:9px;overflow:hidden;aspect-ratio:2/3;"><img src="assets/poster_heiress.png" style="width:100%;height:100%;object-fit:cover;"></div></div>
+            <div><div style="border-radius:9px;overflow:hidden;aspect-ratio:2/3;"><img src="assets/poster_director.png" style="width:100%;height:100%;object-fit:cover;"></div></div>
+            <div><div style="border-radius:9px;overflow:hidden;aspect-ratio:2/3;"><img src="assets/poster_luna.png" style="width:100%;height:100%;object-fit:cover;"></div></div>
+            <div style="border:1px dashed #3a3a42;border-radius:9px;aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;color:#6B6B72;font-size:24px;">+</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ MONETIZATION & REWARDS ============ -->
+      <section data-panel="monetize" style="padding:30px 36px;display:none;">
+        <h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Monetization</h1>
+        <p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 26px;">Pricing, rewards, and a transparent 70/30 share. One-click presets, change anytime.</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <!-- pricing -->
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Pricing · A Vow in Code</span>
+            <div style="display:flex;flex-direction:column;gap:0;margin-top:14px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:14px;color:#FAFAF8;">Unlock cost per episode</span><span style="font-family:'JetBrains Mono',monospace;font-size:14px;color:#E8B54B;">30 credits</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:14px;color:#FAFAF8;">Free episodes</span><span style="font-family:'JetBrains Mono',monospace;font-size:14px;color:#fff;">2</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:14px;color:#FAFAF8;">Included in Premium sub</span><div style="width:38px;height:22px;border-radius:999px;background:#FF2E6E;position:relative;"><div style="position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:#fff;"></div></div></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:14px;color:#FAFAF8;">Rewarded ad tier</span><span style="font-family:Inter;font-size:13px;color:#9A9AA0;">Standard ▾</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0;"><span style="font-family:Inter;font-size:14px;color:#FAFAF8;">Brand placement opt-in</span><div style="width:38px;height:22px;border-radius:999px;background:#FF2E6E;position:relative;"><div style="position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:#fff;"></div></div></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:16px;"><span style="font-family:Inter;font-size:12px;color:#0B0B0D;background:#fff;border-radius:8px;padding:8px 13px;">Preset: Standard</span><span style="font-family:Inter;font-size:12px;color:#9A9AA0;border:1px solid #26262d;border-radius:8px;padding:8px 13px;">Preset: Premiere</span><span style="font-family:Inter;font-size:12px;color:#9A9AA0;border:1px solid #26262d;border-radius:8px;padding:8px 13px;">Free</span></div>
+          </div>
+          <!-- reward mechanism -->
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Reward mechanism</span>
+            <div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin:7px 0 14px;">How viewers earn credits on your titles. Drives retention and the referral loop.</div>
+            <div style="display:flex;flex-direction:column;gap:11px;">
+              <div style="border:1px solid #26262d;border-radius:11px;padding:14px;display:flex;align-items:center;justify-content:space-between;"><div><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Rewarded ad</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:2px;">watch a short ad to earn</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">+10</span></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:14px;display:flex;align-items:center;justify-content:space-between;"><div><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Daily streak bonus</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:2px;">3 days in a row</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">×3</span></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:14px;display:flex;align-items:center;justify-content:space-between;"><div><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Refer a friend</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:2px;">both sides, on first watch</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">+200</span></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:14px;display:flex;align-items:center;justify-content:space-between;"><div><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Share an episode</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:2px;">to social, per unique open</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">+15</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- revenue share -->
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;margin-top:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;"><span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Revenue share · transparent 70/30</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#9A9AA0;">backed by double-entry ledger</span></div>
+          <div style="display:flex;height:40px;border-radius:9px;overflow:hidden;margin-bottom:8px;"><div style="width:70%;background:#FF2E6E;display:flex;align-items:center;padding-left:16px;font-family:Outfit;font-weight:600;font-size:13px;color:#fff;">Creator · 70% · $104.0k</div><div style="width:30%;background:#2a2a32;display:flex;align-items:center;padding-left:14px;font-family:Outfit;font-weight:600;font-size:13px;color:#C9C9CF;">Platform · 30%</div></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:16px;">
+            <div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">UNLOCKS</div><div style="font-family:Outfit;font-weight:600;font-size:18px;color:#fff;margin-top:5px;">$61.2k</div></div>
+            <div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">ADS</div><div style="font-family:Outfit;font-weight:600;font-size:18px;color:#fff;margin-top:5px;">$28.4k</div></div>
+            <div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">PLACEMENT</div><div style="font-family:Outfit;font-weight:600;font-size:18px;color:#fff;margin-top:5px;">$9.8k</div></div>
+            <div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">SUBSCRIPTIONS</div><div style="font-family:Outfit;font-weight:600;font-size:18px;color:#fff;margin-top:5px;">$4.6k</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ ANALYTICS ============ -->
+      <section data-panel="analytics" style="padding:30px 36px;display:none;">
+        <h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Analytics</h1>
+        <p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 26px;">Per-episode, per-series, per-channel, and per-cohort. Counterfactuals are shown as bands, never single points.</p>
+
+        <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px;">
+          <!-- beat retention curve -->
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Beat-level retention</span><span style="font-family:Inter;font-size:12px;color:#9A9AA0;">A Vow in Code · Ep 3</span></div>
+            <div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin-bottom:18px;">Where viewers swipe away, by beat.</div>
+            <div style="position:relative;height:180px;border-left:1px solid #26262d;border-bottom:1px solid #26262d;">
+              <svg viewBox="0 0 400 180" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;">
+                <polyline points="0,12 57,20 114,34 171,52 228,74 285,104 342,128 400,150" fill="none" stroke="#FF2E6E" stroke-width="3"></polyline>
+                <polygon points="0,12 57,20 114,34 171,52 228,74 285,104 342,128 400,150 400,180 0,180" fill="#FF2E6E" opacity="0.1"></polygon>
+              </svg>
+              <div style="position:absolute;left:50%;top:0;bottom:0;border-left:1px dashed rgba(255,143,180,0.5);"></div>
+              <div style="position:absolute;left:51%;top:48%;font-family:'JetBrains Mono',monospace;font-size:10px;color:#FF8FB4;">drop at Beat 5 (the lie)</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#6B6B72;"><span>B1</span><span>B2</span><span>B3</span><span>B4</span><span>B5</span><span>B6</span><span>B7</span><span>End</span></div>
+          </div>
+          <!-- variant performance band -->
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Ending lift (off-policy)</span>
+            <div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin:7px 0 18px;">Estimated as a band, not a point.</div>
+            <div style="display:flex;flex-direction:column;gap:16px;">
+              <div><div style="display:flex;justify-content:space-between;font-family:Inter;font-size:13px;color:#FAFAF8;margin-bottom:6px;"><span>Ending B · Ruin</span><span style="color:#1F8A5B;">+14% to +22%</span></div><div style="position:relative;height:9px;background:#20202a;border-radius:5px;"><div style="position:absolute;left:54%;width:24%;height:100%;background:rgba(31,138,91,0.4);border-radius:5px;"></div><div style="position:absolute;left:64%;width:2px;height:100%;background:#1F8A5B;"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-family:Inter;font-size:13px;color:#FAFAF8;margin-bottom:6px;"><span>His POV cut</span><span style="color:#E8B54B;">-2% to +9%</span></div><div style="position:relative;height:9px;background:#20202a;border-radius:5px;"><div style="position:absolute;left:42%;width:22%;height:100%;background:rgba(232,181,75,0.4);border-radius:5px;"></div><div style="position:absolute;left:50%;width:2px;height:100%;background:#E8B54B;"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-family:Inter;font-size:13px;color:#FAFAF8;margin-bottom:6px;"><span>Intensity + cut</span><span style="color:#1F8A5B;">+6% to +17%</span></div><div style="position:relative;height:9px;background:#20202a;border-radius:5px;"><div style="position:absolute;left:48%;width:26%;height:100%;background:rgba(31,138,91,0.4);border-radius:5px;"></div><div style="position:absolute;left:60%;width:2px;height:100%;background:#1F8A5B;"></div></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- funnel + demographics + endings -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px;">
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">Paywall funnel</span>
+            <div style="display:flex;flex-direction:column;gap:9px;margin-top:16px;">
+              <div style="background:#FF2E6E;border-radius:7px;padding:10px 13px;font-family:Inter;font-size:12px;color:#fff;">First episode · 100%</div>
+              <div style="background:rgba(255,46,110,0.6);border-radius:7px;padding:10px 13px;width:82%;font-family:Inter;font-size:12px;color:#fff;">Completed Ep1 · 82%</div>
+              <div style="background:rgba(255,46,110,0.35);border-radius:7px;padding:10px 13px;width:38%;font-family:Inter;font-size:12px;color:#fff;">Hit paywall · 38%</div>
+              <div style="background:rgba(255,46,110,0.2);border-radius:7px;padding:10px 13px;width:11%;font-family:Inter;font-size:11px;color:#fff;white-space:nowrap;">Paid · 4.2%</div>
+            </div>
+          </div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">Audience demographics</span>
+            <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px;">
+              <div><div style="display:flex;justify-content:space-between;font-family:Inter;font-size:12px;color:#C9C9CF;margin-bottom:5px;"><span>MX · 18-24 F</span><span>34%</span></div><div style="height:6px;background:#20202a;border-radius:4px;"><div style="width:34%;height:100%;background:#FF2E6E;border-radius:4px;"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-family:Inter;font-size:12px;color:#C9C9CF;margin-bottom:5px;"><span>US-Hisp · 25-34 F</span><span>27%</span></div><div style="height:6px;background:#20202a;border-radius:4px;"><div style="width:27%;height:100%;background:#FF2E6E;border-radius:4px;"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-family:Inter;font-size:12px;color:#C9C9CF;margin-bottom:5px;"><span>BR · 18-24 F</span><span>19%</span></div><div style="height:6px;background:#20202a;border-radius:4px;"><div style="width:19%;height:100%;background:#FF2E6E;border-radius:4px;"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-family:Inter;font-size:12px;color:#C9C9CF;margin-bottom:5px;"><span>Other</span><span>20%</span></div><div style="height:6px;background:#20202a;border-radius:4px;"><div style="width:20%;height:100%;background:#6B6B72;border-radius:4px;"></div></div></div>
+            </div>
+          </div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">Ending choice split</span>
+            <div style="display:flex;align-items:center;justify-content:center;margin:18px 0;"><div style="width:120px;height:120px;border-radius:50%;background:conic-gradient(#FF2E6E 0% 58%,#E8B54B 58% 84%,#5aa6ff 84% 100%);"></div></div>
+            <div style="display:flex;flex-direction:column;gap:7px;">
+              <div style="display:flex;align-items:center;gap:8px;font-family:Inter;font-size:12px;color:#C9C9CF;"><span style="width:9px;height:9px;border-radius:2px;background:#FF2E6E;"></span>Redemption · 58%</div>
+              <div style="display:flex;align-items:center;gap:8px;font-family:Inter;font-size:12px;color:#C9C9CF;"><span style="width:9px;height:9px;border-radius:2px;background:#E8B54B;"></span>Ruin (premium) · 26%</div>
+              <div style="display:flex;align-items:center;gap:8px;font-family:Inter;font-size:12px;color:#C9C9CF;"><span style="width:9px;height:9px;border-radius:2px;background:#5aa6ff;"></span>Open ending · 16%</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ USERS ============ -->
+      <section data-panel="users" style="padding:30px 36px;display:none;">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;">
+          <div><h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Users</h1><p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 0;">Accounts, entitlements, wallet, and consent. Every action is RBAC-gated and audited.</p></div>
+          <div style="display:flex;gap:10px;"><span style="font-family:Inter;font-size:13px;color:#C9C9CF;border:1px solid #26262d;border-radius:9px;padding:10px 15px;">Export CSV</span><span style="font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:#FF2E6E;border-radius:9px;padding:10px 17px;">Invite user</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px;">
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">TOTAL USERS</div><div style="font-family:Outfit;font-weight:600;font-size:24px;color:#fff;margin-top:6px;">2.41M</div></div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">MAU</div><div style="font-family:Outfit;font-weight:600;font-size:24px;color:#fff;margin-top:6px;">812k</div></div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">PAYING</div><div style="font-family:Outfit;font-weight:600;font-size:24px;color:#fff;margin-top:6px;">4.2%</div></div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">NEW · 7D</div><div style="font-family:Outfit;font-weight:600;font-size:24px;color:#1F8A5B;margin-top:6px;">+38.1k</div></div>
+        </div>
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 0.6fr;gap:14px;padding:14px 18px;border-bottom:1px solid #20202a;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;"><span>USER</span><span>STATUS</span><span>WALLET</span><span>CONSENT</span><span>DEVICES</span><span></span></div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 0.6fr;gap:14px;align-items:center;padding:13px 18px;border-bottom:1px solid #1a1a20;"><span style="display:flex;align-items:center;gap:10px;"><span style="width:30px;height:30px;border-radius:50%;background:linear-gradient(150deg,#FF2E6E,#cf1d57);display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:12px;color:#fff;">M</span><span><span style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;display:block;">@maya.r</span><span style="font-family:Inter;font-size:11px;color:#6B6B72;">maya@email.com</span></span></span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#FF8FB4;background:rgba(255,46,110,0.14);border-radius:5px;padding:4px 8px;">PREMIUM</span></span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">240</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">granted</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">3</span><span style="color:#6B6B72;">⋯</span></div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 0.6fr;gap:14px;align-items:center;padding:13px 18px;border-bottom:1px solid #1a1a20;"><span style="display:flex;align-items:center;gap:10px;"><span style="width:30px;height:30px;border-radius:50%;background:#2a2a32;display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:12px;color:#fff;">J</span><span><span style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;display:block;">@jules</span><span style="font-family:Inter;font-size:11px;color:#6B6B72;">jules@email.com</span></span></span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;background:rgba(255,255,255,0.06);border-radius:5px;padding:4px 8px;">FREE</span></span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">60</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">granted</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">1</span><span style="color:#6B6B72;">⋯</span></div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 0.6fr;gap:14px;align-items:center;padding:13px 18px;"><span style="display:flex;align-items:center;gap:10px;"><span style="width:30px;height:30px;border-radius:50%;background:#2a2a32;display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:12px;color:#fff;">S</span><span><span style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;display:block;">@sofia.r</span><span style="font-family:Inter;font-size:11px;color:#6B6B72;">sofia@email.com</span></span></span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#FF8FB4;background:rgba(255,46,110,0.14);border-radius:5px;padding:4px 8px;">PREMIUM</span></span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">1.2k</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">granted</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">2</span><span style="color:#6B6B72;">⋯</span></div>
+        </div>
+      </section>
+
+      <!-- ============ TEAM & RIGHTS ============ -->
+      <section data-panel="team" style="padding:30px 36px;display:none;">
+        <h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Team &amp; rights</h1>
+        <p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 26px;">Multi-seat collaboration, review workflows, and the consent and rights ledger per title.</p>
+        <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:16px;">
+          <!-- seats -->
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;"><span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Seats &amp; roles</span><span style="font-family:Outfit;font-weight:600;font-size:12px;color:#fff;background:rgba(255,255,255,0.08);border:1px solid #26262d;border-radius:8px;padding:7px 13px;">+ Invite seat</span></div>
+            <div style="display:flex;flex-direction:column;gap:11px;">
+              <div style="display:flex;align-items:center;gap:12px;"><span style="width:34px;height:34px;border-radius:50%;background:linear-gradient(150deg,#FF2E6E,#cf1d57);display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:13px;color:#fff;">N</span><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">Nora Beltran</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;">nora@norastudios.com</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#FF8FB4;background:rgba(255,46,110,0.14);border-radius:5px;padding:4px 9px;">OWNER</span></div>
+              <div style="display:flex;align-items:center;gap:12px;"><span style="width:34px;height:34px;border-radius:50%;background:#2a2a32;display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:13px;color:#fff;">D</span><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">Diego Marin</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;">Story lead</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#C9C9CF;border:1px solid #26262d;border-radius:5px;padding:4px 9px;">EDITOR</span></div>
+              <div style="display:flex;align-items:center;gap:12px;"><span style="width:34px;height:34px;border-radius:50%;background:#2a2a32;display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:13px;color:#fff;">P</span><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">Priya Shah</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;">Localization</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#C9C9CF;border:1px solid #26262d;border-radius:5px;padding:4px 9px;">REVIEWER</span></div>
+              <div style="display:flex;align-items:center;gap:12px;"><span style="width:34px;height:34px;border-radius:50%;background:#2a2a32;display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:13px;color:#fff;">A</span><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">Aria Lopez</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;">Brand deals</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#C9C9CF;border:1px solid #26262d;border-radius:5px;padding:4px 9px;">AGENCY</span></div>
+            </div>
+          </div>
+          <!-- rights ledger -->
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Rights &amp; consent ledger</span>
+            <div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin:7px 0 16px;">A Vow in Code · auditable, on the ledger.</div>
+            <div style="display:flex;flex-direction:column;gap:11px;">
+              <div style="border:1px solid #26262d;border-radius:11px;padding:13px;display:flex;align-items:center;justify-content:space-between;"><div><div style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">Lead likeness · L. Cruz</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;">consent + royalty accrual</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;">SIGNED</span></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:13px;display:flex;align-items:center;justify-content:space-between;"><div><div style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">Production rights</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;">Nora Studios, worldwide</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;">CLEARED</span></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:13px;display:flex;align-items:center;justify-content:space-between;"><div><div style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">Provenance chain</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;">C2PA, all variants</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;">VERIFIED</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ BILLING ============ -->
+      <section data-panel="billing" style="padding:30px 36px;display:none;">
+        <h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Billing</h1>
+        <p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 26px;">Earnings, payouts, and the double-entry ledger. Stripe is in TEST until the live-rail decision.</p>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px;">
+          <div style="border:1px solid rgba(232,181,75,0.35);border-radius:14px;background:linear-gradient(160deg,#1a160d,#15151b);padding:20px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#E8B54B;">AVAILABLE TO PAY OUT</div><div style="font-family:Outfit;font-weight:600;font-size:28px;color:#fff;margin-top:6px;">$104.0k</div><div style="font-family:Outfit;font-weight:600;font-size:12px;color:#0B0B0D;background:#E8B54B;border-radius:7px;padding:7px 13px;display:inline-block;margin-top:12px;">Withdraw</div></div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:20px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">LIFETIME EARNINGS</div><div style="font-family:Outfit;font-weight:600;font-size:28px;color:#fff;margin-top:6px;">$612.4k</div><div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin-top:8px;">70/30 share applied</div></div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:20px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">MARGIN PER TITLE (AVG)</div><div style="font-family:Outfit;font-weight:600;font-size:28px;color:#1F8A5B;margin-top:6px;">68%</div><div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin-top:8px;">revenue minus prod + processing</div></div>
+        </div>
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;overflow:hidden;">
+          <div style="padding:18px 20px;border-bottom:1px solid #20202a;display:flex;align-items:center;justify-content:space-between;"><span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Ledger · journal entries</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#9A9AA0;">immutable · balances derived</span></div>
+          <div style="display:grid;grid-template-columns:1fr 2fr 1fr 1fr;gap:14px;padding:13px 20px;border-bottom:1px solid #20202a;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;"><span>DATE</span><span>ENTRY</span><span>SOURCE</span><span>AMOUNT</span></div>
+          <div style="display:grid;grid-template-columns:1fr 2fr 1fr 1fr;gap:14px;padding:13px 20px;border-bottom:1px solid #1a1a20;font-family:Inter;font-size:13px;color:#C9C9CF;"><span>Jun 16</span><span style="color:#fff;">Episode unlock · A Vow in Code Ep4</span><span>Unlocks</span><span style="color:#1F8A5B;">+$0.21</span></div>
+          <div style="display:grid;grid-template-columns:1fr 2fr 1fr 1fr;gap:14px;padding:13px 20px;border-bottom:1px solid #1a1a20;font-family:Inter;font-size:13px;color:#C9C9CF;"><span>Jun 16</span><span style="color:#fff;">Placement fill · Topo Chico · MX</span><span>Placement</span><span style="color:#1F8A5B;">+$1,240.00</span></div>
+          <div style="display:grid;grid-template-columns:1fr 2fr 1fr 1fr;gap:14px;padding:13px 20px;border-bottom:1px solid #1a1a20;font-family:Inter;font-size:13px;color:#C9C9CF;"><span>Jun 15</span><span style="color:#fff;">Platform share · 30%</span><span>Share</span><span style="color:#ff5f57;">-$372.00</span></div>
+          <div style="display:grid;grid-template-columns:1fr 2fr 1fr 1fr;gap:14px;padding:13px 20px;font-family:Inter;font-size:13px;color:#C9C9CF;"><span>Jun 14</span><span style="color:#fff;">Payout run · bank ****2240</span><span>Payout</span><span style="color:#ff5f57;">-$48,000.00</span></div>
+        </div>
+      </section>
+
+      <!-- ============ POSTERS & MARKETING ============ -->
+      <section data-panel="posters" style="padding:30px 36px;display:none;">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;">
+          <div><h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Posters &amp; marketing</h1><p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 0;">Generate a poster set per series. The decision engine then serves each viewer the variant their behaviour predicts will convert.</p></div>
+          <div style="font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:#FF2E6E;border-radius:9px;padding:10px 17px;">Generate poster set</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:16px;">
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;"><span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Poster set · A Vow in Code</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#9A9AA0;">C2PA signed · Article 50 labeled</span></div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+              <div><div style="position:relative;border-radius:11px;overflow:hidden;aspect-ratio:2/3;border:1px solid #FF2E6E;"><img src="assets/scene_lounge.png" style="width:100%;height:100%;object-fit:cover;object-position:center 30%;"><div style="position:absolute;top:7px;left:7px;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:0.08em;color:#fff;background:#FF2E6E;border-radius:4px;padding:3px 6px;">ROMANCE</div></div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:7px;">CTR 6.4%</div></div>
+              <div><div style="position:relative;border-radius:11px;overflow:hidden;aspect-ratio:2/3;"><img src="assets/scene_desk.png" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;top:7px;left:7px;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:0.08em;color:#fff;background:rgba(0,0,0,0.6);border-radius:4px;padding:3px 6px;">BETRAYAL</div></div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:7px;">CTR 5.1%</div></div>
+              <div><div style="position:relative;border-radius:11px;overflow:hidden;aspect-ratio:2/3;"><img src="assets/cut_frame.png" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;top:7px;left:7px;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:0.08em;color:#fff;background:rgba(0,0,0,0.6);border-radius:4px;padding:3px 6px;">VILLAIN</div></div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:7px;">CTR 4.7%</div></div>
+              <div><div style="position:relative;border-radius:11px;overflow:hidden;aspect-ratio:2/3;"><img src="assets/scene_beach.png" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;top:7px;left:7px;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:0.08em;color:#fff;background:rgba(0,0,0,0.6);border-radius:4px;padding:3px 6px;">LUXURY</div></div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:7px;">CTR 4.2%</div></div>
+              <div><div style="position:relative;border-radius:11px;overflow:hidden;aspect-ratio:2/3;"><img src="assets/scene_es.png" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;top:7px;left:7px;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:0.08em;color:#fff;background:rgba(0,0,0,0.6);border-radius:4px;padding:3px 6px;">ES</div></div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:7px;">CTR 7.0%</div></div>
+              <div><div style="position:relative;border-radius:11px;overflow:hidden;aspect-ratio:2/3;border:1px dashed #3a3a42;display:flex;align-items:center;justify-content:center;background:#16161c;"><span style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.08em;color:#6B6B72;text-align:center;padding:8px;">ACCESSIBILITY<br>FIRST</span></div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:7px;">always served</div></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;"><span style="font-family:Inter;font-size:12px;color:#0B0B0D;background:#fff;border-radius:8px;padding:8px 13px;">Generate by emotion</span><span style="font-family:Inter;font-size:12px;color:#9A9AA0;border:1px solid #26262d;border-radius:8px;padding:8px 13px;">By character</span><span style="font-family:Inter;font-size:12px;color:#9A9AA0;border:1px solid #26262d;border-radius:8px;padding:8px 13px;">By language</span><span style="font-family:Inter;font-size:12px;color:#9A9AA0;border:1px solid #26262d;border-radius:8px;padding:8px 13px;">Push to A/B test</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+              <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">How viewers get served</span>
+              <p style="font-family:Inter;font-size:13px;line-height:1.55;color:#9A9AA0;margin:10px 0 0;">You create the set here. The decision engine picks per viewer from learned behaviour: genre affinity, followed characters, language, and prior CTR. Creators do not pick the per-viewer artwork, and viewers never see a chooser.</p>
+            </div>
+            <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+              <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Auto marketing creatives</span>
+              <div style="display:flex;flex-direction:column;gap:9px;margin-top:14px;">
+                <div style="display:flex;justify-content:space-between;font-family:Inter;font-size:13px;color:#C9C9CF;"><span>TikTok hooks</span><span style="color:#9A9AA0;">10</span></div>
+                <div style="display:flex;justify-content:space-between;font-family:Inter;font-size:13px;color:#C9C9CF;"><span>Reels cuts</span><span style="color:#9A9AA0;">10</span></div>
+                <div style="display:flex;justify-content:space-between;font-family:Inter;font-size:13px;color:#C9C9CF;"><span>Shorts</span><span style="color:#9A9AA0;">5</span></div>
+                <div style="display:flex;justify-content:space-between;font-family:Inter;font-size:13px;color:#C9C9CF;"><span>Cliffhanger captions</span><span style="color:#9A9AA0;">3</span></div>
+              </div>
+              <div style="font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:rgba(255,255,255,0.08);border:1px solid #26262d;border-radius:9px;padding:11px;text-align:center;margin-top:14px;">Generate all</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ LIVE-ACTION ADAPTATION ============ -->
+      <section data-panel="adapter" style="padding:30px 36px;display:none;">
+        <h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Live-action adaptation</h1>
+        <p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 24px;max-width:760px;">Turn old, horizontal, regional, or unused footage into vertical, localized, accessible, monetizable adaptive variants. Without reshooting. One click means: analyze, plan, preview, then render after you approve.</p>
+
+        <!-- step rail -->
+        <div style="display:flex;align-items:center;gap:0;margin-bottom:20px;flex-wrap:wrap;">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">1 Upload</span><span style="width:22px;height:1px;background:#26262d;margin:0 9px;"></span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">2 Rights gate</span><span style="width:22px;height:1px;background:#26262d;margin:0 9px;"></span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FF8FB4;">3 AI analysis</span><span style="width:22px;height:1px;background:#26262d;margin:0 9px;"></span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#6B6B72;">4 One-click actions</span><span style="width:22px;height:1px;background:#26262d;margin:0 9px;"></span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#6B6B72;">5 Preview</span><span style="width:22px;height:1px;background:#26262d;margin:0 9px;"></span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#6B6B72;">6 Render + register</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1.05fr;gap:16px;">
+          <!-- analysis -->
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Adaptation plan</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">rights: cleared</span></div>
+            <div style="position:relative;border-radius:11px;overflow:hidden;height:150px;margin-bottom:14px;"><img src="assets/scene_lounge.png" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;inset:0;background:linear-gradient(180deg,transparent 50%,rgba(8,8,10,0.85));"></div><div style="position:absolute;left:12px;bottom:10px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;color:#fff;">SOURCE &middot; horizontal master &middot; 42:18</div><div style="position:absolute;top:10px;right:10px;font-family:'JetBrains Mono',monospace;font-size:9px;color:#fff;background:rgba(0,0,0,0.6);border-radius:5px;padding:4px 8px;">adapted_archive</div></div>
+            <div style="font-family:Inter;font-size:13px;line-height:1.5;color:#C9C9CF;">We found <span style="color:#fff;font-weight:500;">4 possible vertical episodes</span>, 7 strong hooks, 3 cliffhanger points, 2 scenes suitable for product placement, and 1 logo that must be removed.</div>
+            <div style="display:flex;flex-direction:column;gap:9px;margin-top:16px;">
+              <div><div style="display:flex;justify-content:space-between;font-family:Inter;font-size:12px;color:#FAFAF8;margin-bottom:5px;"><span>Vertical crop confidence</span><span style="color:#1F8A5B;">91%</span></div><div style="height:6px;background:#20202a;border-radius:4px;"><div style="width:91%;height:100%;background:#1F8A5B;border-radius:4px;"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-family:Inter;font-size:12px;color:#FAFAF8;margin-bottom:5px;"><span>Re-pace confidence</span><span style="color:#1F8A5B;">88%</span></div><div style="height:6px;background:#20202a;border-radius:4px;"><div style="width:88%;height:100%;background:#1F8A5B;border-radius:4px;"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-family:Inter;font-size:12px;color:#FAFAF8;margin-bottom:5px;"><span>Re-dress wardrobe confidence</span><span style="color:#E8B54B;">41% &middot; manual review</span></div><div style="height:6px;background:#20202a;border-radius:4px;"><div style="width:41%;height:100%;background:#E8B54B;border-radius:4px;"></div></div></div>
+            </div>
+          </div>
+          <!-- one-click actions -->
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">One-click actions</span>
+            <div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin:7px 0 14px;">Each runs on a preset plus optional prompt, and generates a 15-second preview before full render.</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <div style="border:1px solid #FF2E6E;background:rgba(255,46,110,0.08);border-radius:11px;padding:13px;"><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Re-cut vertical</div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;margin-top:4px;">91% &middot; $4.20</div></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:13px;"><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Re-pace</div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;margin-top:4px;">88% &middot; $2.10</div></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:13px;"><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Re-dress for market</div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#E8B54B;margin-top:4px;">41% &middot; review</div></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:13px;"><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Localize</div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;margin-top:4px;">84% &middot; 12 langs</div></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:13px;"><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Make accessible</div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;margin-top:4px;">factory</div></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:13px;"><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Create variants</div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;margin-top:4px;">POV &middot; endings</div></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:13px;"><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Add brand</div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;margin-top:4px;">approved only</div></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:13px;"><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Marketing pack</div><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;margin-top:4px;">hooks &middot; posters</div></div>
+            </div>
+            <div style="margin-top:14px;"><div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;color:#6B6B72;margin-bottom:7px;">RE-CUT PRESET</div><div style="display:flex;gap:6px;flex-wrap:wrap;"><span style="font-family:Inter;font-size:11px;color:#fff;background:#FF2E6E;border-radius:7px;padding:6px 11px;">Auto</span><span style="font-family:Inter;font-size:11px;color:#C9C9CF;border:1px solid #26262d;border-radius:7px;padding:6px 11px;">Romance-first</span><span style="font-family:Inter;font-size:11px;color:#C9C9CF;border:1px solid #26262d;border-radius:7px;padding:6px 11px;">Tension-first</span><span style="font-family:Inter;font-size:11px;color:#C9C9CF;border:1px solid #26262d;border-radius:7px;padding:6px 11px;">Fast binge</span></div></div>
+            <div style="background:#0B0B0D;border:1px solid #26262d;border-radius:10px;padding:12px;font-family:Inter;font-size:12.5px;line-height:1.5;color:#9A9AA0;margin-top:12px;">Make it feel darker and more jealous, end with her discovering the secret text.</div>
+            <div style="display:flex;gap:9px;margin-top:12px;"><div style="flex:1;font-family:Outfit;font-weight:600;font-size:13px;color:#C9C9CF;border:1px solid #26262d;border-radius:9px;padding:11px;text-align:center;">Preview cost</div><div style="flex:1;font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:#FF2E6E;border-radius:9px;padding:11px;text-align:center;">Generate 15s preview</div></div>
+          </div>
+        </div>
+
+        <!-- before / after review -->
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;margin-top:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;"><span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Review &middot; before and after</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">C2PA signed &middot; AI disclosure on</span></div>
+          <div style="display:flex;gap:16px;align-items:stretch;">
+            <div style="flex:1;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;margin-bottom:8px;">SOURCE &middot; 16:9</div><div style="position:relative;border-radius:11px;overflow:hidden;aspect-ratio:16/9;background:#000;"><img src="assets/scene_lounge.png" style="width:100%;height:100%;object-fit:cover;filter:saturate(0.85);"></div></div>
+            <div style="display:flex;align-items:center;color:#FF2E6E;font-size:22px;">&rarr;</div>
+            <div style="flex:none;width:150px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#FF8FB4;margin-bottom:8px;">ADAPTED &middot; 9:16</div><div style="position:relative;border-radius:11px;overflow:hidden;aspect-ratio:9/16;border:1px solid #FF2E6E;"><img src="assets/scene_es.png" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;left:8px;bottom:8px;font-family:Inter;font-size:10px;color:#fff;background:rgba(0,0,0,0.5);border-radius:5px;padding:3px 7px;">hook at 0:02</div></div></div>
+            <div style="flex:1;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;margin-bottom:8px;">DETECTED CHANGES</div><div style="display:flex;flex-direction:column;gap:7px;"><div style="font-family:Inter;font-size:12px;color:#C9C9CF;">Reframed to 9:16, face-tracked</div><div style="font-family:Inter;font-size:12px;color:#C9C9CF;">Dead air removed, hook moved to 0:02</div><div style="font-family:Inter;font-size:12px;color:#C9C9CF;">Logo on bottle removed</div><div style="font-family:Inter;font-size:12px;color:#C9C9CF;">Captions + audio description generated</div></div><div style="display:flex;gap:8px;margin-top:14px;"><span style="font-family:Inter;font-size:12px;color:#9A9AA0;border:1px solid #26262d;border-radius:8px;padding:8px 13px;">Regenerate</span><span style="font-family:Outfit;font-weight:600;font-size:12px;color:#fff;background:#FF2E6E;border-radius:8px;padding:8px 14px;">Render &amp; register variant</span></div></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;border-top:1px solid #20202a;padding-top:14px;"><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#ff8079;background:rgba(255,95,87,0.1);border:1px solid rgba(255,95,87,0.3);border-radius:7px;padding:6px 11px;">Guardrail: no likeness or voice change without consent</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;border:1px solid #26262d;border-radius:7px;padding:6px 11px;">no undisclosed placement</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;border:1px solid #26262d;border-radius:7px;padding:6px 11px;">territory-locked release</span></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  componentDidMount() {
+    const root = document;
+    const navs = root.querySelectorAll('[data-nav]');
+    const panels = root.querySelectorAll('[data-panel]');
+    const show = (view) => {
+      panels.forEach((p) => { p.style.display = (p.getAttribute('data-panel') === view) ? '' : 'none'; });
+      navs.forEach((n) => {
+        const active = n.getAttribute('data-nav') === view;
+        n.style.background = active ? 'rgba(255,46,110,0.12)' : 'none';
+        n.style.color = active ? '#FFFFFF' : '#9A9AA0';
+      });
+      const c = root.querySelector('[data-content]');
+      if (c) c.scrollTop = 0;
+    };
+    navs.forEach((n) => n.addEventListener('click', () => show(n.getAttribute('data-nav'))));
+    show('dashboard');
+
+    // Simple / Pro toggle
+    const tog = root.querySelector('[data-mode-toggle]');
+    if (tog) {
+      tog.addEventListener('click', () => {
+        const s = tog.querySelector('[data-mode="simple"]');
+        const p = tog.querySelector('[data-mode="pro"]');
+        const proOn = p.style.background && p.style.background.indexOf('255') !== -1;
+        if (proOn) {
+          p.style.background = 'none'; p.style.color = '#9A9AA0';
+          s.style.background = '#FF2E6E'; s.style.color = '#0B0B0D';
+        } else {
+          s.style.background = 'none'; s.style.color = '#9A9AA0';
+          p.style.background = '#FF2E6E'; p.style.color = '#0B0B0D';
+        }
+        root.querySelectorAll('[data-pro-only]').forEach((el) => { el.style.display = proOn ? 'none' : ''; });
+      });
+    }
+  }
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

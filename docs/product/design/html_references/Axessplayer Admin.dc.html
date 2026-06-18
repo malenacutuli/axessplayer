@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; background: #0B0B0D; -webkit-font-smoothing: antialiased; }
+  ::selection { background: #FF2E6E; color: #fff; }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-thumb { background: #26262d; border-radius: 6px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+</style>
+</helmet>
+
+<div style="display:flex;flex-direction:column;height:100vh;background:#0B0B0D;font-family:Inter,sans-serif;color:#FAFAF8;overflow:hidden;">
+
+  <!-- ===== TOP BAR ===== -->
+  <div style="flex:none;height:60px;border-bottom:1px solid #1f1f25;display:flex;align-items:center;justify-content:space-between;padding:0 22px;background:#0E0E12;">
+    <div style="display:flex;align-items:center;gap:13px;">
+      <svg style="width:26px;height:26px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg>
+      <span style="font-family:Outfit;font-weight:600;font-size:18px;letter-spacing:-0.04em;color:#fff;">axess<span style="color:#FF2E6E">player</span></span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#6B6B72;padding-left:13px;border-left:1px solid #26262d;">Operator console</span>
+    </div>
+    <div style="flex:1;max-width:420px;margin:0 28px;background:rgba(255,255,255,0.05);border:1px solid #26262d;border-radius:9px;height:36px;display:flex;align-items:center;gap:9px;padding:0 13px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6B6B72" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg>
+      <span style="font-family:Inter;font-size:13px;color:#6B6B72;">Search content, users, creators, campaigns</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div style="display:flex;align-items:center;gap:7px;background:rgba(255,46,110,0.14);border:1px solid rgba(255,46,110,0.35);border-radius:999px;padding:5px 11px;"><span style="width:6px;height:6px;border-radius:50%;background:#FF2E6E;"></span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FF8FB4;">3 alerts</span></div>
+      <div style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.05);border:1px solid #26262d;border-radius:999px;padding:5px 12px;"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#9A9AA0;">Role: Owner</span></div>
+      <div style="width:32px;height:32px;border-radius:50%;background:#2a2a32;display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:14px;color:#fff;">A</div>
+    </div>
+  </div>
+
+  <div style="flex:1;display:flex;min-height:0;">
+
+    <!-- ===== LEFT RAIL ===== -->
+    <div style="flex:none;width:240px;border-right:1px solid #1f1f25;background:#0E0E12;overflow-y:auto;padding:16px 12px;">
+      <button data-nav="dashboard" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:13.5px;color:#9A9AA0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></svg>Dashboard</button>
+
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:#54545C;padding:14px 11px 7px;">Content</div>
+      <button data-nav="cms" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:13.5px;color:#9A9AA0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18M9 4v16"></path></svg>Content CMS</button>
+      <button data-nav="storygraph" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:13.5px;color:#9A9AA0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="6" cy="6" r="2.5"></circle><circle cx="18" cy="6" r="2.5"></circle><circle cx="12" cy="18" r="2.5"></circle><path d="M6 8.5v3a2 2 0 002 2h8a2 2 0 002-2v-3M12 13.5v2"></path></svg>Adaptive story graph</button>
+      <button data-nav="media" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:13.5px;color:#9A9AA0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 5h18v14H3z"></path><path d="M10 9l5 3-5 3z"></path></svg>Media factory</button>
+      <button data-nav="accessibility" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:13.5px;color:#9A9AA0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="4" r="2"></circle><path d="M5 8h14M12 8v8M12 16l-3 4M12 16l3 4"></path></svg>Accessibility factory</button>
+      <button data-nav="brands" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:13.5px;color:#9A9AA0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 9l2-5h14l2 5M3 9v10a1 1 0 001 1h16a1 1 0 001-1V9M3 9h18M9 13h6"></path></svg>Brand integration</button>
+
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:#54545C;padding:14px 11px 7px;">People</div>
+      <button data-nav="users" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:13.5px;color:#9A9AA0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.5 3-5.5 6-5.5s6 2 6 5.5M16 5.5a3 3 0 010 5.5M18 20c0-2.5-1-4-2.5-4.8"></path></svg>Users</button>
+      <button data-nav="creators" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:13.5px;color:#9A9AA0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path><path d="M18 3l1.5 3L23 6.5l-2.5 2 .8 3.5L18 10l-3 2 .8-3.5L13 6.5 16.5 6z" fill="currentColor" stroke="none" opacity="0.5"></path></svg>Creators</button>
+      <button data-nav="moderation" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:13.5px;color:#9A9AA0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"></path><path d="M12 9v4M12 16v.5"></path></svg>Community &amp; moderation</button>
+
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:#54545C;padding:14px 11px 7px;">Business</div>
+      <button data-nav="monetization" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:13.5px;color:#9A9AA0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 010 3h-3a1.5 1.5 0 000 3h4"></path></svg>Monetization</button>
+      <button data-nav="analytics" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:13.5px;color:#9A9AA0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 19V5M4 19h16M8 16v-4M12 16V8M16 16v-6M20 16v-2"></path></svg>Analytics</button>
+      <button data-nav="growth" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:13.5px;color:#9A9AA0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 17l6-6 4 4 7-8M21 7v5M21 7h-5"></path></svg>Growth &amp; UA</button>
+      <button data-nav="billing" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:13.5px;color:#9A9AA0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="5" width="20" height="14" rx="2"></rect><path d="M2 10h20"></path></svg>Billing &amp; payouts</button>
+
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:#54545C;padding:14px 11px 7px;">Trust &amp; system</div>
+      <button data-nav="trust" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:13.5px;color:#9A9AA0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"></path><path d="M9 12l2 2 4-4"></path></svg>Rights, consent, provenance</button>
+      <button data-nav="health" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:13.5px;color:#9A9AA0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 12h4l2 6 4-14 2 8h6"></path></svg>System health</button>
+      <button data-nav="settings" style="width:100%;display:flex;align-items:center;gap:11px;background:none;border:none;border-radius:9px;padding:9px 11px;cursor:pointer;text-align:left;font-family:Inter;font-weight:500;font-size:13.5px;color:#9A9AA0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"></circle><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.5-2.4 1a7 7 0 00-1.7-1l-.3-2.5h-4l-.3 2.5a7 7 0 00-1.7 1l-2.4-1-2 3.5 2 1.5a7 7 0 000 2l-2 1.5 2 3.5 2.4-1a7 7 0 001.7 1l.3 2.5h4l.3-2.5a7 7 0 001.7-1l2.4 1 2-3.5-2-1.5a7 7 0 00.1-1z"></path></svg>Settings &amp; roles</button>
+    </div>
+
+    <!-- ===== CONTENT AREA ===== -->
+    <div data-content style="flex:1;min-width:0;overflow-y:auto;background:#0B0B0D;">
+
+      <!-- ============ DASHBOARD ============ -->
+      <section data-panel="dashboard" style="padding:30px 36px;">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;">
+          <div><h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Operations overview</h1><p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 0;">Platform health, growth, and revenue. Every card drills through to its report.</p></div>
+          <div style="display:flex;gap:10px;"><span style="font-family:Inter;font-size:13px;color:#9A9AA0;border:1px solid #26262d;border-radius:9px;padding:9px 14px;">Last 28 days</span><span style="font-family:Inter;font-size:13px;color:#9A9AA0;border:1px solid #26262d;border-radius:9px;padding:9px 14px;">All markets</span></div>
+        </div>
+        <!-- KPI grid -->
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:14px;">
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:16px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">TOTAL USERS</div><div style="font-family:Outfit;font-weight:600;font-size:23px;color:#fff;margin-top:5px;">2.41M</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:16px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">DAU</div><div style="font-family:Outfit;font-weight:600;font-size:23px;color:#fff;margin-top:5px;">318k</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:16px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">WATCH STARTS</div><div style="font-family:Outfit;font-weight:600;font-size:23px;color:#fff;margin-top:5px;">9.1M</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:16px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">BRANCH DECISIONS</div><div style="font-family:Outfit;font-weight:600;font-size:23px;color:#fff;margin-top:5px;">4.4M</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:16px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">REVENUE</div><div style="font-family:Outfit;font-weight:600;font-size:23px;color:#fff;margin-top:5px;">$1.84M</div></div>
+          <div style="border:1px solid rgba(31,138,91,0.35);border-radius:13px;background:linear-gradient(160deg,#0e1a14,#15151b);padding:16px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;">QOE OK</div><div style="font-family:Outfit;font-weight:600;font-size:23px;color:#fff;margin-top:5px;">99.4%</div></div>
+        </div>
+        <!-- chart + alerts -->
+        <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:14px;">
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;"><span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Revenue by source</span><div style="display:flex;gap:12px;font-family:Inter;font-size:11px;color:#9A9AA0;"><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#FF2E6E;margin-right:4px;"></span>Coins</span><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#E8B54B;margin-right:4px;"></span>Subs</span><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#5aa6ff;margin-right:4px;"></span>Ads</span><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#1F8A5B;margin-right:4px;"></span>Brand</span></div></div>
+            <div style="display:flex;align-items:flex-end;gap:12px;height:170px;">
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:100%;"><div style="height:40%;background:#FF2E6E;border-radius:4px 4px 0 0;"></div><div style="height:14%;background:#E8B54B;"></div><div style="height:18%;background:#5aa6ff;"></div><div style="height:6%;background:#1F8A5B;border-radius:0 0 4px 4px;"></div><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#6B6B72;text-align:center;margin-top:6px;">Mar</span></div>
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:100%;"><div style="height:46%;background:#FF2E6E;border-radius:4px 4px 0 0;"></div><div style="height:16%;background:#E8B54B;"></div><div style="height:20%;background:#5aa6ff;"></div><div style="height:8%;background:#1F8A5B;border-radius:0 0 4px 4px;"></div><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#6B6B72;text-align:center;margin-top:6px;">Apr</span></div>
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:100%;"><div style="height:52%;background:#FF2E6E;border-radius:4px 4px 0 0;"></div><div style="height:18%;background:#E8B54B;"></div><div style="height:22%;background:#5aa6ff;"></div><div style="height:11%;background:#1F8A5B;border-radius:0 0 4px 4px;"></div><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#6B6B72;text-align:center;margin-top:6px;">May</span></div>
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:100%;"><div style="height:62%;background:#FF2E6E;border-radius:4px 4px 0 0;"></div><div style="height:22%;background:#E8B54B;"></div><div style="height:26%;background:#5aa6ff;"></div><div style="height:15%;background:#1F8A5B;border-radius:0 0 4px 4px;"></div><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#6B6B72;text-align:center;margin-top:6px;">Jun</span></div>
+            </div>
+          </div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Red-alert feed</span>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px;">
+              <div style="border:1px solid rgba(255,95,87,0.4);background:rgba(255,95,87,0.08);border-radius:10px;padding:12px;"><div style="font-family:Inter;font-weight:600;font-size:12.5px;color:#fff;">2 content processing failures</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:2px;">Dub stage, Luna Rewired Ep7</div></div>
+              <div style="border:1px solid rgba(232,181,75,0.4);background:rgba(232,181,75,0.08);border-radius:10px;padding:12px;"><div style="font-family:Inter;font-weight:600;font-size:12.5px;color:#fff;">Generation spend at 86% of cap</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:2px;">Auto-pause at 100%</div></div>
+              <div style="border:1px solid #26262d;border-radius:10px;padding:12px;"><div style="font-family:Inter;font-weight:600;font-size:12.5px;color:#fff;">14 items in moderation queue</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:2px;">3 flagged comments, 1 upload</div></div>
+            </div>
+          </div>
+        </div>
+        <!-- mini stats -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:14px;">
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">RETENTION D30</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">31.2%</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">EP COMPLETION</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">78.4%</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">CREATOR PAYOUTS</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">$1.28M</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">ACCESSIBILITY USE</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">41.6%</div></div>
+        </div>
+      </section>
+
+      <!-- ============ CONTENT CMS ============ -->
+      <section data-panel="cms" style="padding:30px 36px;display:none;">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;">
+          <div><h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Content CMS</h1><p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 0;">Channels, series, episodes, beats, and variants. Draft, processing, review, live, unpublished.</p></div>
+          <div style="font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:#FF2E6E;border-radius:9px;padding:10px 17px;">+ New series</div>
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:240px;background:rgba(255,255,255,0.05);border:1px solid #26262d;border-radius:9px;height:38px;display:flex;align-items:center;gap:9px;padding:0 13px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6B6B72" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg><span style="font-family:Inter;font-size:13px;color:#6B6B72;">Search catalog</span></div>
+          <div style="font-family:Inter;font-size:13px;color:#C9C9CF;border:1px solid #26262d;border-radius:9px;padding:0 14px;height:38px;display:flex;align-items:center;gap:7px;">Status: All <span style="color:#6B6B72;">▾</span></div>
+          <div style="font-family:Inter;font-size:13px;color:#C9C9CF;border:1px solid #26262d;border-radius:9px;padding:0 14px;height:38px;display:flex;align-items:center;gap:7px;">Channel: All <span style="color:#6B6B72;">▾</span></div>
+          <div style="font-family:Inter;font-size:13px;color:#C9C9CF;border:1px solid #26262d;border-radius:9px;padding:0 14px;height:38px;display:flex;align-items:center;gap:7px;">Region: All <span style="color:#6B6B72;">▾</span></div>
+        </div>
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:2.4fr 1fr 1fr 1.3fr 1fr 1fr;gap:14px;padding:14px 18px;border-bottom:1px solid #20202a;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;"><span>TITLE</span><span>CHANNEL</span><span>STATUS</span><span>VARIANTS</span><span>A11Y</span><span>PROVENANCE</span></div>
+          <div style="display:grid;grid-template-columns:2.4fr 1fr 1fr 1.3fr 1fr 1fr;gap:14px;align-items:center;padding:13px 18px;border-bottom:1px solid #1a1a20;"><span style="display:flex;align-items:center;gap:11px;"><img src="assets/poster_shadow.png" style="width:30px;height:40px;border-radius:5px;object-fit:cover;"><span style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">Shadow Signal</span></span><span style="font-family:Inter;font-size:12px;color:#9A9AA0;">Drama</span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;background:rgba(31,138,91,0.15);border-radius:5px;padding:4px 8px;">LIVE</span></span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">486 variants</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">100%</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;">C2PA ✓</span></div>
+          <div style="display:grid;grid-template-columns:2.4fr 1fr 1fr 1.3fr 1fr 1fr;gap:14px;align-items:center;padding:13px 18px;border-bottom:1px solid #1a1a20;"><span style="display:flex;align-items:center;gap:11px;"><img src="assets/poster_director.png" style="width:30px;height:40px;border-radius:5px;object-fit:cover;"><span style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">The Director's Daughter</span></span><span style="font-family:Inter;font-size:12px;color:#9A9AA0;">Crime</span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#5aa6ff;background:rgba(90,166,255,0.15);border-radius:5px;padding:4px 8px;">PROCESSING</span></span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">312 / 576</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5aa6ff;">64%</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;">C2PA ✓</span></div>
+          <div style="display:grid;grid-template-columns:2.4fr 1fr 1fr 1.3fr 1fr 1fr;gap:14px;align-items:center;padding:13px 18px;border-bottom:1px solid #1a1a20;"><span style="display:flex;align-items:center;gap:11px;"><img src="assets/poster_vow.png" style="width:30px;height:40px;border-radius:5px;object-fit:cover;"><span style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">A Vow in Code</span></span><span style="font-family:Inter;font-size:12px;color:#9A9AA0;">Telenovela</span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#E8B54B;background:rgba(232,181,75,0.15);border-radius:5px;padding:4px 8px;">IN REVIEW</span></span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">528 variants</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#E8B54B;">92%</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;">C2PA ✓</span></div>
+          <div style="display:grid;grid-template-columns:2.4fr 1fr 1fr 1.3fr 1fr 1fr;gap:14px;align-items:center;padding:13px 18px;"><span style="display:flex;align-items:center;gap:11px;"><img src="assets/poster_heiress.png" style="width:30px;height:40px;border-radius:5px;object-fit:cover;"><span style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">The Hidden Heiress</span></span><span style="font-family:Inter;font-size:12px;color:#9A9AA0;">Telenovela</span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;background:rgba(31,138,91,0.15);border-radius:5px;padding:4px 8px;">LIVE</span></span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">540 variants</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">100%</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;">C2PA ✓</span></div>
+        </div>
+      </section>
+
+      <!-- ============ STORY GRAPH ============ -->
+      <section data-panel="storygraph" style="padding:30px 36px;display:none;">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;">
+          <div><h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Adaptive story graph</h1><p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 0;">A Vow in Code · versioned graph. Beats, choices, POVs, endings, and per-viewer memory variables.</p></div>
+          <div style="display:flex;gap:10px;"><span style="font-family:Inter;font-size:13px;color:#C9C9CF;border:1px solid #26262d;border-radius:9px;padding:9px 14px;">Simulate viewer journey</span><span style="font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:#FF2E6E;border-radius:9px;padding:9px 16px;">Save version</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:16px;">
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:26px;position:relative;overflow:hidden;min-height:330px;">
+            <div style="position:absolute;inset:0;background-image:radial-gradient(#1d1d24 1px,transparent 1px);background-size:22px 22px;opacity:0.5;"></div>
+            <div style="position:relative;display:flex;flex-direction:column;gap:16px;">
+              <div style="display:flex;align-items:center;gap:14px;"><div style="background:#1F8A5B;border-radius:10px;padding:10px 15px;font-family:Inter;font-weight:600;font-size:12.5px;color:#fff;">Ep1 · Cold open</div><div style="flex:1;height:2px;background:#FF2E6E;"></div><div style="background:#16161c;border:1px solid #26262d;border-radius:10px;padding:10px 15px;font-family:Inter;font-weight:600;font-size:12.5px;color:#fff;">Beat · The lie</div><div style="background:rgba(255,46,110,0.12);border:1px solid #FF2E6E;border-radius:8px;padding:5px 9px;font-family:'JetBrains Mono',monospace;font-size:9px;color:#FF8FB4;">timer 5s</div></div>
+              <div style="margin-left:50px;display:flex;gap:24px;">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:7px;"><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#FF8FB4;">trusts_luca = true</span><div style="background:#16161c;border:1px solid #26262d;border-radius:10px;padding:10px 15px;font-family:Inter;font-weight:600;font-size:12.5px;color:#fff;">POV · Maya</div></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:7px;"><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#FF8FB4;">trusts_luca = false</span><div style="background:#16161c;border:1px solid #26262d;border-radius:10px;padding:10px 15px;font-family:Inter;font-weight:600;font-size:12.5px;color:#fff;">POV · Luca</div></div>
+              </div>
+              <div style="margin-left:50px;display:flex;gap:14px;"><div style="background:rgba(255,46,110,0.12);border:1px solid #FF2E6E;border-radius:10px;padding:10px 15px;font-family:Inter;font-weight:600;font-size:12.5px;color:#fff;">Ending A · Redemption</div><div style="background:rgba(232,181,75,0.12);border:1px solid rgba(232,181,75,0.5);border-radius:10px;padding:10px 15px;font-family:Inter;font-weight:600;font-size:12.5px;color:#fff;">Ending B · Ruin <span style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#E8B54B;">PREMIUM 80</span></div></div>
+            </div>
+            <div style="position:relative;margin-top:20px;display:flex;align-items:center;gap:9px;font-family:Inter;font-size:12px;color:#1F8A5B;"><span style="width:8px;height:8px;border-radius:50%;background:#1F8A5B;"></span>Continuity valid · canon rules pass · no broken routes</div>
+          </div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">Viewer memory variables</span>
+            <div style="display:flex;flex-direction:column;gap:9px;margin-top:14px;">
+              <div style="display:flex;justify-content:space-between;border:1px solid #26262d;border-radius:9px;padding:10px 13px;"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#C9C9CF;">trusts_luca</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#9A9AA0;">bool</span></div>
+              <div style="display:flex;justify-content:space-between;border:1px solid #26262d;border-radius:9px;padding:10px 13px;"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#C9C9CF;">chose_maya_pov</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#9A9AA0;">bool</span></div>
+              <div style="display:flex;justify-content:space-between;border:1px solid #26262d;border-radius:9px;padding:10px 13px;"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#C9C9CF;">slow_burn_preference</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#9A9AA0;">0-1</span></div>
+              <div style="display:flex;justify-content:space-between;border:1px solid #26262d;border-radius:9px;padding:10px 13px;"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#C9C9CF;">betrayal_tolerance</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#9A9AA0;">0-1</span></div>
+              <div style="display:flex;justify-content:space-between;border:1px solid #26262d;border-radius:9px;padding:10px 13px;"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#C9C9CF;">premium_variant_unlocked</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#9A9AA0;">bool</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ MEDIA FACTORY ============ -->
+      <section data-panel="media" style="padding:30px 36px;display:none;">
+        <h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Media factory</h1>
+        <p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 24px;">Upload once, everything automatic. The auto-produce DAG with per-stage cost, the cost gate, and retries.</p>
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;"><span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Job · The Director's Daughter Ep3</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5aa6ff;">RUNNING · 64% · $182 of $290</span></div>
+          <div style="display:flex;align-items:center;gap:0;flex-wrap:wrap;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;"><div style="width:30px;height:30px;border-radius:50%;background:#1F8A5B;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;">✓</div><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#9A9AA0;">Encode</span></div>
+            <div style="width:30px;height:2px;background:#1F8A5B;"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;"><div style="width:30px;height:30px;border-radius:50%;background:#1F8A5B;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;">✓</div><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#9A9AA0;">Transcript</span></div>
+            <div style="width:30px;height:2px;background:#1F8A5B;"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;"><div style="width:30px;height:30px;border-radius:50%;background:#1F8A5B;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;">✓</div><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#9A9AA0;">Captions ×12</span></div>
+            <div style="width:30px;height:2px;background:#5aa6ff;"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;"><div style="width:30px;height:30px;border-radius:50%;background:#5aa6ff;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;">···</div><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#5aa6ff;">AD ×12</span></div>
+            <div style="width:30px;height:2px;background:#26262d;"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;"><div style="width:30px;height:30px;border-radius:50%;background:#26262d;display:flex;align-items:center;justify-content:center;font-size:11px;color:#9A9AA0;">4</div><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#6B6B72;">Sign ×2</span></div>
+            <div style="width:30px;height:2px;background:#26262d;"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;"><div style="width:30px;height:30px;border-radius:50%;background:#26262d;display:flex;align-items:center;justify-content:center;font-size:11px;color:#9A9AA0;">5</div><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#6B6B72;">Dub ×12</span></div>
+            <div style="width:30px;height:2px;background:#26262d;"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;"><div style="width:30px;height:30px;border-radius:50%;background:#26262d;display:flex;align-items:center;justify-content:center;font-size:11px;color:#9A9AA0;">6</div><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#6B6B72;">C2PA sign</span></div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:20px;"><span style="font-family:Inter;font-size:12px;color:#C9C9CF;border:1px solid #26262d;border-radius:8px;padding:8px 14px;">Pause</span><span style="font-family:Inter;font-size:12px;color:#C9C9CF;border:1px solid #26262d;border-radius:8px;padding:8px 14px;">Retry failed stage</span><span style="font-family:Inter;font-size:12px;color:#ff5f57;border:1px solid rgba(255,95,87,0.4);border-radius:8px;padding:8px 14px;">Kill job</span></div>
+        </div>
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:14px;padding:14px 18px;border-bottom:1px solid #20202a;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;"><span>JOB</span><span>STAGE</span><span>COST</span><span>STATE</span><span></span></div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:14px;align-items:center;padding:13px 18px;border-bottom:1px solid #1a1a20;font-family:Inter;font-size:13px;color:#C9C9CF;"><span style="color:#fff;">A Vow in Code Ep3</span><span>Dub ×12</span><span>$210</span><span style="color:#5aa6ff;">running</span><span style="color:#6B6B72;text-align:right;">⋯</span></div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:14px;align-items:center;padding:13px 18px;border-bottom:1px solid #1a1a20;font-family:Inter;font-size:13px;color:#C9C9CF;"><span style="color:#fff;">Luna Rewired Ep7</span><span>Dub ×8</span><span>$140</span><span style="color:#ff5f57;">failed</span><span style="color:#6B6B72;text-align:right;">⋯</span></div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:14px;align-items:center;padding:13px 18px;font-family:Inter;font-size:13px;color:#C9C9CF;"><span style="color:#fff;">Shadow Signal Ep11</span><span>Poster</span><span>$6</span><span style="color:#E8B54B;">queued</span><span style="color:#6B6B72;text-align:right;">⋯</span></div>
+        </div>
+      </section>
+
+      <!-- ============ ACCESSIBILITY FACTORY ============ -->
+      <section data-panel="accessibility" style="padding:30px 36px;display:none;">
+        <h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Accessibility factory</h1>
+        <p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 24px;">Its own surface, never hidden inside media. Every episode shows readiness before publish.</p>
+        <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px;">
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;"><span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Readiness · A Vow in Code Ep3</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#E8B54B;">92% · publish blocked</span></div>
+            <div style="display:flex;flex-direction:column;gap:0;">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">Captions + CWI captions</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">12/12 ✓</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">Audio description</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">12/12 ✓</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">Dubbing</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">12/12 ✓</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">Sign language · Deaf review</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#E8B54B;">1/2 pending</span></div>
+            </div>
+          </div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Review queue</span>
+            <div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin:7px 0 14px;">Hero drafts for human and Deaf review.</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div style="border:1px solid #26262d;border-radius:11px;padding:13px;"><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">Sign draft · ASL</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin:3px 0 9px;">Ep3 · awaiting Deaf reviewer</div><div style="display:flex;gap:7px;"><span style="font-family:Inter;font-size:11px;color:#fff;background:#FF2E6E;border-radius:7px;padding:6px 11px;">Accept</span><span style="font-family:Inter;font-size:11px;color:#C9C9CF;border:1px solid #26262d;border-radius:7px;padding:6px 11px;">Edit</span><span style="font-family:Inter;font-size:11px;color:#C9C9CF;border:1px solid #26262d;border-radius:7px;padding:6px 11px;">Upload human clip</span></div></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:13px;"><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;">AD draft · PT</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin:3px 0 9px;">Ep4 · creative pass</div><div style="display:flex;gap:7px;"><span style="font-family:Inter;font-size:11px;color:#fff;background:#FF2E6E;border-radius:7px;padding:6px 11px;">Accept</span><span style="font-family:Inter;font-size:11px;color:#C9C9CF;border:1px solid #26262d;border-radius:7px;padding:6px 11px;">Edit</span></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ BRAND INTEGRATION ============ -->
+      <section data-panel="brands" style="padding:30px 36px;display:none;">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;">
+          <div><h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Brand integration</h1><p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 0;">Campaigns, fillable slots, targeting, brand and canon safety, and per-slot audit. Content and ad planes stay firewalled.</p></div>
+          <div style="font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:#FF2E6E;border-radius:9px;padding:10px 17px;">+ New campaign</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;">
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">ACTIVE CAMPAIGNS</div><div style="font-family:Outfit;font-weight:600;font-size:23px;color:#fff;margin-top:5px;">24</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">FILLED SLOTS</div><div style="font-family:Outfit;font-weight:600;font-size:23px;color:#fff;margin-top:5px;">1,840</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">PLACEMENT REVENUE</div><div style="font-family:Outfit;font-weight:600;font-size:23px;color:#fff;margin-top:5px;">$214k</div></div>
+          <div style="border:1px solid rgba(31,138,91,0.35);border-radius:13px;background:linear-gradient(160deg,#0e1a14,#15151b);padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;">BRAND-SAFE PASS</div><div style="font-family:Outfit;font-weight:600;font-size:23px;color:#fff;margin-top:5px;">100%</div></div>
+        </div>
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1.6fr 1.4fr 1fr 1fr 1fr 1fr;gap:14px;padding:14px 18px;border-bottom:1px solid #20202a;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;"><span>CAMPAIGN</span><span>PRODUCT</span><span>MARKET</span><span>MODEL</span><span>LIFT (OPE)</span><span>STATUS</span></div>
+          <div style="display:grid;grid-template-columns:1.6fr 1.4fr 1fr 1fr 1fr 1fr;gap:14px;align-items:center;padding:13px 18px;border-bottom:1px solid #1a1a20;font-family:Inter;font-size:13px;color:#C9C9CF;"><span style="color:#fff;">Topo Chico Q3</span><span>Sparkling water</span><span>MX</span><span>CPM</span><span style="color:#1F8A5B;">+14 to +21%</span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;background:rgba(31,138,91,0.15);border-radius:5px;padding:4px 8px;">LIVE</span></span></div>
+          <div style="display:grid;grid-template-columns:1.6fr 1.4fr 1fr 1fr 1fr 1fr;gap:14px;align-items:center;padding:13px 18px;border-bottom:1px solid #1a1a20;font-family:Inter;font-size:13px;color:#C9C9CF;"><span style="color:#fff;">Coca-Cola summer</span><span>Classic</span><span>US</span><span>Flat</span><span style="color:#1F8A5B;">+9 to +16%</span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;background:rgba(31,138,91,0.15);border-radius:5px;padding:4px 8px;">LIVE</span></span></div>
+          <div style="display:grid;grid-template-columns:1.6fr 1.4fr 1fr 1fr 1fr 1fr;gap:14px;align-items:center;padding:13px 18px;font-family:Inter;font-size:13px;color:#C9C9CF;"><span style="color:#fff;">Masafi ramadan</span><span>Pure water</span><span>AE</span><span>CPA</span><span style="color:#E8B54B;">pending</span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#E8B54B;background:rgba(232,181,75,0.15);border-radius:5px;padding:4px 8px;">REVIEW</span></span></div>
+        </div>
+      </section>
+
+      <!-- ============ USERS ============ -->
+      <section data-panel="users" style="padding:30px 36px;display:none;">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;">
+          <div><h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Users</h1><p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 0;">Profiles, entitlements, wallet, consent, devices. Sensitive data minimized and every action logged.</p></div>
+          <div style="display:flex;gap:10px;"><span style="font-family:Inter;font-size:13px;color:#C9C9CF;border:1px solid #26262d;border-radius:9px;padding:10px 15px;">Export CSV</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;border:1px solid #26262d;border-radius:9px;padding:10px 15px;">GDPR queue</span></div>
+        </div>
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:14px;padding:14px 18px;border-bottom:1px solid #20202a;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;"><span>USER</span><span>PLAN</span><span>WALLET</span><span>CONSENT</span><span>DEVICES</span><span>ACTIONS</span></div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:14px;align-items:center;padding:13px 18px;border-bottom:1px solid #1a1a20;"><span style="display:flex;align-items:center;gap:10px;"><span style="width:30px;height:30px;border-radius:50%;background:linear-gradient(150deg,#FF2E6E,#cf1d57);display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:12px;color:#fff;">M</span><span><span style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;display:block;">@maya.r</span><span style="font-family:Inter;font-size:11px;color:#6B6B72;">MX · joined 2026</span></span></span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#FF8FB4;background:rgba(255,46,110,0.14);border-radius:5px;padding:4px 8px;">PREMIUM</span></span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">240</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">granted</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">3</span><span style="font-family:Inter;font-size:12px;color:#9A9AA0;">Grant · Suspend</span></div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:14px;align-items:center;padding:13px 18px;border-bottom:1px solid #1a1a20;"><span style="display:flex;align-items:center;gap:10px;"><span style="width:30px;height:30px;border-radius:50%;background:#2a2a32;display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:12px;color:#fff;">J</span><span><span style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;display:block;">@jules</span><span style="font-family:Inter;font-size:11px;color:#6B6B72;">US · joined 2026</span></span></span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;background:rgba(255,255,255,0.06);border-radius:5px;padding:4px 8px;">FREE</span></span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">60</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">granted</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">1</span><span style="font-family:Inter;font-size:12px;color:#9A9AA0;">Grant · Suspend</span></div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:14px;align-items:center;padding:13px 18px;"><span style="display:flex;align-items:center;gap:10px;"><span style="width:30px;height:30px;border-radius:50%;background:#2a2a32;display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:12px;color:#fff;">S</span><span><span style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;display:block;">@sofia.r</span><span style="font-family:Inter;font-size:11px;color:#6B6B72;">BR · joined 2026</span></span></span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#FF8FB4;background:rgba(255,46,110,0.14);border-radius:5px;padding:4px 8px;">PREMIUM</span></span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">1.2k</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">granted</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">2</span><span style="font-family:Inter;font-size:12px;color:#9A9AA0;">Grant · Suspend</span></div>
+        </div>
+      </section>
+
+      <!-- ============ CREATORS ============ -->
+      <section data-panel="creators" style="padding:30px 36px;display:none;">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;">
+          <div><h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Creators</h1><p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 0;">Operational CRM plus finance. Tier, KYC, rights, payouts, and revenue share.</p></div>
+          <div style="font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:#FF2E6E;border-radius:9px;padding:10px 17px;">Onboard creator</div>
+        </div>
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:14px;padding:14px 18px;border-bottom:1px solid #20202a;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;"><span>CREATOR</span><span>TIER</span><span>SERIES</span><span>KYC</span><span>SHARE</span><span>EARNINGS</span></div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:14px;align-items:center;padding:13px 18px;border-bottom:1px solid #1a1a20;"><span style="display:flex;align-items:center;gap:10px;"><span style="width:30px;height:30px;border-radius:9px;background:linear-gradient(150deg,#FF2E6E,#cf1d57);display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:12px;color:#fff;">N</span><span style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">Nora Studios</span></span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#E8B54B;background:rgba(232,181,75,0.15);border-radius:5px;padding:4px 8px;">PRODUCTION</span></span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">6</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">verified</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">70/30</span><span style="font-family:Inter;font-size:13px;color:#fff;">$612k</span></div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:14px;align-items:center;padding:13px 18px;border-bottom:1px solid #1a1a20;"><span style="display:flex;align-items:center;gap:10px;"><span style="width:30px;height:30px;border-radius:9px;background:#2a2a32;display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:12px;color:#fff;">A</span><span style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">Aria Media</span></span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#5aa6ff;background:rgba(90,166,255,0.15);border-radius:5px;padding:4px 8px;">AGENCY</span></span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">11</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">verified</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">70/30</span><span style="font-family:Inter;font-size:13px;color:#fff;">$1.1M</span></div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:14px;align-items:center;padding:13px 18px;"><span style="display:flex;align-items:center;gap:10px;"><span style="width:30px;height:30px;border-radius:9px;background:#2a2a32;display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:12px;color:#fff;">L</span><span style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">Leo Vega</span></span><span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;background:rgba(255,255,255,0.06);border-radius:5px;padding:4px 8px;">SOLO</span></span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">2</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#E8B54B;">pending</span><span style="font-family:Inter;font-size:13px;color:#C9C9CF;">70/30</span><span style="font-family:Inter;font-size:13px;color:#fff;">$24k</span></div>
+        </div>
+      </section>
+
+      <!-- ============ MONETIZATION ============ -->
+      <section data-panel="monetization" style="padding:30px 36px;display:none;">
+        <h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Monetization</h1>
+        <p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 24px;">The pricing rules engine. Configurable by country, platform, content type, and experiment cohort.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Credit packs &amp; plans</span>
+            <div style="display:flex;flex-direction:column;gap:0;margin-top:14px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">500 credits</span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;">$4.99</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">1500 credits</span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;">$11.99</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">Premium · ad-free</span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;">$9.99/mo</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">Free trial</span><span style="font-family:Inter;font-size:13px;color:#9A9AA0;">7 days</span></div>
+            </div>
+          </div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Regional pricing &amp; tax</span>
+            <div style="display:flex;flex-direction:column;gap:0;margin-top:14px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">MX · purchasing-power adj</span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#1F8A5B;">-35%</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">BR · purchasing-power adj</span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#1F8A5B;">-30%</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">EU · VAT</span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#9A9AA0;">+21%</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">Promo · FIRSTWEEK</span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">active</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;margin-top:16px;">
+          <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Premium variant pricing</span>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:16px;">
+            <div style="border:1px solid #26262d;border-radius:11px;padding:15px;"><div style="font-family:Inter;font-size:12px;color:#9A9AA0;">Episode unlock</div><div style="font-family:Outfit;font-weight:600;font-size:20px;color:#E8B54B;margin-top:5px;">30</div></div>
+            <div style="border:1px solid #26262d;border-radius:11px;padding:15px;"><div style="font-family:Inter;font-size:12px;color:#9A9AA0;">Alternate ending</div><div style="font-family:Outfit;font-weight:600;font-size:20px;color:#E8B54B;margin-top:5px;">80</div></div>
+            <div style="border:1px solid #26262d;border-radius:11px;padding:15px;"><div style="font-family:Inter;font-size:12px;color:#9A9AA0;">POV unlock</div><div style="font-family:Outfit;font-weight:600;font-size:20px;color:#E8B54B;margin-top:5px;">60</div></div>
+            <div style="border:1px solid #26262d;border-radius:11px;padding:15px;"><div style="font-family:Inter;font-size:12px;color:#9A9AA0;">Intensity +</div><div style="font-family:Outfit;font-weight:600;font-size:20px;color:#E8B54B;margin-top:5px;">40</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ ANALYTICS ============ -->
+      <section data-panel="analytics" style="padding:30px 36px;display:none;">
+        <h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Analytics</h1>
+        <p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 24px;">Content, engine, audience, and revenue. Off-policy readouts as bands. Every viewer action emits an event.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px;">
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">RETENTION D1 / D7 / D30</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">52 · 39 · 31%</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">PAYWALL CONVERSION</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">4.2%</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">PROPENSITY COVERAGE</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#1F8A5B;margin-top:5px;">0.92 OK</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:16px;">
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Watch funnel</span>
+            <div style="display:flex;flex-direction:column;gap:9px;margin-top:16px;">
+              <div style="background:#FF2E6E;border-radius:7px;padding:10px 13px;font-family:Inter;font-size:12px;color:#fff;">Impression · 100%</div>
+              <div style="background:rgba(255,46,110,0.7);border-radius:7px;padding:10px 13px;width:74%;font-family:Inter;font-size:12px;color:#fff;">Play · 74%</div>
+              <div style="background:rgba(255,46,110,0.5);border-radius:7px;padding:10px 13px;width:58%;font-family:Inter;font-size:12px;color:#fff;">3s view · 58%</div>
+              <div style="background:rgba(255,46,110,0.32);border-radius:7px;padding:10px 13px;width:44%;font-family:Inter;font-size:12px;color:#fff;">Ep complete · 44%</div>
+              <div style="background:rgba(255,46,110,0.2);border-radius:7px;padding:10px 13px;width:11%;font-family:Inter;font-size:11px;color:#fff;white-space:nowrap;">Unlock · 4.2%</div>
+            </div>
+          </div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Treatment vs control lift</span>
+            <div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin:7px 0 16px;">Adaptive policy vs fixed cut. Shown as a band.</div>
+            <div style="position:relative;height:10px;background:#20202a;border-radius:5px;margin-bottom:8px;"><div style="position:absolute;left:52%;width:26%;height:100%;background:rgba(31,138,91,0.4);border-radius:5px;"></div><div style="position:absolute;left:63%;width:2px;height:100%;background:#1F8A5B;"></div></div>
+            <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:11px;color:#9A9AA0;"><span>0%</span><span style="color:#1F8A5B;">+11 to +19% watch-time</span><span>+30%</span></div>
+            <div style="font-family:Inter;font-size:11px;color:#6B6B72;margin-top:14px;">Exploration rate 8% · feedback loop nominal · promote needs OPE + live test + human gate</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ GROWTH & UA ============ -->
+      <section data-panel="growth" style="padding:30px 36px;display:none;">
+        <h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Growth &amp; UA</h1>
+        <p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 24px;">CAC, payback, LTV by channel and creative. The creative-test bandit and the referral loop.</p>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;">
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">BLENDED CAC</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">$19.40</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">PAYBACK</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">38 days</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">LTV : CAC</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#1F8A5B;margin-top:5px;">3.1 : 1</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">REFERRAL K</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">0.42</div></div>
+        </div>
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+          <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Creative-test bandit · win rates</span>
+          <div style="display:flex;flex-direction:column;gap:13px;margin-top:16px;">
+            <div><div style="display:flex;justify-content:space-between;font-family:Inter;font-size:13px;color:#FAFAF8;margin-bottom:6px;"><span>Shadow Signal · cliffhanger hook</span><span style="color:#1F8A5B;">winning · 41%</span></div><div style="height:7px;background:#20202a;border-radius:4px;"><div style="width:41%;height:100%;background:#1F8A5B;border-radius:4px;"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;font-family:Inter;font-size:13px;color:#FAFAF8;margin-bottom:6px;"><span>A Vow in Code · POV teaser</span><span style="color:#9A9AA0;">33%</span></div><div style="height:7px;background:#20202a;border-radius:4px;"><div style="width:33%;height:100%;background:#FF2E6E;border-radius:4px;"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;font-family:Inter;font-size:13px;color:#FAFAF8;margin-bottom:6px;"><span>Luna Rewired · transformation</span><span style="color:#9A9AA0;">26%</span></div><div style="height:7px;background:#20202a;border-radius:4px;"><div style="width:26%;height:100%;background:#FF2E6E;border-radius:4px;"></div></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ MODERATION ============ -->
+      <section data-panel="moderation" style="padding:30px 36px;display:none;">
+        <h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Community &amp; moderation</h1>
+        <p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 24px;">Comments, character-feed posts, reports, and upload scanning. A real trust-and-safety surface.</p>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;">
+          <div style="border:1px solid rgba(255,95,87,0.4);border-radius:13px;background:rgba(255,95,87,0.06);padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#ff8079;">OPEN REPORTS</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">14</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">AUTO-FLAGGED</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">38</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">UPLOAD SCANS</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#1F8A5B;margin-top:5px;">clean</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">AVG RESOLVE</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">2.1 hrs</div></div>
+        </div>
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1fr 2.4fr 1fr 1fr 1.2fr;gap:14px;padding:14px 18px;border-bottom:1px solid #20202a;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;"><span>TYPE</span><span>CONTENT</span><span>REASON</span><span>SOURCE</span><span>ACTION</span></div>
+          <div style="display:grid;grid-template-columns:1fr 2.4fr 1fr 1fr 1.2fr;gap:14px;align-items:center;padding:13px 18px;border-bottom:1px solid #1a1a20;font-family:Inter;font-size:13px;color:#C9C9CF;"><span style="color:#fff;">Comment</span><span>"no spoilers but EP 9..."</span><span style="color:#E8B54B;">spoiler</span><span>auto</span><span style="color:#9A9AA0;">Hide · Allow</span></div>
+          <div style="display:grid;grid-template-columns:1fr 2.4fr 1fr 1fr 1.2fr;gap:14px;align-items:center;padding:13px 18px;border-bottom:1px solid #1a1a20;font-family:Inter;font-size:13px;color:#C9C9CF;"><span style="color:#fff;">Char post</span><span>nora.hale · behind the cut</span><span style="color:#9A9AA0;">report</span><span>user</span><span style="color:#9A9AA0;">Review</span></div>
+          <div style="display:grid;grid-template-columns:1fr 2.4fr 1fr 1fr 1.2fr;gap:14px;align-items:center;padding:13px 18px;font-family:Inter;font-size:13px;color:#C9C9CF;"><span style="color:#fff;">Upload</span><span>Leo Vega · Ep2 master</span><span style="color:#1F8A5B;">passed scan</span><span>auto</span><span style="color:#9A9AA0;">Approve</span></div>
+        </div>
+      </section>
+
+      <!-- ============ TRUST ============ -->
+      <section data-panel="trust" style="padding:30px 36px;display:none;">
+        <h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Rights, consent &amp; provenance</h1>
+        <p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 24px;">The consent ledger, C2PA signing, sovereign data-plane controls, and the GDPR queue. The moat, operationalized.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Consent ledger</span>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px;">
+              <div style="border:1px solid #26262d;border-radius:11px;padding:13px;display:flex;align-items:center;justify-content:space-between;"><div><div style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">L. Cruz · likeness + voice</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;">scope: worldwide · expiry 2029</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;">ACTIVE</span></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:13px;display:flex;align-items:center;justify-content:space-between;"><div><div style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">M. Vale · likeness</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;">royalty accrual on</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#1F8A5B;">ACTIVE</span></div>
+              <div style="border:1px solid #26262d;border-radius:11px;padding:13px;display:flex;align-items:center;justify-content:space-between;"><div><div style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">D. Marin · voice</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;">revocation propagates to derived</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#E8B54B;">EXPIRES 60d</span></div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+              <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">C2PA &amp; labels</span>
+              <div style="display:flex;align-items:center;gap:14px;margin-top:14px;"><div style="font-family:Outfit;font-weight:600;font-size:32px;color:#1F8A5B;">100%</div><div style="font-family:Inter;font-size:12px;color:#9A9AA0;">of published variants signed and Article 50 labeled. Public verification endpoint live.</div></div>
+            </div>
+            <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+              <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Sovereign data plane</span>
+              <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;background:rgba(31,138,91,0.14);border-radius:7px;padding:6px 11px;">EU residency ✓</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;background:rgba(31,138,91,0.14);border-radius:7px;padding:6px 11px;">Swiss residency ✓</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#9A9AA0;border:1px solid #26262d;border-radius:7px;padding:6px 11px;">GDPR queue · 2 open</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ BILLING ============ -->
+      <section data-panel="billing" style="padding:30px 36px;display:none;">
+        <h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Billing &amp; payouts</h1>
+        <p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 24px;">Revenue by source, the double-entry ledger, and creator payout runs. Stripe TEST until the live-rail decision.</p>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;">
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">GROSS REVENUE</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">$1.84M</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">CREATOR PAYOUTS</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">$1.28M</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">ARPDAU</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">$0.114</div></div>
+          <div style="border:1px solid rgba(232,181,75,0.35);border-radius:13px;background:linear-gradient(160deg,#1a160d,#15151b);padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#E8B54B;">GEN SPEND vs CAP</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">86%</div></div>
+        </div>
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;overflow:hidden;">
+          <div style="padding:16px 20px;border-bottom:1px solid #20202a;display:flex;align-items:center;justify-content:space-between;"><span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Double-entry ledger</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#9A9AA0;">immutable · reconciled to Stripe TEST</span></div>
+          <div style="display:grid;grid-template-columns:1fr 2fr 1fr 1fr;gap:14px;padding:13px 20px;border-bottom:1px solid #20202a;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#6B6B72;"><span>DATE</span><span>JOURNAL ENTRY</span><span>SOURCE</span><span>AMOUNT</span></div>
+          <div style="display:grid;grid-template-columns:1fr 2fr 1fr 1fr;gap:14px;padding:13px 20px;border-bottom:1px solid #1a1a20;font-family:Inter;font-size:13px;color:#C9C9CF;"><span>Jun 16</span><span style="color:#fff;">Coin pack purchase · 1500</span><span>Coins</span><span style="color:#1F8A5B;">+$11.99</span></div>
+          <div style="display:grid;grid-template-columns:1fr 2fr 1fr 1fr;gap:14px;padding:13px 20px;border-bottom:1px solid #1a1a20;font-family:Inter;font-size:13px;color:#C9C9CF;"><span>Jun 16</span><span style="color:#fff;">Placement fill · Topo Chico MX</span><span>Brand</span><span style="color:#1F8A5B;">+$1,240.00</span></div>
+          <div style="display:grid;grid-template-columns:1fr 2fr 1fr 1fr;gap:14px;padding:13px 20px;border-bottom:1px solid #1a1a20;font-family:Inter;font-size:13px;color:#C9C9CF;"><span>Jun 15</span><span style="color:#fff;">Creator payout run · 412 creators</span><span>Payout</span><span style="color:#ff5f57;">-$214,800</span></div>
+          <div style="display:grid;grid-template-columns:1fr 2fr 1fr 1fr;gap:14px;padding:13px 20px;font-family:Inter;font-size:13px;color:#C9C9CF;"><span>Jun 15</span><span style="color:#fff;">Generation API spend</span><span>Cost</span><span style="color:#ff5f57;">-$8,420</span></div>
+        </div>
+      </section>
+
+      <!-- ============ SYSTEM HEALTH ============ -->
+      <section data-panel="health" style="padding:30px 36px;display:none;">
+        <h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">System health</h1>
+        <p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 24px;">Quality of experience, ingest throughput, and service status.</p>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;">
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">TIME TO FIRST FRAME</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">0.7s</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">REBUFFER RATIO</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#1F8A5B;margin-top:5px;">0.21%</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">CONCURRENTS</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;margin-top:5px;">94.2k</div></div>
+          <div style="border:1px solid #20202a;border-radius:13px;background:#15151b;padding:18px;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">ERROR RATE</div><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#1F8A5B;margin-top:5px;">0.03%</div></div>
+        </div>
+        <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+          <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Services</span>
+          <div style="display:flex;flex-direction:column;gap:0;margin-top:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">Adaptive engine</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">operational</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">CDN · edge delivery</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">operational</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">Media factory · GPU pool</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#E8B54B;">degraded · 1 region</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">Ledger · payments</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">operational</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ SETTINGS ============ -->
+      <section data-panel="settings" style="padding:30px 36px;display:none;">
+        <h1 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;color:#fff;margin:0;">Settings &amp; roles</h1>
+        <p style="font-family:Inter;font-size:15px;color:#9A9AA0;margin:7px 0 24px;">RBAC, the immutable audit trail, feature flags, and environment config. Secrets live in the platform store only.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Operator roles</span>
+            <div style="display:flex;flex-direction:column;gap:0;margin-top:12px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">Owner · Admin</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#9A9AA0;">full + RBAC</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">Content · Marketing</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#9A9AA0;">scoped</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">Finance · Moderation</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#9A9AA0;">scoped</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;"><span style="font-family:Inter;font-size:13px;color:#FAFAF8;">Support · Read-only</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#9A9AA0;">minimal</span></div>
+            </div>
+          </div>
+          <div style="border:1px solid #20202a;border-radius:14px;background:#15151b;padding:22px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Audit trail</span>
+            <div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin:7px 0 14px;">Immutable. Who did what, when.</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div style="font-family:Inter;font-size:12px;color:#C9C9CF;"><span style="color:#fff;">A. Owner</span> granted 200 credits to @maya.r <span style="color:#6B6B72;">· 14:02</span></div>
+              <div style="font-family:Inter;font-size:12px;color:#C9C9CF;"><span style="color:#fff;">Finance</span> ran payout · 412 creators <span style="color:#6B6B72;">· Jun 15</span></div>
+              <div style="font-family:Inter;font-size:12px;color:#C9C9CF;"><span style="color:#fff;">Moderation</span> hid 1 comment (spoiler) <span style="color:#6B6B72;">· Jun 15</span></div>
+              <div style="font-family:Inter;font-size:12px;color:#C9C9CF;"><span style="color:#fff;">Founder</span> sign-off · reward weights <span style="color:#6B6B72;">· Jun 12</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  componentDidMount() {
+    const root = document;
+    const navs = root.querySelectorAll('[data-nav]');
+    const panels = root.querySelectorAll('[data-panel]');
+    const show = (view) => {
+      let found = false;
+      panels.forEach((p) => {
+        const match = p.getAttribute('data-panel') === view;
+        p.style.display = match ? '' : 'none';
+        if (match) found = true;
+      });
+      navs.forEach((n) => {
+        const active = n.getAttribute('data-nav') === view;
+        n.style.background = active ? 'rgba(255,46,110,0.12)' : 'none';
+        n.style.color = active ? '#FFFFFF' : '#9A9AA0';
+      });
+      const c = root.querySelector('[data-content]');
+      if (c) c.scrollTop = 0;
+      return found;
+    };
+    navs.forEach((n) => n.addEventListener('click', () => {
+      const v = n.getAttribute('data-nav');
+      if (!show(v)) { show('placeholder'); }
+    }));
+    show('dashboard');
+  }
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

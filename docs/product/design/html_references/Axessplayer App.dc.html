@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #08080A; -webkit-font-smoothing: antialiased; }
+  ::selection { background: #FF2E6E; color: #fff; }
+</style>
+</helmet>
+
+<div style="background:#08080A;min-width:100%;width:max-content;min-height:100vh;box-sizing:border-box;padding:64px 72px 96px;font-family:Inter,sans-serif;">
+
+  <!-- BOARD HEADER -->
+  <div style="display:flex;align-items:center;gap:18px;margin-bottom:10px;">
+    <svg style="width:40px;height:40px;display:block" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg>
+    <span style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.045em;color:#FFFFFF">axess<span style="color:#FF2E6E">player</span></span>
+    <span style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:0.16em;text-transform:uppercase;color:#6B6B72;padding-left:18px;border-left:1px solid #26262d;margin-left:8px;">User app · iOS</span>
+  </div>
+  <p style="font-family:Inter;font-size:17px;line-height:1.5;color:#8A8A93;margin:0 0 56px;max-width:680px;">The viewer experience for adaptive cinema: discover, watch, branch, and pay. One story that re-cuts itself for every viewer.</p>
+
+  <!-- ===================== SECTION 1 · ONBOARDING ===================== -->
+  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;margin-bottom:24px;">01 · Onboarding · the cold open</div>
+  <div style="display:flex;gap:40px;align-items:flex-start;margin-bottom:72px;">
+
+    <!-- Frame: Welcome -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Welcome</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <div style="position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 18%,#3a1422 0%,#160b11 50%,#08080A 100%);"></div>
+        <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;z-index:5;"><span>9:41</span><span style="display:flex;gap:5px;align-items:center;"><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></span></div>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 36px;text-align:center;">
+          <svg style="width:64px;height:64px;display:block;margin-bottom:34px;filter:drop-shadow(0 12px 28px rgba(255,46,110,0.5))" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg>
+          <h2 style="font-family:Outfit;font-weight:600;font-size:32px;letter-spacing:-0.035em;line-height:1.05;color:#fff;margin:0;">The story that<br>knows you.</h2>
+          <p style="font-family:Inter;font-size:15px;line-height:1.5;color:#B4B4BA;margin:16px 0 0;">Answer three quick taps and your first episode is cut just for you.</p>
+          <div style="position:absolute;left:28px;right:28px;bottom:40px;">
+            <div style="background:#FF2E6E;border-radius:999px;padding:17px;font-family:Outfit;font-weight:600;font-size:17px;color:#fff;box-shadow:0 14px 30px -10px rgba(255,46,110,0.7);">Start the cold open</div>
+            <div style="font-family:Inter;font-size:13px;color:#6B6B72;margin-top:16px;">Already have an account? <span style="color:#FAFAF8;">Log in</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Frame: Calibration question -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Calibration · tap to shape it</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <img src="assets/cut_frame.png" alt="scene" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,8,10,0.45) 0%,transparent 30%,rgba(8,8,10,0.92) 88%);"></div>
+        <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;z-index:5;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+        <div style="position:absolute;top:64px;left:24px;right:24px;display:flex;gap:7px;">
+          <div style="flex:1;height:4px;border-radius:3px;background:#FF2E6E;"></div>
+          <div style="flex:1;height:4px;border-radius:3px;background:#FF2E6E;"></div>
+          <div style="flex:1;height:4px;border-radius:3px;background:rgba(255,255,255,0.25);"></div>
+        </div>
+        <div style="position:absolute;left:0;right:0;bottom:0;padding:0 24px 38px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#FF8FB4;margin-bottom:12px;">Question 2 of 3</div>
+          <h3 style="font-family:Outfit;font-weight:600;font-size:27px;letter-spacing:-0.03em;line-height:1.1;color:#fff;margin:0 0 22px;">How should it feel?</h3>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="background:#FF2E6E;border-radius:16px;padding:17px 20px;display:flex;align-items:center;justify-content:space-between;"><span style="font-family:Outfit;font-weight:600;font-size:17px;color:#fff;">Slow burn</span><span style="color:#fff;font-size:17px;">›</span></div>
+            <div style="background:rgba(255,255,255,0.1);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.18);border-radius:16px;padding:17px 20px;display:flex;align-items:center;justify-content:space-between;"><span style="font-family:Outfit;font-weight:600;font-size:17px;color:#fff;">All tension, now</span><span style="color:#C9C9CF;font-size:17px;">›</span></div>
+          </div>
+          <div style="font-family:Inter;font-size:12.5px;color:#9A9AA0;margin-top:18px;text-align:center;">Tuning your cut. No menus, ever.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Frame: Ready -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Your cut is ready</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <img src="assets/poster_vow.png" alt="A Vow in Code" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,8,10,0.5),transparent 36%,rgba(8,8,10,0.94));"></div>
+        <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;z-index:5;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;padding:0 26px 40px;text-align:center;">
+          <div style="display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,46,110,0.5);background:rgba(255,46,110,0.16);border-radius:999px;padding:7px 14px;margin-bottom:18px;"><span style="width:6px;height:6px;border-radius:50%;background:#FF2E6E;"></span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#FF8FB4;">Cut for you</span></div>
+          <h3 style="font-family:Outfit;font-weight:600;font-size:28px;letter-spacing:-0.03em;line-height:1.05;color:#fff;margin:0 0 8px;">A Vow in Code</h3>
+          <p style="font-family:Inter;font-size:14px;line-height:1.5;color:#C9C9CF;margin:0 0 22px;">Slow burn · your POV · English. We tuned the pacing to you.</p>
+          <div style="background:#fff;border-radius:999px;padding:16px;display:flex;align-items:center;justify-content:center;gap:9px;"><span style="font-size:15px;color:#0B0B0D;">▶</span><span style="font-family:Outfit;font-weight:600;font-size:17px;color:#0B0B0D;">Play episode 1</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== SECTION 2 · DISCOVER ===================== -->
+  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;margin-bottom:24px;">02 · Discover</div>
+  <div style="display:flex;gap:40px;align-items:flex-start;margin-bottom:72px;">
+
+    <!-- Frame: Home feed -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Home</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <div style="position:absolute;inset:0;background:#0B0B0D;overflow:hidden;">
+          <!-- status -->
+          <div style="height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+          <!-- top bar -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 22px 14px;">
+            <span style="font-family:Outfit;font-weight:600;font-size:21px;letter-spacing:-0.045em;color:#fff;">axess<span style="color:#FF2E6E">player</span></span>
+            <div style="display:flex;align-items:center;gap:6px;background:rgba(232,181,75,0.16);border:1px solid rgba(232,181,75,0.4);border-radius:999px;padding:5px 11px;"><span style="width:12px;height:12px;border-radius:50%;background:#E8B54B;display:inline-block;"></span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">240</span></div>
+          </div>
+          <!-- continue watching hero -->
+          <div style="padding:0 22px;">
+            <div style="position:relative;border-radius:18px;overflow:hidden;height:188px;">
+              <img src="assets/poster_shadow.png" alt="Shadow Signal" style="width:100%;height:100%;object-fit:cover;object-position:center 22%;">
+              <div style="position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(8,8,10,0.92));"></div>
+              <div style="position:absolute;left:16px;right:16px;bottom:14px;">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#FF8FB4;margin-bottom:5px;">Continue · Ep 4</div>
+                <div style="font-family:Outfit;font-weight:600;font-size:19px;letter-spacing:-0.02em;color:#fff;">Shadow Signal</div>
+                <div style="height:3px;border-radius:3px;background:rgba(255,255,255,0.25);margin-top:9px;overflow:hidden;"><div style="width:46%;height:100%;background:#FF2E6E;"></div></div>
+              </div>
+            </div>
+          </div>
+          <!-- trending row -->
+          <div style="padding:20px 0 0 22px;">
+            <div style="font-family:Outfit;font-weight:600;font-size:16px;letter-spacing:-0.01em;color:#fff;margin-bottom:12px;">Trending now</div>
+            <div style="display:flex;gap:11px;overflow:hidden;">
+              <div style="flex:none;width:104px;"><div style="height:150px;border-radius:12px;overflow:hidden;"><img src="assets/poster_luna.png" alt="Luna Rewired" style="width:100%;height:100%;object-fit:cover;"></div><div style="font-family:Inter;font-weight:500;font-size:12px;color:#C9C9CF;margin-top:7px;">Luna Rewired</div></div>
+              <div style="flex:none;width:104px;"><div style="height:150px;border-radius:12px;overflow:hidden;"><img src="assets/poster_heiress.png" alt="The Hidden Heiress" style="width:100%;height:100%;object-fit:cover;"></div><div style="font-family:Inter;font-weight:500;font-size:12px;color:#C9C9CF;margin-top:7px;">The Hidden Heiress</div></div>
+              <div style="flex:none;width:104px;"><div style="height:150px;border-radius:12px;overflow:hidden;"><img src="assets/poster_alpha.png" alt="The Alpha's Legacy" style="width:100%;height:100%;object-fit:cover;"></div><div style="font-family:Inter;font-weight:500;font-size:12px;color:#C9C9CF;margin-top:7px;">Alpha's Legacy</div></div>
+            </div>
+          </div>
+          <!-- bottom tab bar -->
+          <div style="position:absolute;left:0;right:0;bottom:0;height:74px;background:rgba(11,11,13,0.92);backdrop-filter:blur(12px);border-top:1px solid #1f1f25;display:flex;align-items:center;justify-content:space-around;padding-bottom:14px;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF2E6E" stroke-width="1.9"><path d="M3 11l9-7 9 7v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"></path></svg><span style="font-family:Inter;font-size:9px;color:#FF2E6E;">Home</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6B6B72" stroke-width="1.9"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg><span style="font-family:Inter;font-size:9px;color:#6B6B72;">Search</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div style="width:34px;height:34px;border-radius:11px;background:#FF2E6E;display:flex;align-items:center;justify-content:center;"><span style="color:#fff;font-size:14px;">▶</span></div></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6B6B72" stroke-width="1.9"><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 10h18"></path></svg><span style="font-family:Inter;font-size:9px;color:#6B6B72;">Wallet</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6B6B72" stroke-width="1.9"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg><span style="font-family:Inter;font-size:9px;color:#6B6B72;">You</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Frame: Series detail -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Series detail</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <div style="position:absolute;inset:0;background:#0B0B0D;">
+          <div style="position:relative;height:340px;">
+            <img src="assets/poster_director.png" alt="The Director's Daughter" style="width:100%;height:100%;object-fit:cover;object-position:center 20%;">
+            <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,8,10,0.3) 0%,transparent 36%,#0B0B0D 99%);"></div>
+            <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>‹</span><span>9:41</span></div>
+            <div style="position:absolute;left:24px;right:24px;bottom:18px;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#FF8FB4;margin-bottom:6px;">axessplayer original</div>
+              <h3 style="font-family:Outfit;font-weight:600;font-size:28px;letter-spacing:-0.03em;line-height:1;color:#fff;margin:0;">The Director's Daughter</h3>
+              <div style="display:flex;gap:8px;margin-top:10px;font-family:Inter;font-size:12px;color:#9A9AA0;"><span>Thriller</span><span>·</span><span>12 eps</span><span>·</span><span>4 endings</span></div>
+            </div>
+          </div>
+          <div style="padding:6px 24px 0;">
+            <div style="display:flex;gap:10px;">
+              <div style="flex:1;background:#fff;border-radius:999px;padding:13px;display:flex;align-items:center;justify-content:center;gap:7px;"><span style="font-size:13px;color:#0B0B0D;">▶</span><span style="font-family:Outfit;font-weight:600;font-size:15px;color:#0B0B0D;">Play</span></div>
+              <div style="width:48px;height:48px;border-radius:999px;border:1px solid #2A2A2E;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;">+</div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:16px;flex-wrap:wrap;">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.06em;color:#C9C9CF;border:1px solid #2A2A2E;border-radius:6px;padding:5px 9px;">CC</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.06em;color:#C9C9CF;border:1px solid #2A2A2E;border-radius:6px;padding:5px 9px;">AD</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.06em;color:#C9C9CF;border:1px solid #2A2A2E;border-radius:6px;padding:5px 9px;">SIGN</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.06em;color:#C9C9CF;border:1px solid #2A2A2E;border-radius:6px;padding:5px 9px;">12 LANG</span>
+            </div>
+            <div style="font-family:Inter;font-size:13px;line-height:1.5;color:#9A9AA0;margin-top:16px;">A producer's daughter uncovers a conspiracy on set. Your choices decide who she trusts.</div>
+            <div style="font-family:Outfit;font-weight:600;font-size:15px;color:#fff;margin-top:18px;margin-bottom:10px;">Episodes</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;gap:12px;align-items:center;"><div style="width:62px;height:40px;border-radius:8px;overflow:hidden;flex:none;"><img src="assets/cut_frame.png" style="width:100%;height:100%;object-fit:cover;"></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">1 · The wrap party</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;">2 min</div></div><span style="color:#FF2E6E;font-size:16px;">▶</span></div>
+              <div style="display:flex;gap:12px;align-items:center;"><div style="width:62px;height:40px;border-radius:8px;overflow:hidden;flex:none;"><img src="assets/scene_es.png" style="width:100%;height:100%;object-fit:cover;"></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;">2 · The first lie</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;">2 min · 30 credits</div></div><span style="color:#6B6B72;font-size:13px;">🔒</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== SECTION 3 · WATCH ===================== -->
+  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;margin-bottom:24px;">03 · Watch · the adaptive player</div>
+  <div style="display:flex;gap:40px;align-items:flex-start;margin-bottom:72px;">
+
+    <!-- Frame: Adaptive player -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Vertical player</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <img src="assets/scene_es.png" alt="now playing" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,8,10,0.4) 0%,transparent 22%,transparent 60%,rgba(8,8,10,0.9) 96%);"></div>
+        <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+        <div style="position:absolute;top:62px;left:24px;display:flex;align-items:center;gap:10px;"><span style="color:#fff;font-size:20px;">‹</span><div style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,46,110,0.92);border-radius:7px;padding:4px 9px;"><span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.06em;color:#fff;">POV · MAYA</span></div></div>
+        <!-- right action rail -->
+        <div style="position:absolute;right:16px;bottom:150px;display:flex;flex-direction:column;gap:22px;align-items:center;">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><div style="width:46px;height:46px;border-radius:50%;background:rgba(0,0,0,0.4);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="#FF2E6E" stroke="#FF2E6E"><path d="M12 21s-7-4.5-9.5-9C1 9 2.5 5.5 6 5.5c2 0 3.2 1.2 4 2.3.8-1.1 2-2.3 4-2.3 3.5 0 5 3.5 3.5 6.5C19 16.5 12 21 12 21z"></path></svg></div><span style="font-family:Inter;font-size:11px;color:#fff;">12.4k</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><div style="width:46px;height:46px;border-radius:50%;background:rgba(0,0,0,0.4);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3z"></path><path d="M9 4v13M15 7v13"></path></svg></div><span style="font-family:Inter;font-size:11px;color:#fff;">Cuts</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><div style="width:46px;height:46px;border-radius:50%;background:rgba(0,0,0,0.4);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M4 14V6a1 1 0 011-1h3l3-3v20l-3-3H5a1 1 0 01-1-1z"></path><path d="M16 8a5 5 0 010 8"></path></svg></div><span style="font-family:Inter;font-size:11px;color:#fff;">AD</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><div style="width:46px;height:46px;border-radius:50%;background:rgba(0,0,0,0.4);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7"></path><path d="M12 3v13M7 8l5-5 5 5"></path></svg></div><span style="font-family:Inter;font-size:11px;color:#fff;">Share</span></div>
+        </div>
+        <!-- caption + bottom -->
+        <div style="position:absolute;left:0;right:0;bottom:0;padding:0 22px 30px;">
+          <div style="text-align:center;margin-bottom:18px;"><span style="font-family:Inter;font-weight:500;font-size:15px;color:#fff;background:rgba(0,0,0,0.5);border-radius:8px;padding:5px 11px;line-height:1.7;box-decoration-break:clone;-webkit-box-decoration-break:clone;">Tenemos que irnos. Ahora.</span></div>
+          <div style="font-family:Outfit;font-weight:600;font-size:17px;letter-spacing:-0.02em;color:#fff;">The Director's Daughter</div>
+          <div style="font-family:Inter;font-size:12px;color:#C9C9CF;margin-top:3px;">Ep 4 · Español · audio description on</div>
+          <div style="height:3px;border-radius:3px;background:rgba(255,255,255,0.25);margin-top:12px;overflow:hidden;"><div style="width:62%;height:100%;background:#FF2E6E;"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Frame: Choice moment -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Branch · tap to decide</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <img src="assets/cut_frame.png" alt="choice" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(0.55);">
+        <div style="position:absolute;inset:0;background:radial-gradient(120% 80% at 50% 40%,transparent,rgba(8,8,10,0.75));"></div>
+        <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+        <!-- countdown ring -->
+        <div style="position:absolute;top:120px;left:50%;transform:translateX(-50%);width:62px;height:62px;border-radius:50%;border:3px solid rgba(255,255,255,0.25);border-top-color:#FF2E6E;border-right-color:#FF2E6E;display:flex;align-items:center;justify-content:center;"><span style="font-family:Outfit;font-weight:600;font-size:24px;color:#fff;">4</span></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;padding:0 24px 44px;text-align:center;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#FF8FB4;margin-bottom:14px;">Your move</div>
+          <h3 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.03em;line-height:1.05;color:#fff;margin:0 0 26px;">Does she trust him?</h3>
+          <div style="display:flex;flex-direction:column;gap:13px;">
+            <div style="background:linear-gradient(90deg,#FF2E6E,#cf1d57);border-radius:16px;padding:18px;font-family:Outfit;font-weight:600;font-size:18px;color:#fff;box-shadow:0 16px 32px -14px rgba(255,46,110,0.7);">Trust him</div>
+            <div style="background:rgba(255,255,255,0.1);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);border-radius:16px;padding:18px;font-family:Outfit;font-weight:600;font-size:18px;color:#fff;">Walk away</div>
+          </div>
+          <div style="font-family:Inter;font-size:12px;color:#9A9AA0;margin-top:18px;">Your choices shape your cut, and the ending.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Frame: Accessibility panel -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Accessibility · by default</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <img src="assets/scene_es.png" alt="player behind sheet" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(0.4);">
+        <div style="position:absolute;inset:0;background:rgba(8,8,10,0.55);"></div>
+        <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+        <!-- sign language PiP -->
+        <div style="position:absolute;top:74px;right:18px;width:96px;height:128px;border-radius:12px;overflow:hidden;border:1.5px solid rgba(255,255,255,0.3);"><img src="assets/scene_ar2.png" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:0.1em;color:#fff;text-align:center;padding:3px;">SIGN · ASL</div></div>
+        <!-- bottom sheet -->
+        <div style="position:absolute;left:0;right:0;bottom:0;background:#15151b;border-radius:24px 24px 0 0;border-top:1px solid #26262d;padding:22px 24px 34px;">
+          <div style="width:38px;height:4px;border-radius:3px;background:#3a3a42;margin:0 auto 20px;"></div>
+          <div style="font-family:Outfit;font-weight:600;font-size:19px;letter-spacing:-0.02em;color:#fff;margin-bottom:18px;">Accessibility &amp; language</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:15px;color:#FAFAF8;">Captions (intentional)</span><div style="width:42px;height:25px;border-radius:999px;background:#FF2E6E;position:relative;"><div style="position:absolute;top:2.5px;right:2.5px;width:20px;height:20px;border-radius:50%;background:#fff;"></div></div></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:15px;color:#FAFAF8;">Audio description</span><div style="width:42px;height:25px;border-radius:999px;background:#FF2E6E;position:relative;"><div style="position:absolute;top:2.5px;right:2.5px;width:20px;height:20px;border-radius:50%;background:#fff;"></div></div></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid #20202a;"><span style="font-family:Inter;font-size:15px;color:#FAFAF8;">Sign language</span><div style="width:42px;height:25px;border-radius:999px;background:#FF2E6E;position:relative;"><div style="position:absolute;top:2.5px;right:2.5px;width:20px;height:20px;border-radius:50%;background:#fff;"></div></div></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0 4px;"><span style="font-family:Inter;font-size:15px;color:#FAFAF8;">Language</span><span style="font-family:Inter;font-size:14px;color:#FF8FB4;">Español ›</span></div>
+          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#fff;background:#FF2E6E;border-radius:7px;padding:6px 11px;">ES</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#C9C9CF;border:1px solid #2A2A2E;border-radius:7px;padding:6px 11px;">EN</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#C9C9CF;border:1px solid #2A2A2E;border-radius:7px;padding:6px 11px;">PT</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#C9C9CF;border:1px solid #2A2A2E;border-radius:7px;padding:6px 11px;">AR</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#C9C9CF;border:1px solid #2A2A2E;border-radius:7px;padding:6px 11px;">+40</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== SECTION 4 · MONETIZE ===================== -->
+  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;margin-bottom:24px;">04 · Credits &amp; monetization</div>
+  <div style="display:flex;gap:40px;align-items:flex-start;margin-bottom:72px;">
+
+    <!-- Frame: Premium unlock -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Premium variant unlock</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <img src="assets/poster_vow.png" alt="unlock" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(0.45);">
+        <div style="position:absolute;inset:0;background:rgba(8,8,10,0.5);"></div>
+        <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;background:#15151b;border-radius:24px 24px 0 0;border-top:1px solid #26262d;padding:22px 24px 34px;">
+          <div style="width:38px;height:4px;border-radius:3px;background:#3a3a42;margin:0 auto 20px;"></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#FF8FB4;margin-bottom:8px;">Premium cut</div>
+          <h3 style="font-family:Outfit;font-weight:600;font-size:23px;letter-spacing:-0.025em;line-height:1.1;color:#fff;margin:0 0 18px;">Unlock more of this story</h3>
+          <div style="display:flex;flex-direction:column;gap:11px;">
+            <div style="display:flex;align-items:center;gap:14px;border:1px solid #FF2E6E;background:rgba(255,46,110,0.1);border-radius:14px;padding:15px;"><div style="width:38px;height:38px;border-radius:10px;background:rgba(255,46,110,0.2);display:flex;align-items:center;justify-content:center;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FF2E6E" stroke-width="1.8"><path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3z"></path></svg></div><div style="flex:1;"><div style="font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">Alternate ending</div><div style="font-family:Inter;font-size:12px;color:#9A9AA0;">See how else it could end</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">80</span></div>
+            <div style="display:flex;align-items:center;gap:14px;border:1px solid #2A2A2E;border-radius:14px;padding:15px;"><div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#C9C9CF" stroke-width="1.8"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg></div><div style="flex:1;"><div style="font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">His POV</div><div style="font-family:Inter;font-size:12px;color:#9A9AA0;">Same scene, his side</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">60</span></div>
+            <div style="display:flex;align-items:center;gap:14px;border:1px solid #2A2A2E;border-radius:14px;padding:15px;"><div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#C9C9CF" stroke-width="1.8"><path d="M4 18V6M9 18V10M14 18V8M19 18v-6"></path></svg></div><div style="flex:1;"><div style="font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">Intensity +</div><div style="font-family:Inter;font-size:12px;color:#9A9AA0;">Darker, sharper cut</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">40</span></div>
+          </div>
+          <div style="background:#FF2E6E;border-radius:999px;padding:16px;text-align:center;font-family:Outfit;font-weight:600;font-size:16px;color:#fff;margin-top:18px;">Unlock alternate ending · 80</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Frame: Credits wallet -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Wallet · earn, buy, subscribe</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <div style="position:absolute;inset:0;background:#0B0B0D;overflow:hidden;">
+          <div style="height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+          <!-- balance -->
+          <div style="margin:8px 22px 0;border-radius:20px;background:linear-gradient(150deg,#2a1620,#15151b);border:1px solid rgba(232,181,75,0.3);padding:26px;text-align:center;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#E8B54B;margin-bottom:10px;">Your credits</div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:10px;"><span style="width:26px;height:26px;border-radius:50%;background:#E8B54B;display:inline-block;"></span><span style="font-family:Outfit;font-weight:600;font-size:48px;letter-spacing:-0.03em;color:#fff;line-height:1;">240</span></div>
+            <div style="font-family:Inter;font-size:13px;color:#9A9AA0;margin-top:8px;">≈ 3 episode unlocks</div>
+          </div>
+          <!-- earn -->
+          <div style="padding:22px 22px 0;">
+            <div style="font-family:Outfit;font-weight:600;font-size:15px;color:#fff;margin-bottom:11px;">Earn free credits</div>
+            <div style="display:flex;align-items:center;gap:14px;border:1px solid #2A2A2E;border-radius:14px;padding:15px;"><div style="width:40px;height:40px;border-radius:10px;background:rgba(255,46,110,0.15);display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF2E6E" stroke-width="1.8"><path d="M8 5v14l11-7z"></path></svg></div><div style="flex:1;"><div style="font-family:Outfit;font-weight:600;font-size:14px;color:#fff;">Watch a short ad</div><div style="font-family:Inter;font-size:12px;color:#9A9AA0;">+10 credits · daily streak ×3</div></div><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#fff;background:#FF2E6E;border-radius:8px;padding:7px 12px;">+10</div></div>
+          </div>
+          <!-- buy + subscribe -->
+          <div style="padding:18px 22px 0;">
+            <div style="font-family:Outfit;font-weight:600;font-size:15px;color:#fff;margin-bottom:11px;">Get more</div>
+            <div style="display:flex;gap:10px;">
+              <div style="flex:1;border:1px solid #2A2A2E;border-radius:14px;padding:15px;text-align:center;"><div style="font-family:Outfit;font-weight:600;font-size:20px;color:#fff;">500</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin:2px 0 9px;">credits</div><div style="font-family:Outfit;font-weight:600;font-size:13px;color:#0B0B0D;background:#fff;border-radius:999px;padding:8px;">$4.99</div></div>
+              <div style="flex:1;border:1px solid #FF2E6E;border-radius:14px;padding:15px;text-align:center;position:relative;background:rgba(255,46,110,0.08);"><div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:0.1em;color:#fff;background:#FF2E6E;border-radius:5px;padding:2px 7px;">BEST</div><div style="font-family:Outfit;font-weight:600;font-size:20px;color:#fff;">1500</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin:2px 0 9px;">credits</div><div style="font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:#FF2E6E;border-radius:999px;padding:8px;">$11.99</div></div>
+            </div>
+            <div style="margin-top:12px;border-radius:14px;background:linear-gradient(150deg,#15151b,#1d1218);border:1px solid #2A2A2E;padding:15px;display:flex;align-items:center;gap:12px;"><div style="flex:1;"><div style="font-family:Outfit;font-weight:600;font-size:14px;color:#fff;">Premium · ad-free</div><div style="font-family:Inter;font-size:12px;color:#9A9AA0;">300 credits/mo + premium cuts</div></div><div style="font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:#FF2E6E;border-radius:999px;padding:8px 14px;">$9.99/mo</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== SECTION 5 · ACCOUNT ===================== -->
+  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;margin-bottom:24px;">05 · Profile &amp; history</div>
+  <div style="display:flex;gap:40px;align-items:flex-start;margin-bottom:72px;">
+
+    <!-- Frame: Profile -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Profile</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <div style="position:absolute;inset:0;background:#0B0B0D;overflow:hidden;">
+          <div style="height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+          <div style="padding:14px 22px 0;display:flex;align-items:center;gap:16px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(150deg,#FF2E6E,#cf1d57);display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:26px;color:#fff;">M</div>
+            <div><div style="font-family:Outfit;font-weight:600;font-size:21px;letter-spacing:-0.02em;color:#fff;">Maya R.</div><div style="font-family:Inter;font-size:13px;color:#9A9AA0;">Premium · since 2026</div></div>
+          </div>
+          <!-- stats -->
+          <div style="display:flex;gap:10px;padding:20px 22px 0;">
+            <div style="flex:1;border:1px solid #20202a;border-radius:14px;padding:16px;text-align:center;"><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;">47</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:3px;">Episodes</div></div>
+            <div style="flex:1;border:1px solid #20202a;border-radius:14px;padding:16px;text-align:center;"><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#fff;">12</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:3px;">Endings</div></div>
+            <div style="flex:1;border:1px solid #20202a;border-radius:14px;padding:16px;text-align:center;"><div style="font-family:Outfit;font-weight:600;font-size:22px;color:#E8B54B;">240</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;margin-top:3px;">Credits</div></div>
+          </div>
+          <!-- continue watching -->
+          <div style="padding:22px 22px 0;">
+            <div style="font-family:Outfit;font-weight:600;font-size:15px;color:#fff;margin-bottom:12px;">Continue watching</div>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <div style="display:flex;gap:12px;align-items:center;"><div style="width:54px;height:54px;border-radius:11px;overflow:hidden;flex:none;"><img src="assets/poster_shadow.png" style="width:100%;height:100%;object-fit:cover;"></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">Shadow Signal</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;">Ep 4 · 46%</div><div style="height:3px;border-radius:3px;background:#20202a;margin-top:6px;overflow:hidden;"><div style="width:46%;height:100%;background:#FF2E6E;"></div></div></div></div>
+              <div style="display:flex;gap:12px;align-items:center;"><div style="width:54px;height:54px;border-radius:11px;overflow:hidden;flex:none;"><img src="assets/poster_director.png" style="width:100%;height:100%;object-fit:cover;"></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">The Director's Daughter</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;">Ep 2 · 88%</div><div style="height:3px;border-radius:3px;background:#20202a;margin-top:6px;overflow:hidden;"><div style="width:88%;height:100%;background:#FF2E6E;"></div></div></div></div>
+              <div style="display:flex;gap:12px;align-items:center;"><div style="width:54px;height:54px;border-radius:11px;overflow:hidden;flex:none;"><img src="assets/poster_heiress.png" style="width:100%;height:100%;object-fit:cover;"></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">The Hidden Heiress</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;">Completed · alt ending</div></div></div>
+            </div>
+          </div>
+          <!-- settings rows -->
+          <div style="padding:20px 22px 0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-top:1px solid #20202a;"><span style="font-family:Inter;font-size:14px;color:#FAFAF8;">Accessibility defaults</span><span style="color:#6B6B72;">›</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-top:1px solid #20202a;"><span style="font-family:Inter;font-size:14px;color:#FAFAF8;">Manage subscription</span><span style="color:#6B6B72;">›</span></div>
+          </div>
+          <div style="position:absolute;left:0;right:0;bottom:0;height:74px;background:rgba(11,11,13,0.92);border-top:1px solid #1f1f25;display:flex;align-items:center;justify-content:space-around;padding-bottom:14px;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6B6B72" stroke-width="1.9"><path d="M3 11l9-7 9 7v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"></path></svg><span style="font-family:Inter;font-size:9px;color:#6B6B72;">Home</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6B6B72" stroke-width="1.9"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg><span style="font-family:Inter;font-size:9px;color:#6B6B72;">Search</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div style="width:34px;height:34px;border-radius:11px;background:#1f1f25;display:flex;align-items:center;justify-content:center;"><span style="color:#9A9AA0;font-size:14px;">▶</span></div></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6B6B72" stroke-width="1.9"><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 10h18"></path></svg><span style="font-family:Inter;font-size:9px;color:#6B6B72;">Wallet</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF2E6E" stroke-width="1.9"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg><span style="font-family:Inter;font-size:9px;color:#FF2E6E;">You</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop web view -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Desktop web · axessplayer.com/watch</div>
+      <div style="width:1080px;border-radius:14px;overflow:hidden;background:#0B0B0D;border:1px solid #26262d;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);">
+        <!-- browser chrome -->
+        <div style="height:44px;background:#15151b;border-bottom:1px solid #26262d;display:flex;align-items:center;gap:8px;padding:0 16px;">
+          <span style="width:12px;height:12px;border-radius:50%;background:#ff5f57;display:inline-block;"></span>
+          <span style="width:12px;height:12px;border-radius:50%;background:#febc2e;display:inline-block;"></span>
+          <span style="width:12px;height:12px;border-radius:50%;background:#28c840;display:inline-block;"></span>
+          <div style="flex:1;max-width:420px;margin:0 auto;background:#0B0B0D;border:1px solid #26262d;border-radius:8px;height:26px;display:flex;align-items:center;justify-content:center;gap:7px;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#9A9AA0;">axessplayer.com/watch</span></div>
+        </div>
+        <!-- web app -->
+        <div style="position:relative;height:600px;overflow:hidden;">
+          <!-- top nav -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 32px;border-bottom:1px solid #1f1f25;">
+            <div style="display:flex;align-items:center;gap:34px;">
+              <span style="font-family:Outfit;font-weight:600;font-size:22px;letter-spacing:-0.045em;color:#fff;">axess<span style="color:#FF2E6E">player</span></span>
+              <span style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">Home</span>
+              <span style="font-family:Inter;font-weight:500;font-size:14px;color:#9A9AA0;">Originals</span>
+              <span style="font-family:Inter;font-weight:500;font-size:14px;color:#9A9AA0;">My list</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;">
+              <div style="display:flex;align-items:center;gap:6px;background:rgba(232,181,75,0.16);border:1px solid rgba(232,181,75,0.4);border-radius:999px;padding:6px 13px;"><span style="width:13px;height:13px;border-radius:50%;background:#E8B54B;display:inline-block;"></span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">240</span></div>
+              <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(150deg,#FF2E6E,#cf1d57);display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">M</div>
+            </div>
+          </div>
+          <!-- hero -->
+          <div style="position:relative;height:330px;">
+            <img src="assets/scene_lounge.png" alt="featured" style="width:100%;height:100%;object-fit:cover;object-position:center 30%;">
+            <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(8,8,10,0.92) 0%,rgba(8,8,10,0.5) 48%,transparent 80%);"></div>
+            <div style="position:absolute;left:32px;top:50%;transform:translateY(-50%);max-width:440px;">
+              <div style="display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,46,110,0.5);background:rgba(255,46,110,0.16);border-radius:999px;padding:6px 13px;margin-bottom:16px;"><span style="width:6px;height:6px;border-radius:50%;background:#FF2E6E;"></span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#FF8FB4;">Adaptive original</span></div>
+              <h2 style="font-family:Outfit;font-weight:600;font-size:42px;letter-spacing:-0.035em;line-height:1;color:#fff;margin:0 0 14px;">A Vow in Code</h2>
+              <p style="font-family:Inter;font-size:15px;line-height:1.5;color:#C9C9CF;margin:0 0 22px;">A coder and a stranger, bound by a secret. Your choices write the ending in your language, your pacing, your cut.</p>
+              <div style="display:flex;gap:12px;">
+                <div style="background:#fff;border-radius:999px;padding:12px 26px;display:flex;align-items:center;gap:8px;"><span style="font-size:13px;color:#0B0B0D;">▶</span><span style="font-family:Outfit;font-weight:600;font-size:15px;color:#0B0B0D;">Play</span></div>
+                <div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:999px;padding:12px 26px;font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">More info</div>
+              </div>
+            </div>
+          </div>
+          <!-- rail -->
+          <div style="padding:24px 32px;">
+            <div style="font-family:Outfit;font-weight:600;font-size:17px;letter-spacing:-0.01em;color:#fff;margin-bottom:14px;">Trending originals</div>
+            <div style="display:flex;gap:16px;">
+              <div style="flex:none;width:124px;"><div style="height:178px;border-radius:10px;overflow:hidden;"><img src="assets/poster_shadow.png" style="width:100%;height:100%;object-fit:cover;"></div></div>
+              <div style="flex:none;width:124px;"><div style="height:178px;border-radius:10px;overflow:hidden;"><img src="assets/poster_luna.png" style="width:100%;height:100%;object-fit:cover;"></div></div>
+              <div style="flex:none;width:124px;"><div style="height:178px;border-radius:10px;overflow:hidden;"><img src="assets/poster_heiress.png" style="width:100%;height:100%;object-fit:cover;"></div></div>
+              <div style="flex:none;width:124px;"><div style="height:178px;border-radius:10px;overflow:hidden;"><img src="assets/poster_alpha.png" style="width:100%;height:100%;object-fit:cover;"></div></div>
+              <div style="flex:none;width:124px;"><div style="height:178px;border-radius:10px;overflow:hidden;"><img src="assets/poster_director.png" style="width:100%;height:100%;object-fit:cover;"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== SECTION 6 · SIGN IN ===================== -->
+  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;margin-bottom:24px;">06 · Sign in &amp; profile</div>
+  <div style="display:flex;gap:40px;align-items:flex-start;margin-bottom:72px;">
+
+    <!-- Frame: Sign in -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Sign in</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <img src="assets/poster_alpha.png" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(0.4);">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,8,10,0.5) 0%,rgba(8,8,10,0.7) 55%,#08080A 100%);"></div>
+        <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;padding:0 26px 38px;">
+          <svg style="width:48px;height:48px;display:block;margin-bottom:20px;" viewBox="0 0 360 360"><rect x="30" y="30" width="300" height="300" rx="66" fill="#FF2E6E"></rect><path d="M148.8 123.6L236.4 180L148.8 236.4Z" fill="#FFFFFF"></path><rect x="175.2" y="123.6" width="9" height="112.8" fill="#FF2E6E"></rect><rect x="200.4" y="132.9" width="9" height="94.2" fill="#FF2E6E"></rect></svg>
+          <h2 style="font-family:Outfit;font-weight:600;font-size:30px;letter-spacing:-0.035em;line-height:1.04;color:#fff;margin:0 0 8px;">Your story<br>is waiting.</h2>
+          <p style="font-family:Inter;font-size:14px;line-height:1.5;color:#B4B4BA;margin:0 0 26px;">Sign in to sync your cuts, credits, and library across devices.</p>
+          <div style="display:flex;flex-direction:column;gap:11px;">
+            <div style="background:#fff;border-radius:14px;padding:14px;display:flex;align-items:center;justify-content:center;gap:9px;"><span style="font-size:16px;"></span><span style="font-family:Outfit;font-weight:600;font-size:15px;color:#0B0B0D;">Continue with Apple</span></div>
+            <div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:14px;padding:14px;display:flex;align-items:center;justify-content:center;gap:9px;"><span style="font-family:Outfit;font-weight:700;font-size:15px;color:#fff;">G</span><span style="font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">Continue with Google</span></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin:18px 0;"><div style="flex:1;height:1px;background:#26262d;"></div><span style="font-family:Inter;font-size:12px;color:#6B6B72;">or</span><div style="flex:1;height:1px;background:#26262d;"></div></div>
+          <div style="background:rgba(255,255,255,0.06);border:1px solid #2A2A2E;border-radius:14px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;"><span style="font-family:Inter;font-size:14px;color:#9A9AA0;">Email address</span><span style="color:#FF2E6E;font-size:16px;">›</span></div>
+          <p style="font-family:Inter;font-size:11px;line-height:1.5;color:#6B6B72;margin:18px 0 0;text-align:center;">By continuing you agree to our Terms and Privacy Policy.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Frame: Create profile / pick interests -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Create profile · pick channels</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <div style="position:absolute;inset:0;background:#0B0B0D;overflow:hidden;">
+          <div style="height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+          <div style="padding:8px 24px 0;">
+            <div style="display:flex;justify-content:center;margin-bottom:18px;"><div style="position:relative;"><div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(150deg,#FF2E6E,#cf1d57);display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:30px;color:#fff;">M</div><div style="position:absolute;bottom:0;right:0;width:26px;height:26px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0B0B0D" stroke-width="2"><path d="M3 8h3l2-2h8l2 2h3v11H3z"></path><circle cx="12" cy="13" r="3.3"></circle></svg></div></div></div>
+            <div style="background:rgba(255,255,255,0.06);border:1px solid #2A2A2E;border-radius:12px;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><span style="font-family:Inter;font-size:14px;color:#fff;">@maya.r</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">available ✓</span></div>
+            <div style="font-family:Outfit;font-weight:600;font-size:15px;color:#fff;margin:18px 0 12px;">What do you love?</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              <span style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;background:#FF2E6E;border-radius:999px;padding:9px 15px;">Telenovela</span>
+              <span style="font-family:Inter;font-weight:500;font-size:13px;color:#C9C9CF;border:1px solid #2A2A2E;border-radius:999px;padding:9px 15px;">Crime</span>
+              <span style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;background:#FF2E6E;border-radius:999px;padding:9px 15px;">Thriller</span>
+              <span style="font-family:Inter;font-weight:500;font-size:13px;color:#C9C9CF;border:1px solid #2A2A2E;border-radius:999px;padding:9px 15px;">Reality</span>
+              <span style="font-family:Inter;font-weight:500;font-size:13px;color:#C9C9CF;border:1px solid #2A2A2E;border-radius:999px;padding:9px 15px;">Cooking</span>
+              <span style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;background:#FF2E6E;border-radius:999px;padding:9px 15px;">Drama</span>
+              <span style="font-family:Inter;font-weight:500;font-size:13px;color:#C9C9CF;border:1px solid #2A2A2E;border-radius:999px;padding:9px 15px;">Podcasts</span>
+              <span style="font-family:Inter;font-weight:500;font-size:13px;color:#C9C9CF;border:1px solid #2A2A2E;border-radius:999px;padding:9px 15px;">Education</span>
+              <span style="font-family:Inter;font-weight:500;font-size:13px;color:#C9C9CF;border:1px solid #2A2A2E;border-radius:999px;padding:9px 15px;">Children</span>
+            </div>
+            <div style="font-family:Inter;font-size:12px;color:#6B6B72;margin-top:14px;">Pick 3 or more. We'll tune your feed.</div>
+          </div>
+          <div style="position:absolute;left:24px;right:24px;bottom:34px;"><div style="background:#FF2E6E;border-radius:999px;padding:16px;text-align:center;font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Enter Axessplayer</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== SECTION 7 · SEARCH & CHANNELS ===================== -->
+  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;margin-bottom:24px;">07 · Search &amp; channels</div>
+  <div style="display:flex;gap:40px;align-items:flex-start;margin-bottom:72px;">
+
+    <!-- Frame: Search + channel grid -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Search · browse channels</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <div style="position:absolute;inset:0;background:#0B0B0D;overflow:hidden;">
+          <div style="height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+          <div style="padding:4px 22px 0;">
+            <div style="background:rgba(255,255,255,0.07);border:1px solid #26262d;border-radius:12px;padding:12px 15px;display:flex;align-items:center;gap:10px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#9A9AA0" stroke-width="1.9"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg><span style="font-family:Inter;font-size:14px;color:#9A9AA0;">Shows, characters, channels</span></div>
+          </div>
+          <div style="padding:18px 22px 0;">
+            <div style="font-family:Outfit;font-weight:600;font-size:15px;color:#fff;margin-bottom:12px;">Channels</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <div style="position:relative;height:74px;border-radius:13px;overflow:hidden;"><img src="assets/scene_desk.png" style="width:100%;height:100%;object-fit:cover;filter:brightness(0.6);"><div style="position:absolute;inset:0;background:linear-gradient(120deg,rgba(255,46,110,0.5),transparent);"></div><span style="position:absolute;left:12px;bottom:10px;font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">Telenovela</span></div>
+              <div style="position:relative;height:74px;border-radius:13px;overflow:hidden;"><img src="assets/poster_director.png" style="width:100%;height:100%;object-fit:cover;object-position:center 20%;filter:brightness(0.55);"><div style="position:absolute;inset:0;background:linear-gradient(120deg,rgba(22,26,47,0.55),transparent);"></div><span style="position:absolute;left:12px;bottom:10px;font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">Crime</span></div>
+              <div style="position:relative;height:74px;border-radius:13px;overflow:hidden;"><img src="assets/cut_frame.png" style="width:100%;height:100%;object-fit:cover;filter:brightness(0.55);"><div style="position:absolute;inset:0;background:linear-gradient(120deg,rgba(199,134,99,0.5),transparent);"></div><span style="position:absolute;left:12px;bottom:10px;font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">Thriller</span></div>
+              <div style="position:relative;height:74px;border-radius:13px;overflow:hidden;"><img src="assets/scene_beach.png" style="width:100%;height:100%;object-fit:cover;filter:brightness(0.6);"><div style="position:absolute;inset:0;background:linear-gradient(120deg,rgba(232,181,75,0.5),transparent);"></div><span style="position:absolute;left:12px;bottom:10px;font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">Reality</span></div>
+              <div style="position:relative;height:74px;border-radius:13px;overflow:hidden;background:#1a1a1f;"><div style="position:absolute;inset:0;background:linear-gradient(120deg,rgba(255,46,110,0.35),transparent);"></div><span style="position:absolute;left:12px;bottom:10px;font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">Cooking</span></div>
+              <div style="position:relative;height:74px;border-radius:13px;overflow:hidden;background:#1a1a1f;"><div style="position:absolute;inset:0;background:linear-gradient(120deg,rgba(90,166,255,0.3),transparent);"></div><span style="position:absolute;left:12px;bottom:10px;font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">Podcasts</span></div>
+              <div style="position:relative;height:74px;border-radius:13px;overflow:hidden;background:#1a1a1f;"><div style="position:absolute;inset:0;background:linear-gradient(120deg,rgba(31,138,91,0.35),transparent);"></div><span style="position:absolute;left:12px;bottom:10px;font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">Education</span></div>
+              <div style="position:relative;height:74px;border-radius:13px;overflow:hidden;background:#1a1a1f;"><div style="position:absolute;inset:0;background:linear-gradient(120deg,rgba(232,181,75,0.4),transparent);"></div><span style="position:absolute;left:12px;bottom:10px;font-family:Outfit;font-weight:600;font-size:15px;color:#fff;">Children</span></div>
+            </div>
+            <div style="margin-top:10px;position:relative;height:74px;border-radius:13px;overflow:hidden;"><img src="assets/poster_luna.png" style="width:100%;height:100%;object-fit:cover;object-position:center 18%;filter:brightness(0.5);"><div style="position:absolute;inset:0;background:linear-gradient(120deg,rgba(255,46,110,0.45),transparent);"></div><span style="position:absolute;left:14px;bottom:11px;font-family:Outfit;font-weight:600;font-size:16px;color:#fff;">Drama</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Frame: Channel detail -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Channel · Telenovela</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <div style="position:absolute;inset:0;background:#0B0B0D;overflow:hidden;">
+          <div style="position:relative;height:170px;"><img src="assets/scene_es.png" style="width:100%;height:100%;object-fit:cover;object-position:center 30%;"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,8,10,0.3),transparent 40%,#0B0B0D);"></div><div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>‹</span><span>9:41</span></div><div style="position:absolute;left:22px;bottom:14px;"><h3 style="font-family:Outfit;font-weight:600;font-size:26px;letter-spacing:-0.03em;color:#fff;margin:0;">Telenovela</h3><div style="font-family:Inter;font-size:12px;color:#C9C9CF;margin-top:3px;">128 shows · drama, romance, betrayal</div></div></div>
+          <div style="padding:14px 22px 0;">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:18px;"><div style="flex:1;background:#FF2E6E;border-radius:999px;padding:12px;text-align:center;font-family:Outfit;font-weight:600;font-size:14px;color:#fff;">Follow channel</div><div style="width:44px;height:44px;border-radius:999px;border:1px solid #2A2A2E;display:flex;align-items:center;justify-content:center;color:#fff;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M6 9a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6z"></path><path d="M10 20a2 2 0 004 0"></path></svg></div></div>
+            <div style="font-family:Outfit;font-weight:600;font-size:15px;color:#fff;margin-bottom:12px;">Most loved</div>
+            <div style="display:flex;flex-direction:column;gap:13px;">
+              <div style="display:flex;gap:13px;align-items:center;"><div style="width:50px;height:66px;border-radius:9px;overflow:hidden;flex:none;"><img src="assets/poster_heiress.png" style="width:100%;height:100%;object-fit:cover;"></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">The Hidden Heiress</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;">★ 4.9 · 12 eps · 8 languages</div></div><span style="color:#FF2E6E;font-size:15px;">▶</span></div>
+              <div style="display:flex;gap:13px;align-items:center;"><div style="width:50px;height:66px;border-radius:9px;overflow:hidden;flex:none;"><img src="assets/poster_vow.png" style="width:100%;height:100%;object-fit:cover;"></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">A Vow in Code</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;">★ 4.8 · 10 eps · your POV</div></div><span style="color:#FF2E6E;font-size:15px;">▶</span></div>
+              <div style="display:flex;gap:13px;align-items:center;"><div style="width:50px;height:66px;border-radius:9px;overflow:hidden;flex:none;"><img src="assets/poster_director.png" style="width:100%;height:100%;object-fit:cover;"></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">The Director's Daughter</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;">★ 4.7 · 12 eps · 4 endings</div></div><span style="color:#FF2E6E;font-size:15px;">▶</span></div>
+              <div style="display:flex;gap:13px;align-items:center;"><div style="width:50px;height:66px;border-radius:9px;overflow:hidden;flex:none;"><img src="assets/poster_alpha.png" style="width:100%;height:100%;object-fit:cover;"></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">The Alpha's Legacy</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;">★ 4.9 · 14 eps · new</div></div><span style="color:#FF2E6E;font-size:15px;">▶</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== SECTION 8 · LIBRARY & FAVORITES ===================== -->
+  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;margin-bottom:24px;">08 · Library &amp; favorites</div>
+  <div style="display:flex;gap:40px;align-items:flex-start;margin-bottom:72px;">
+
+    <!-- Frame: My library -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">My library · saved &amp; downloads</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <div style="position:absolute;inset:0;background:#0B0B0D;overflow:hidden;">
+          <div style="height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+          <div style="padding:4px 22px 0;">
+            <h3 style="font-family:Outfit;font-weight:600;font-size:24px;letter-spacing:-0.03em;color:#fff;margin:0 0 16px;">My library</h3>
+            <div style="display:flex;gap:8px;margin-bottom:18px;">
+              <span style="font-family:Inter;font-weight:500;font-size:13px;color:#fff;background:#FF2E6E;border-radius:999px;padding:8px 15px;">Saved</span>
+              <span style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;border:1px solid #2A2A2E;border-radius:999px;padding:8px 15px;">Downloads</span>
+              <span style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;border:1px solid #2A2A2E;border-radius:999px;padding:8px 15px;">History</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;">
+              <div><div style="height:142px;border-radius:11px;overflow:hidden;"><img src="assets/poster_shadow.png" style="width:100%;height:100%;object-fit:cover;"></div></div>
+              <div><div style="height:142px;border-radius:11px;overflow:hidden;"><img src="assets/poster_heiress.png" style="width:100%;height:100%;object-fit:cover;"></div></div>
+              <div><div style="height:142px;border-radius:11px;overflow:hidden;"><img src="assets/poster_alpha.png" style="width:100%;height:100%;object-fit:cover;"></div></div>
+              <div><div style="height:142px;border-radius:11px;overflow:hidden;"><img src="assets/poster_vow.png" style="width:100%;height:100%;object-fit:cover;"></div></div>
+              <div><div style="height:142px;border-radius:11px;overflow:hidden;"><img src="assets/poster_luna.png" style="width:100%;height:100%;object-fit:cover;"></div></div>
+              <div><div style="height:142px;border-radius:11px;overflow:hidden;position:relative;"><img src="assets/poster_director.png" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;top:7px;right:7px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="#fff"><path d="M5 3v18l7-5 7 5V3z"></path></svg></div></div></div>
+            </div>
+            <div style="font-family:Outfit;font-weight:600;font-size:15px;color:#fff;margin:22px 0 12px;">Downloaded · offline</div>
+            <div style="display:flex;gap:12px;align-items:center;"><div style="width:48px;height:64px;border-radius:9px;overflow:hidden;flex:none;"><img src="assets/poster_vow.png" style="width:100%;height:100%;object-fit:cover;"></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">A Vow in Code</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;">3 episodes · 240 MB</div></div><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#1F8A5B;">✓ ready</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Frame: My favorites -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">My favorites · shows &amp; characters</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <div style="position:absolute;inset:0;background:#0B0B0D;overflow:hidden;">
+          <div style="height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+          <div style="padding:4px 22px 0;">
+            <div style="display:flex;align-items:center;gap:9px;margin-bottom:18px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="#FF2E6E"><path d="M12 21s-7-4.5-9.5-9C1 9 2.5 5.5 6 5.5c2 0 3.2 1.2 4 2.3.8-1.1 2-2.3 4-2.3 3.5 0 5 3.5 3.5 6.5C19 16.5 12 21 12 21z"></path></svg><h3 style="font-family:Outfit;font-weight:600;font-size:24px;letter-spacing:-0.03em;color:#fff;margin:0;">My favorites</h3></div>
+            <div style="font-family:Outfit;font-weight:600;font-size:14px;color:#fff;margin-bottom:11px;">Shows</div>
+            <div style="display:flex;flex-direction:column;gap:11px;">
+              <div style="display:flex;gap:12px;align-items:center;"><div style="width:46px;height:60px;border-radius:9px;overflow:hidden;flex:none;"><img src="assets/poster_shadow.png" style="width:100%;height:100%;object-fit:cover;"></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">Shadow Signal</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;">New episode Friday</div></div><svg width="19" height="19" viewBox="0 0 24 24" fill="#FF2E6E"><path d="M12 21s-7-4.5-9.5-9C1 9 2.5 5.5 6 5.5c2 0 3.2 1.2 4 2.3.8-1.1 2-2.3 4-2.3 3.5 0 5 3.5 3.5 6.5C19 16.5 12 21 12 21z"></path></svg></div>
+              <div style="display:flex;gap:12px;align-items:center;"><div style="width:46px;height:60px;border-radius:9px;overflow:hidden;flex:none;"><img src="assets/poster_luna.png" style="width:100%;height:100%;object-fit:cover;"></div><div style="flex:1;"><div style="font-family:Inter;font-weight:500;font-size:14px;color:#fff;">Luna Rewired</div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;">Season finale out now</div></div><svg width="19" height="19" viewBox="0 0 24 24" fill="#FF2E6E"><path d="M12 21s-7-4.5-9.5-9C1 9 2.5 5.5 6 5.5c2 0 3.2 1.2 4 2.3.8-1.1 2-2.3 4-2.3 3.5 0 5 3.5 3.5 6.5C19 16.5 12 21 12 21z"></path></svg></div>
+            </div>
+            <div style="font-family:Outfit;font-weight:600;font-size:14px;color:#fff;margin:20px 0 12px;">Characters you follow</div>
+            <div style="display:flex;gap:16px;">
+              <div style="text-align:center;"><div style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid #FF2E6E;padding:2px;"><img src="assets/poster_shadow.png" style="width:100%;height:100%;object-fit:cover;object-position:60% 28%;border-radius:50%;"></div><div style="font-family:Inter;font-size:11px;color:#C9C9CF;margin-top:6px;">Nora</div></div>
+              <div style="text-align:center;"><div style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid #FF2E6E;padding:2px;"><img src="assets/poster_heiress.png" style="width:100%;height:100%;object-fit:cover;object-position:50% 30%;border-radius:50%;"></div><div style="font-family:Inter;font-size:11px;color:#C9C9CF;margin-top:6px;">Mara</div></div>
+              <div style="text-align:center;"><div style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid #FF2E6E;padding:2px;"><img src="assets/poster_alpha.png" style="width:100%;height:100%;object-fit:cover;object-position:75% 30%;border-radius:50%;"></div><div style="font-family:Inter;font-size:11px;color:#C9C9CF;margin-top:6px;">Kael</div></div>
+              <div style="text-align:center;"><div style="width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,0.06);border:1px dashed #3a3a42;display:flex;align-items:center;justify-content:center;color:#6B6B72;font-size:22px;">+</div><div style="font-family:Inter;font-size:11px;color:#6B6B72;margin-top:6px;">More</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== SECTION 9 · COMMUNITY ===================== -->
+  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;margin-bottom:24px;">09 · Community · follow &amp; comment</div>
+  <div style="display:flex;gap:40px;align-items:flex-start;margin-bottom:72px;">
+
+    <!-- Frame: Characters feed (Instagram-like) -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Characters · follow feed</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <div style="position:absolute;inset:0;background:#0B0B0D;overflow:hidden;">
+          <div style="height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 22px 12px;"><span style="font-family:Outfit;font-weight:600;font-size:20px;letter-spacing:-0.03em;color:#fff;">Characters</span></div>
+          <!-- stories row -->
+          <div style="display:flex;gap:14px;padding:0 22px 14px;border-bottom:1px solid #1f1f25;">
+            <div style="text-align:center;"><div style="width:54px;height:54px;border-radius:50%;padding:2px;background:linear-gradient(150deg,#FF2E6E,#E8B54B);"><img src="assets/poster_shadow.png" style="width:100%;height:100%;object-fit:cover;object-position:60% 28%;border-radius:50%;border:2px solid #0B0B0D;"></div><div style="font-family:Inter;font-size:10px;color:#C9C9CF;margin-top:5px;">Nora</div></div>
+            <div style="text-align:center;"><div style="width:54px;height:54px;border-radius:50%;padding:2px;background:linear-gradient(150deg,#FF2E6E,#E8B54B);"><img src="assets/poster_alpha.png" style="width:100%;height:100%;object-fit:cover;object-position:75% 30%;border-radius:50%;border:2px solid #0B0B0D;"></div><div style="font-family:Inter;font-size:10px;color:#C9C9CF;margin-top:5px;">Kael</div></div>
+            <div style="text-align:center;"><div style="width:54px;height:54px;border-radius:50%;padding:2px;background:linear-gradient(150deg,#FF2E6E,#E8B54B);"><img src="assets/poster_heiress.png" style="width:100%;height:100%;object-fit:cover;object-position:50% 30%;border-radius:50%;border:2px solid #0B0B0D;"></div><div style="font-family:Inter;font-size:10px;color:#C9C9CF;margin-top:5px;">Mara</div></div>
+            <div style="text-align:center;"><div style="width:54px;height:54px;border-radius:50%;padding:2px;background:linear-gradient(150deg,#FF2E6E,#E8B54B);"><img src="assets/poster_luna.png" style="width:100%;height:100%;object-fit:cover;object-position:70% 25%;border-radius:50%;border:2px solid #0B0B0D;"></div><div style="font-family:Inter;font-size:10px;color:#C9C9CF;margin-top:5px;">Aria</div></div>
+          </div>
+          <!-- post -->
+          <div style="padding:14px 0 0;">
+            <div style="display:flex;align-items:center;gap:10px;padding:0 22px 12px;">
+              <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;"><img src="assets/poster_shadow.png" style="width:100%;height:100%;object-fit:cover;object-position:60% 28%;"></div>
+              <div style="flex:1;"><div style="font-family:Inter;font-weight:600;font-size:14px;color:#fff;">Nora Hale <span style="color:#FF2E6E;">✓</span></div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;">Shadow Signal · 2h</div></div>
+              <div style="font-family:Inter;font-weight:600;font-size:12px;color:#fff;background:#FF2E6E;border-radius:999px;padding:6px 13px;">Following</div>
+            </div>
+            <div style="position:relative;height:240px;"><img src="assets/scene_lounge.png" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;left:14px;bottom:12px;background:rgba(0,0,0,0.5);border-radius:8px;padding:5px 10px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;color:#fff;">BEHIND THE CUT</div></div>
+            <div style="padding:12px 22px 0;">
+              <div style="display:flex;gap:18px;align-items:center;margin-bottom:10px;">
+                <span style="display:flex;align-items:center;gap:6px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="#FF2E6E"><path d="M12 21s-7-4.5-9.5-9C1 9 2.5 5.5 6 5.5c2 0 3.2 1.2 4 2.3.8-1.1 2-2.3 4-2.3 3.5 0 5 3.5 3.5 6.5C19 16.5 12 21 12 21z"></path></svg><span style="font-family:Inter;font-size:13px;color:#fff;">8.2k</span></span>
+                <span style="display:flex;align-items:center;gap:6px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M21 11.5a8.4 8.4 0 01-12 7.5L3 21l2-6a8.4 8.4 0 1116-3.5z"></path></svg><span style="font-family:Inter;font-size:13px;color:#fff;">312</span></span>
+                <span style="margin-left:auto;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7"></path><path d="M12 3v13M7 8l5-5 5 5"></path></svg></span>
+              </div>
+              <div style="font-family:Inter;font-size:13px;line-height:1.5;color:#C9C9CF;"><span style="color:#fff;font-weight:600;">nora.hale</span> The wolf chose me before I chose him. Ep 5 drops Friday. Which side are you on?</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Frame: Comments on a show -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Comments on a show</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <img src="assets/poster_director.png" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(0.35);">
+        <div style="position:absolute;inset:0;background:rgba(8,8,10,0.55);"></div>
+        <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;height:560px;background:#15151b;border-radius:24px 24px 0 0;border-top:1px solid #26262d;padding:18px 22px 0;display:flex;flex-direction:column;">
+          <div style="width:38px;height:4px;border-radius:3px;background:#3a3a42;margin:0 auto 16px;"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;"><span style="font-family:Outfit;font-weight:600;font-size:17px;color:#fff;">Comments · 2.4k</span><span style="font-family:Inter;font-size:12px;color:#9A9AA0;">Top ▾</span></div>
+          <div style="display:flex;flex-direction:column;gap:16px;overflow:hidden;flex:1;">
+            <div style="display:flex;gap:11px;"><div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(150deg,#FF2E6E,#cf1d57);flex:none;display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:14px;color:#fff;">J</div><div style="flex:1;"><div style="font-family:Inter;font-size:13px;color:#fff;"><span style="font-weight:600;">@jules</span> <span style="color:#6B6B72;font-size:11px;">· 1h</span></div><div style="font-family:Inter;font-size:13px;line-height:1.45;color:#C9C9CF;margin-top:2px;">I chose the alt ending and I'm SHAKING. Worth every credit.</div><div style="display:flex;gap:16px;margin-top:7px;"><span style="font-family:Inter;font-size:11px;color:#9A9AA0;">♥ 240</span><span style="font-family:Inter;font-size:11px;color:#9A9AA0;">Reply</span></div></div></div>
+            <div style="display:flex;gap:11px;"><div style="width:34px;height:34px;border-radius:50%;overflow:hidden;flex:none;"><img src="assets/poster_heiress.png" style="width:100%;height:100%;object-fit:cover;object-position:50% 30%;"></div><div style="flex:1;"><div style="font-family:Inter;font-size:13px;color:#fff;"><span style="font-weight:600;">@sofia.r</span> <span style="color:#6B6B72;font-size:11px;">· 44m</span></div><div style="font-family:Inter;font-size:13px;line-height:1.45;color:#C9C9CF;margin-top:2px;">Watched it in Spanish with AD on, the pacing hits so different.</div><div style="display:flex;gap:16px;margin-top:7px;"><span style="font-family:Inter;font-size:11px;color:#9A9AA0;">♥ 88</span><span style="font-family:Inter;font-size:11px;color:#9A9AA0;">Reply</span></div></div></div>
+            <div style="display:flex;gap:11px;padding-left:45px;"><div style="width:28px;height:28px;border-radius:50%;background:#2a2a32;flex:none;display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:12px;color:#fff;">D</div><div style="flex:1;"><div style="font-family:Inter;font-size:12px;color:#fff;"><span style="font-weight:600;">@deni</span> <span style="color:#6B6B72;font-size:10px;">· 30m</span></div><div style="font-family:Inter;font-size:12px;line-height:1.45;color:#C9C9CF;margin-top:2px;">same! the his-POV unlock is so worth it</div></div></div>
+            <div style="display:flex;gap:11px;"><div style="width:34px;height:34px;border-radius:50%;background:#2a2a32;flex:none;display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:14px;color:#fff;">A</div><div style="flex:1;"><div style="font-family:Inter;font-size:13px;color:#fff;"><span style="font-weight:600;">@ari</span> <span style="color:#6B6B72;font-size:11px;">· 12m</span></div><div style="font-family:Inter;font-size:13px;line-height:1.45;color:#C9C9CF;margin-top:2px;">no spoilers but EP 9</div><div style="display:flex;gap:16px;margin-top:7px;"><span style="font-family:Inter;font-size:11px;color:#9A9AA0;">♥ 31</span><span style="font-family:Inter;font-size:11px;color:#9A9AA0;">Reply</span></div></div></div>
+          </div>
+          <!-- composer -->
+          <div style="display:flex;align-items:center;gap:10px;padding:12px 0 20px;border-top:1px solid #20202a;"><div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(150deg,#FF2E6E,#cf1d57);flex:none;display:flex;align-items:center;justify-content:center;font-family:Outfit;font-weight:600;font-size:13px;color:#fff;">M</div><div style="flex:1;background:rgba(255,255,255,0.06);border:1px solid #2A2A2E;border-radius:999px;padding:10px 15px;font-family:Inter;font-size:13px;color:#9A9AA0;">Add a comment…</div><span style="font-family:Outfit;font-weight:600;font-size:13px;color:#FF2E6E;">Post</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== SECTION 10 · INVITE ===================== -->
+  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;margin-bottom:24px;">10 · Invite friends &amp; rewards</div>
+  <div style="display:flex;gap:40px;align-items:flex-start;margin-bottom:24px;">
+
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Invite &amp; earn</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <div style="position:absolute;inset:0;background:radial-gradient(120% 60% at 50% 8%,#2a1620 0%,#120b10 48%,#0B0B0D 100%);"></div>
+        <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;z-index:2;"><span>‹</span><span>9:41</span></div>
+        <div style="position:absolute;inset:0;padding:78px 24px 0;text-align:center;">
+          <div style="display:flex;justify-content:center;gap:-10px;margin-bottom:22px;">
+            <div style="width:56px;height:56px;border-radius:50%;border:2px solid #0B0B0D;overflow:hidden;"><img src="assets/poster_shadow.png" style="width:100%;height:100%;object-fit:cover;object-position:60% 28%;"></div>
+            <div style="width:64px;height:64px;border-radius:50%;border:2px solid #0B0B0D;background:#E8B54B;display:flex;align-items:center;justify-content:center;margin:-4px -10px 0;z-index:2;"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1a1305" stroke-width="2"><path d="M20 12v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6"></path><path d="M2 8h20v4H2zM12 8v12M12 8S10 3 7 4s0 4 5 4M12 8s2-5 5-4-0 4-5 4"></path></svg></div>
+            <div style="width:56px;height:56px;border-radius:50%;border:2px solid #0B0B0D;overflow:hidden;"><img src="assets/poster_heiress.png" style="width:100%;height:100%;object-fit:cover;object-position:50% 30%;"></div>
+          </div>
+          <h2 style="font-family:Outfit;font-weight:600;font-size:28px;letter-spacing:-0.035em;line-height:1.05;color:#fff;margin:0 0 10px;">Invite friends,<br>get credits.</h2>
+          <p style="font-family:Inter;font-size:14px;line-height:1.5;color:#B4B4BA;margin:0 0 24px;">You both get <span style="color:#E8B54B;font-weight:600;">200 credits</span> when a friend watches their first episode.</p>
+          <div style="background:rgba(255,255,255,0.06);border:1px dashed #FF2E6E;border-radius:14px;padding:16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><div style="text-align:left;"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;color:#9A9AA0;">YOUR CODE</div><div style="font-family:'JetBrains Mono',monospace;font-size:19px;letter-spacing:0.1em;color:#fff;">MAYA-7K2</div></div><div style="font-family:Outfit;font-weight:600;font-size:13px;color:#fff;background:#FF2E6E;border-radius:999px;padding:9px 16px;">Copy</div></div>
+          <div style="display:flex;gap:10px;margin-bottom:24px;">
+            <div style="flex:1;background:#fff;border-radius:999px;padding:13px;font-family:Outfit;font-weight:600;font-size:14px;color:#0B0B0D;">Share invite</div>
+            <div style="width:48px;height:48px;border-radius:999px;border:1px solid #2A2A2E;display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;">⋯</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid #20202a;border-radius:14px;padding:16px;text-align:left;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><span style="font-family:Outfit;font-weight:600;font-size:14px;color:#fff;">Your rewards</span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8B54B;">600 earned</span></div>
+            <div style="display:flex;gap:7px;margin-bottom:10px;"><div style="flex:1;height:7px;border-radius:4px;background:#FF2E6E;"></div><div style="flex:1;height:7px;border-radius:4px;background:#FF2E6E;"></div><div style="flex:1;height:7px;border-radius:4px;background:#FF2E6E;"></div><div style="flex:1;height:7px;border-radius:4px;background:#26262d;"></div><div style="flex:1;height:7px;border-radius:4px;background:#26262d;"></div></div>
+            <div style="font-family:Inter;font-size:12px;color:#9A9AA0;">3 of 5 friends joined · 2 more for a free month of Premium</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== SECTION 11 · PREVIOUSLY IN YOUR CUT ===================== -->
+  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;margin-bottom:8px;">11 · Previously in your cut</div>
+  <p style="font-family:Inter;font-size:14px;line-height:1.5;color:#8A8A93;margin:0 0 24px;max-width:760px;">Shown on return to a series. The recap is <span style="color:#C9C9CF;">assembled from cached beat variants</span> (selected, never re-rendered live) by reading the viewer's real memory: branch choices, skipped scenes, favorite character, preferred language, and branch path. Two different histories below produce visibly different recaps.</p>
+  <div style="display:flex;gap:40px;align-items:flex-start;margin-bottom:24px;">
+
+    <!-- Viewer A -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Viewer A &middot; Maya R.</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <div style="position:absolute;inset:0;background:#0B0B0D;display:flex;flex-direction:column;">
+          <div style="height:54px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+          <div style="padding:2px 22px 0;flex:none;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#FF8FB4;">Previously in your cut</div>
+            <div style="font-family:Outfit;font-weight:600;font-size:22px;letter-spacing:-0.03em;color:#fff;margin-top:4px;">A Vow in Code</div>
+            <div data-viewer-chip="A" style="margin-top:12px;border:1px solid #20202a;border-radius:11px;padding:11px 13px;background:#15151b;"></div>
+          </div>
+          <div data-recap="A" style="flex:1;overflow-y:auto;padding:16px 22px 8px;display:flex;flex-direction:column;gap:11px;"></div>
+          <div style="flex:none;padding:10px 22px 22px;display:flex;gap:10px;border-top:1px solid #1a1a20;background:#0B0B0D;">
+            <button data-recap-action="skip" data-recap-viewer="A" style="flex:none;background:rgba(255,255,255,0.06);border:1px solid #26262d;border-radius:999px;padding:13px 18px;font-family:Outfit;font-weight:600;font-size:14px;color:#C9C9CF;cursor:pointer;">Skip</button>
+            <button data-recap-action="continue" data-recap-viewer="A" style="flex:1;background:#FF2E6E;border:none;border-radius:999px;padding:13px;font-family:Outfit;font-weight:600;font-size:14px;color:#fff;cursor:pointer;">Continue watching</button>
+          </div>
+        </div>
+      </div>
+      <div data-eventlog="A" style="width:320px;box-sizing:border-box;margin-top:12px;border:1px solid #20202a;border-radius:11px;background:#0E0E12;padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:10.5px;line-height:1.7;color:#6B6B72;"></div>
+    </div>
+
+    <!-- Viewer B -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Viewer B &middot; Diego M.</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <div style="position:absolute;inset:0;background:#0B0B0D;display:flex;flex-direction:column;">
+          <div style="height:54px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+          <div style="padding:2px 22px 0;flex:none;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#FF8FB4;">Previously in your cut</div>
+            <div style="font-family:Outfit;font-weight:600;font-size:22px;letter-spacing:-0.03em;color:#fff;margin-top:4px;">A Vow in Code</div>
+            <div data-viewer-chip="B" style="margin-top:12px;border:1px solid #20202a;border-radius:11px;padding:11px 13px;background:#15151b;"></div>
+          </div>
+          <div data-recap="B" style="flex:1;overflow-y:auto;padding:16px 22px 8px;display:flex;flex-direction:column;gap:11px;"></div>
+          <div style="flex:none;padding:10px 22px 22px;display:flex;gap:10px;border-top:1px solid #1a1a20;background:#0B0B0D;">
+            <button data-recap-action="skip" data-recap-viewer="B" style="flex:none;background:rgba(255,255,255,0.06);border:1px solid #26262d;border-radius:999px;padding:13px 18px;font-family:Outfit;font-weight:600;font-size:14px;color:#C9C9CF;cursor:pointer;">Skip</button>
+            <button data-recap-action="continue" data-recap-viewer="B" style="flex:1;background:#FF2E6E;border:none;border-radius:999px;padding:13px;font-family:Outfit;font-weight:600;font-size:14px;color:#fff;cursor:pointer;">Continue watching</button>
+          </div>
+        </div>
+      </div>
+      <div data-eventlog="B" style="width:320px;box-sizing:border-box;margin-top:12px;border:1px solid #20202a;border-radius:11px;background:#0E0E12;padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:10.5px;line-height:1.7;color:#6B6B72;"></div>
+    </div>
+
+    <!-- Variant pool note -->
+    <div style="flex:none;width:300px;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Shared beat-variant pool</div>
+      <div data-variant-pool style="border:1px solid #20202a;border-radius:16px;background:#15151b;padding:18px;"></div>
+    </div>
+
+  </div>
+
+  <!-- ===================== SECTION 12 · DELIGHT LAYER ===================== -->
+  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#FF2E6E;margin-bottom:8px;">12 · Delight layer</div>
+  <p style="font-family:Inter;font-size:14px;line-height:1.5;color:#8A8A93;margin:0 0 24px;max-width:760px;">Retention features that ride the same decision engine: a character inbox that turns a series into a daily habit, viewer-personalized posters, and branch-as-quest so monetization feels like play.</p>
+  <div style="display:flex;gap:40px;align-items:flex-start;margin-bottom:24px;">
+
+    <!-- Character inbox -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Character inbox</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <div style="position:absolute;inset:0;background:#0B0B0D;display:flex;flex-direction:column;">
+          <div style="height:54px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+          <div style="padding:2px 22px 14px;flex:none;display:flex;align-items:center;gap:11px;"><div style="width:42px;height:42px;border-radius:50%;overflow:hidden;"><img src="assets/poster_shadow.png" style="width:100%;height:100%;object-fit:cover;object-position:60% 28%;"></div><div><div style="font-family:Outfit;font-weight:600;font-size:17px;letter-spacing:-0.02em;color:#fff;">Nora Hale <span style="color:#FF2E6E;">&#10003;</span></div><div style="font-family:Inter;font-size:11px;color:#9A9AA0;">Shadow Signal · in-character</div></div></div>
+          <div style="flex:1;overflow-y:auto;padding:6px 22px 8px;display:flex;flex-direction:column;gap:12px;">
+            <div style="max-width:80%;background:#15151b;border:1px solid #20202a;border-radius:14px 14px 14px 4px;padding:12px 14px;"><div style="font-family:Inter;font-size:13px;line-height:1.45;color:#FAFAF8;">I made it out of the warehouse. Barely. I need to tell you what I saw.</div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#6B6B72;margin-top:6px;">2h ago</div></div>
+            <div style="max-width:82%;background:#15151b;border:1px solid #20202a;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:11px;"><div style="width:30px;height:30px;border-radius:50%;background:#FF2E6E;display:flex;align-items:center;justify-content:center;flex:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"></path></svg></div><div style="flex:1;"><div style="height:4px;border-radius:3px;background:#2a2a32;position:relative;overflow:hidden;"><div style="position:absolute;inset:0;width:38%;background:#FF2E6E;"></div></div></div><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9A9AA0;">0:14</span></div>
+            <div style="align-self:flex-start;border:1px solid rgba(232,181,75,0.45);background:rgba(232,181,75,0.08);border-radius:14px;padding:12px 14px;max-width:84%;"><div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;color:#E8B54B;margin-bottom:5px;">SECRET CLUE · 20 CREDITS</div><div style="font-family:Inter;font-size:13px;line-height:1.45;color:#FAFAF8;">The badge number. Want it before Ep 5?</div></div>
+            <div style="align-self:flex-start;background:#15151b;border:1px solid #20202a;border-radius:14px;padding:14px;max-width:88%;"><div style="font-family:Inter;font-weight:600;font-size:13px;color:#fff;margin-bottom:10px;">Choose what I do next</div><div style="display:flex;flex-direction:column;gap:8px;"><div style="border:1px solid #FF2E6E;background:rgba(255,46,110,0.1);border-radius:9px;padding:9px 12px;font-family:Inter;font-size:12.5px;color:#fff;">Go to the police</div><div style="border:1px solid #26262d;border-radius:9px;padding:9px 12px;font-family:Inter;font-size:12.5px;color:#C9C9CF;">Confront him alone</div></div></div>
+          </div>
+          <div style="flex:none;padding:10px 18px 22px;display:flex;align-items:center;gap:9px;border-top:1px solid #1a1a20;"><div style="flex:1;background:rgba(255,255,255,0.06);border:1px solid #26262d;border-radius:999px;padding:11px 15px;font-family:Inter;font-size:13px;color:#6B6B72;">Reply to Nora</div><div style="width:38px;height:38px;border-radius:50%;background:#FF2E6E;display:flex;align-items:center;justify-content:center;color:#fff;">&#8593;</div></div>
+        </div>
+      </div>
+      <div style="width:320px;box-sizing:border-box;margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.6;color:#6B6B72;">Guardrails: age-gated · no dependency language · no minors in parasocial monetization.</div>
+    </div>
+
+    <!-- Dynamic posters per viewer -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Dynamic poster · served by behaviour</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <div style="position:absolute;inset:0;background:#0B0B0D;overflow-y:auto;">
+          <div style="height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+          <div style="padding:2px 22px 0;">
+            <div style="font-family:Outfit;font-weight:600;font-size:20px;letter-spacing:-0.03em;color:#fff;">Served, not chosen</div>
+            <p style="font-family:Inter;font-size:12.5px;line-height:1.5;color:#9A9AA0;margin:6px 0 16px;">The creator generates the poster set in Studio. The viewer simply gets served the one their learned behaviour predicts, like the cut. No chooser.</p>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <div style="border:1px solid #FF2E6E;border-radius:14px;overflow:hidden;"><div style="position:relative;height:150px;"><img src="assets/scene_lounge.png" style="width:100%;height:100%;object-fit:cover;object-position:center 30%;"><div style="position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(8,8,10,0.9));"></div><div style="position:absolute;left:14px;bottom:11px;"><div style="font-family:Outfit;font-weight:600;font-size:17px;color:#fff;">A Vow in Code</div></div><div style="position:absolute;top:10px;left:10px;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;color:#fff;background:#FF2E6E;border-radius:5px;padding:4px 8px;">SERVED · ROMANCE</div></div><div style="padding:10px 13px;font-family:Inter;font-size:11.5px;color:#9A9AA0;">Picked because: high slow-burn affinity, follows Maya.</div></div>
+              <div style="display:flex;gap:12px;">
+                <div style="flex:1;border:1px solid #20202a;border-radius:12px;overflow:hidden;opacity:0.7;"><div style="position:relative;height:120px;"><img src="assets/scene_desk.png" style="width:100%;height:100%;object-fit:cover;filter:saturate(0.8);"><div style="position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(8,8,10,0.85));"></div><div style="position:absolute;top:8px;left:8px;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:0.08em;color:#C9C9CF;background:rgba(0,0,0,0.5);border-radius:4px;padding:3px 6px;">BETRAYAL</div></div></div>
+                <div style="flex:1;border:1px solid #20202a;border-radius:12px;overflow:hidden;opacity:0.7;"><div style="position:relative;height:120px;"><img src="assets/cut_frame.png" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(8,8,10,0.85));"></div><div style="position:absolute;top:8px;left:8px;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:0.08em;color:#C9C9CF;background:rgba(0,0,0,0.5);border-radius:4px;padding:3px 6px;">VILLAIN</div></div></div>
+                <div style="flex:1;border:1px solid #20202a;border-radius:12px;overflow:hidden;opacity:0.7;"><div style="position:relative;height:120px;"><img src="assets/scene_beach.png" style="width:100%;height:100%;object-fit:cover;"><div style="position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(8,8,10,0.85));"></div><div style="position:absolute;top:8px;left:8px;font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:0.08em;color:#C9C9CF;background:rgba(0,0,0,0.5);border-radius:4px;padding:3px 6px;">LUXURY</div></div></div>
+              </div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.06em;color:#6B6B72;text-align:center;">creator's set the engine chose from · accessibility-first variant always available</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Branch-as-quest -->
+    <div style="flex:none;">
+      <div style="font-family:Inter;font-weight:500;font-size:13px;color:#9A9AA0;margin-bottom:14px;">Branch as quest</div>
+      <div style="width:320px;height:692px;border-radius:46px;background:#000;border:9px solid #1b1b21;box-shadow:0 40px 80px -30px rgba(0,0,0,0.9);overflow:hidden;position:relative;">
+        <img src="assets/cut_frame.png" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(0.4);">
+        <div style="position:absolute;inset:0;background:rgba(8,8,10,0.5);"></div>
+        <div style="position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#fff;"><span>9:41</span><span style="width:17px;height:10px;border:1.5px solid #fff;border-radius:2px;display:inline-block;"></span></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;background:#15151b;border-radius:24px 24px 0 0;border-top:1px solid #26262d;padding:20px 22px 30px;">
+          <div style="width:38px;height:4px;border-radius:3px;background:#3a3a42;margin:0 auto 18px;"></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#FF8FB4;margin-bottom:8px;">Unlock the alternate ending</div>
+          <h3 style="font-family:Outfit;font-weight:600;font-size:22px;letter-spacing:-0.025em;line-height:1.1;color:#fff;margin:0 0 18px;">Three ways to unlock. Your pick.</h3>
+          <div style="display:flex;flex-direction:column;gap:11px;">
+            <div style="border:1px solid #FF2E6E;background:rgba(255,46,110,0.1);border-radius:13px;padding:14px;display:flex;align-items:center;gap:13px;"><div style="width:34px;height:34px;border-radius:9px;background:rgba(255,46,110,0.2);display:flex;align-items:center;justify-content:center;flex:none;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FF2E6E" stroke-width="1.9"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7"></path><path d="M12 3v13M7 8l5-5 5 5"></path></svg></div><div style="flex:1;"><div style="font-family:Inter;font-weight:600;font-size:13.5px;color:#fff;">Invite a friend</div><div style="font-family:Inter;font-size:11.5px;color:#9A9AA0;">they watch Ep 1, you both unlock</div></div></div>
+            <div style="border:1px solid #26262d;border-radius:13px;padding:14px;display:flex;align-items:center;gap:13px;"><div style="width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex:none;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#C9C9CF" stroke-width="1.9"><path d="M8 5v14l11-7z"></path></svg></div><div style="flex:1;"><div style="font-family:Inter;font-weight:600;font-size:13.5px;color:#fff;">Watch an ad for a clue</div><div style="font-family:Inter;font-size:11.5px;color:#9A9AA0;">reveal one of three hints</div></div></div>
+            <div style="border:1px solid #26262d;border-radius:13px;padding:14px;display:flex;align-items:center;gap:13px;"><div style="width:34px;height:34px;border-radius:9px;background:rgba(232,181,75,0.16);display:flex;align-items:center;justify-content:center;flex:none;"><span style="width:14px;height:14px;border-radius:50%;background:#E8B54B;display:inline-block;"></span></div><div style="flex:1;"><div style="font-family:Inter;font-weight:600;font-size:13.5px;color:#fff;">Spend 80 credits</div><div style="font-family:Inter;font-size:11.5px;color:#9A9AA0;">unlock instantly</div></div></div>
+          </div>
+          <div style="margin-top:16px;"><div style="display:flex;justify-content:space-between;font-family:Inter;font-size:11px;color:#9A9AA0;margin-bottom:6px;"><span>Community goal: unlock for everyone</span><span style="color:#E8B54B;">62%</span></div><div style="height:6px;border-radius:4px;background:#20202a;overflow:hidden;"><div style="width:62%;height:100%;background:linear-gradient(90deg,#FF2E6E,#E8B54B);"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  componentDidMount() {
+    // ---- Existing cached beat variants (selected, never re-rendered live) ----
+    const POOL = [
+      { id: 'b1-wrap',     beat: 'b1', order: 1, pov: 'any',  character: 'Maya',  thumb: 'assets/cut_frame.png',    en: 'You met Luca at the wrap party.',                 es: 'Conociste a Luca en la fiesta de cierre.' },
+      { id: 'b2-lie-maya', beat: 'b2', order: 2, pov: 'maya', character: 'Maya',  thumb: 'assets/scene_es.png',     en: 'From your eyes, Maya, the first lie landed.',      es: 'Desde tus ojos, Maya, la primera mentira caló.' },
+      { id: 'b2-lie-luca', beat: 'b2', order: 2, pov: 'luca', character: 'Luca',  thumb: 'assets/scene_lounge.png', en: 'You watched Maya lie, and said nothing.',          es: 'Viste mentir a Maya y no dijiste nada.' },
+      { id: 'b3a-ally',    beat: 'b3a',order: 3, pov: 'maya', character: 'Maya',  thumb: 'assets/scene_beach.png',  en: 'You chose to trust him. The alliance held.',       es: 'Elegiste confiar en el. La alianza resistio.' },
+      { id: 'b3b-exposed', beat: 'b3b',order: 3, pov: 'luca', character: 'Luca',  thumb: 'assets/scene_desk.png',   en: 'You walked away. The secret was exposed.',         es: 'Te alejaste. El secreto quedo expuesto.' },
+      { id: 'b4-smoke-m',  beat: 'b4', order: 4, pov: 'maya', character: 'Maya',  thumb: 'assets/scene_lounge.png', en: 'Smoke filled the studio as you ran.',              es: 'El humo lleno el estudio mientras corrias.' },
+      { id: 'b4-smoke-l',  beat: 'b4', order: 4, pov: 'luca', character: 'Luca',  thumb: 'assets/cut_frame.png',    en: 'You stayed behind, watching it burn.',             es: 'Te quedaste atras, viendolo arder.' }
+    ];
+
+    // ---- Real per-viewer memory (viewer_state + decision_log + events) ----
+    const STATES = {
+      A: { name: 'Maya R.',  pov: 'maya', language: 'es', favoriteCharacter: 'Maya',
+           branchPath: ['b1','b2','b3a','b4'], skippedScenes: ['b1'], lastBeat: 'ep4 / beat 2',
+           choices: 'trust_luca = true' },
+      B: { name: 'Diego M.', pov: 'luca', language: 'en', favoriteCharacter: 'Luca',
+           branchPath: ['b1','b2','b3b','b4'], skippedScenes: ['b2'], lastBeat: 'ep4 / beat 2',
+           choices: 'trust_luca = false' }
+    };
+
+    // ---- Instrumentation ----
+    const events = (window.__axpRecapEvents = window.__axpRecapEvents || []);
+    const logEls = {};
+    const track = (name, viewerId, payload) => {
+      const evt = { event: name, viewer: viewerId, ts: Date.now(), ...payload };
+      events.push(evt);
+      try { console.log('[recap-event]', name, viewerId, payload || ''); } catch (e) {}
+      const el = logEls[viewerId];
+      if (el) {
+        const line = document.createElement('div');
+        const detail = payload && payload.beats != null ? ' beats=' + payload.beats : (payload && payload.atBeat ? ' at=' + payload.atBeat : '');
+        line.innerHTML = '<span style="color:#1F8A5B">&bull;</span> ' + name + detail;
+        el.appendChild(line);
+      }
+    };
+
+    // ---- The assembler: select cached variants from real memory ----
+    const assembleRecap = (state) => {
+      return POOL
+        .filter((v) => state.branchPath.indexOf(v.beat) !== -1)           // only beats on this viewer's path
+        .filter((v) => v.pov === 'any' || v.pov === state.pov)             // their POV cut
+        .filter((v) => state.skippedScenes.indexOf(v.beat) === -1)         // drop scenes they skipped
+        .sort((a, b) => {                                                  // chronological, favorite character first within ties
+          if (a.order !== b.order) return a.order - b.order;
+          const af = a.character === state.favoriteCharacter ? 0 : 1;
+          const bf = b.character === state.favoriteCharacter ? 0 : 1;
+          return af - bf;
+        })
+        .slice(-3)                                                         // the last few beats before where they left off
+        .map((v) => ({ id: v.id, thumb: v.thumb, caption: state.language === 'es' ? v.es : v.en,
+                       fav: v.character === state.favoriteCharacter, character: v.character }));
+    };
+
+    const chipHtml = (s) => {
+      const langLabel = s.language === 'es' ? 'Espanol' : 'English';
+      return '<div style="font-family:\'JetBrains Mono\',monospace;font-size:9px;letter-spacing:0.1em;color:#6B6B72;margin-bottom:7px;">YOUR MEMORY</div>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:6px;">'
+        + '<span style="font-family:Inter;font-size:11px;color:#fff;background:#FF2E6E;border-radius:6px;padding:4px 8px;">POV ' + (s.pov === 'maya' ? 'Maya' : 'Luca') + '</span>'
+        + '<span style="font-family:Inter;font-size:11px;color:#C9C9CF;border:1px solid #26262d;border-radius:6px;padding:4px 8px;">' + langLabel + '</span>'
+        + '<span style="font-family:Inter;font-size:11px;color:#C9C9CF;border:1px solid #26262d;border-radius:6px;padding:4px 8px;">&#9733; ' + s.favoriteCharacter + '</span>'
+        + '<span style="font-family:Inter;font-size:11px;color:#C9C9CF;border:1px solid #26262d;border-radius:6px;padding:4px 8px;">' + s.choices + '</span>'
+        + '</div>';
+    };
+
+    const beatHtml = (b, i) => {
+      return '<div style="display:flex;gap:12px;align-items:center;">'
+        + '<div style="position:relative;width:78px;height:52px;border-radius:9px;overflow:hidden;flex:none;">'
+        + '<img src="' + b.thumb + '" style="width:100%;height:100%;object-fit:cover;">'
+        + '<div style="position:absolute;top:4px;left:4px;font-family:\'JetBrains Mono\',monospace;font-size:8px;color:#fff;background:rgba(0,0,0,0.55);border-radius:4px;padding:2px 5px;">' + (i + 1) + '</div></div>'
+        + '<div style="flex:1;"><div style="font-family:Inter;font-size:13px;line-height:1.4;color:#fff;">' + b.caption + '</div>'
+        + (b.fav ? '<div style="font-family:\'JetBrains Mono\',monospace;font-size:9px;letter-spacing:0.08em;color:#E8B54B;margin-top:4px;">&#9733; ' + b.character.toUpperCase() + ' &middot; YOUR FAVORITE</div>' : '')
+        + '</div></div>';
+    };
+
+    ['A', 'B'].forEach((id) => {
+      const state = STATES[id];
+      logEls[id] = document.querySelector('[data-eventlog="' + id + '"]');
+      const chip = document.querySelector('[data-viewer-chip="' + id + '"]');
+      if (chip) chip.innerHTML = chipHtml(state);
+      const mount = document.querySelector('[data-recap="' + id + '"]');
+      const recap = assembleRecap(state);
+      if (mount) mount.innerHTML = recap.map(beatHtml).join('')
+        + '<div style="font-family:Inter;font-size:11px;color:#6B6B72;margin-top:4px;">Caught up to ' + state.lastBeat + '. Tap continue.</div>';
+      track('recap_shown', id, { beats: recap.length, variants: recap.map((b) => b.id).join(',') });
+    });
+
+    // ---- Wire skip / continue ----
+    document.querySelectorAll('[data-recap-action]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-recap-viewer');
+        const action = btn.getAttribute('data-recap-action');
+        track(action === 'skip' ? 'recap_skipped' : 'continued_after_recap', id, { atBeat: STATES[id].lastBeat });
+      });
+    });
+  }
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
