@@ -619,3 +619,79 @@ test("finance is read-broad: even ReadOnly can read it, but the payout-run is fi
   assert.equal(denied.status, 403);
   assert.equal((await denied.json() as { reason: string }).reason, "read_only_violation");
 });
+
+// ---- Section 16-17 (slice B): health + settings ----------------------------------------------------
+
+test("GET /admin/health: Support is allowed and the registry never pings the live services", async () => {
+  // The DB must NOT be touched: health is a static, ping-free registry.
+  const res = await app().request("/admin/health", {
+    headers: { authorization: "Bearer operator:Support:s1" },
+  });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { source: string; services: Array<{ id: string; status: string }> };
+  assert.equal(body.source, "unwired");
+  assert.ok(body.services.some((s) => s.id === "content" && s.status === "unknown"));
+});
+
+test("GET /admin/health: Content/Finance/Marketing/Moderation/ReadOnly are 403 (ops-scoped read)", async () => {
+  for (const role of ["Content", "Finance", "Marketing", "Moderation", "ReadOnly"]) {
+    const res = await app().request("/admin/health", {
+      headers: { authorization: `Bearer operator:${role}:x` },
+    });
+    assert.equal(res.status, 403, `${role} should be denied health`);
+    assert.equal((await res.json() as { reason: string }).reason, "role_forbidden");
+  }
+});
+
+test("GET /admin/settings/audit: empty-unwired page when the table is unapplied (probe returns none)", async () => {
+  const db = {
+    async query(text: string) {
+      // The catalog probe finds no table; the page/count selects must never be reached.
+      if (/information_schema\.tables/.test(text)) return { rows: [] };
+      throw new Error("page/count must not run when the audit table is unapplied");
+    },
+  } as unknown as QueryPort;
+  const res = await app(db).request("/admin/settings/audit?limit=25&offset=0", {
+    headers: { authorization: "Bearer operator:ReadOnly:r1" },
+  });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { rows: unknown[]; source: string; limit: number };
+  assert.deepEqual(body.rows, []);
+  assert.equal(body.source, "unwired");
+  assert.equal(body.limit, 25);
+});
+
+test("GET /admin/settings/roles: read-broad, derived 8x route grid", async () => {
+  const res = await app().request("/admin/settings/roles", {
+    headers: { authorization: "Bearer operator:ReadOnly:r1" },
+  });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { source: string; roles: string[]; matrix: unknown[] };
+  assert.equal(body.source, "derived");
+  assert.equal(body.matrix.length, 8);
+  assert.equal(body.roles.length, 8);
+});
+
+test("POST /admin/settings/flags/:key: Owner is a 501 audit seam; ReadOnly is 403", async () => {
+  const audit = new InMemoryAuditSink();
+  const a = createAdminApp({ db: throwingDb, verifier: testOperatorVerifier(), audit });
+
+  const ok = await a.request("/admin/settings/flags/new_player", {
+    method: "POST",
+    headers: { authorization: "Bearer operator:Owner:o1", "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(ok.status, 501);
+  assert.equal((await ok.json() as { action: string }).action, "settings.flag.toggle");
+  assert.equal(audit.entries().length, 1);
+  assert.equal(audit.entries()[0].target, "flag:new_player");
+  assert.deepEqual(audit.entries()[0].after, { executed: false, reason: "not_implemented" });
+
+  const denied = await a.request("/admin/settings/flags/new_player", {
+    method: "POST",
+    headers: { authorization: "Bearer operator:ReadOnly:r1", "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(denied.status, 403);
+  assert.equal((await denied.json() as { reason: string }).reason, "read_only_violation");
+});

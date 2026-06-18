@@ -290,3 +290,37 @@ test("finance: read for all; payout-run (write) only Finance/Owner", () => {
   // Admin also has full finance write (Owner/Admin see everything).
   assert.equal(decide("Admin", "/admin/finance/payouts/run", "POST").allow, true);
 });
+
+test("classifyRoute maps the section 16-17 surfaces", () => {
+  assert.equal(classifyRoute("/admin/health"), "health");
+  assert.equal(classifyRoute("/admin/health/"), "health");
+  assert.equal(classifyRoute("/admin/settings/audit"), "settings");
+  assert.equal(classifyRoute("/admin/settings/roles"), "settings");
+  assert.equal(classifyRoute("/admin/settings/flags/new_player"), "settings");
+});
+
+test("health: read only Admin/Owner/Support; no write surface; others 403", () => {
+  for (const role of ["Owner", "Admin", "Support"] as Role[]) {
+    assert.equal(decide(role, "/admin/health", "GET").allow, true, `${role} reads health`);
+  }
+  for (const role of ["Content", "Finance", "Marketing", "Moderation", "ReadOnly"] as Role[]) {
+    const v = decide(role, "/admin/health", "GET");
+    assert.equal(v.allow, false, `${role} may not read health`);
+    assert.equal(v.reason, "role_forbidden");
+  }
+});
+
+test("settings: audit/roles read is broad; flag toggle (write) only Owner/Admin", () => {
+  for (const role of ROLES) {
+    assert.equal(decide(role, "/admin/settings/audit", "GET").allow, true, `${role} reads the audit trail`);
+    assert.equal(decide(role, "/admin/settings/roles", "GET").allow, true, `${role} reads the roles grid`);
+  }
+  for (const role of ["Owner", "Admin"] as Role[]) {
+    assert.equal(decide(role, "/admin/settings/flags/x", "POST").allow, true, `${role} toggles flags`);
+  }
+  for (const role of ["Content", "Finance", "Marketing", "Moderation", "Support", "ReadOnly"] as Role[]) {
+    const v = decide(role, "/admin/settings/flags/x", "POST");
+    assert.equal(v.allow, false, `${role} may not toggle flags`);
+    assert.equal(v.reason, "read_only_violation");
+  }
+});

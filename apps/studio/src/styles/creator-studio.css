@@ -1,0 +1,167 @@
+/* Creator Studio shell styles (prompt 22): the auth shell, the 14-section rail additions, the dashboard
+   grids, and the settings/coming-soon surfaces. Builds on brand-tokens.css + studio.css; rose is the single
+   focal accent, gold is reserved for coins/premium only. No em dashes. */
+
+/* ---- auth shell ---- */
+.auth-shell {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.auth-card {
+  width: 100%;
+  max-width: 460px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 30px;
+}
+.auth-card .lg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16px;
+}
+.auth-card .lg .mk { width: 24px; height: 24px; border-radius: 7px; background: var(--rose); }
+.auth-card .lg .pl { color: var(--rose); }
+
+.fld-legend {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mut);
+  margin-bottom: 8px;
+  padding: 0;
+}
+.tiers { border: 0; padding: 0; margin: 0 0 18px; display: grid; gap: 10px; }
+.tier {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 13px;
+  cursor: pointer;
+  background: #fff;
+}
+.tier.on { border-color: var(--rose); box-shadow: 0 0 0 3px var(--rose-tint); }
+.tier input { margin-top: 3px; accent-color: var(--rose); }
+.tier-body { display: flex; flex-direction: column; gap: 3px; }
+.tier-label { font-family: var(--font-display); font-weight: 600; font-size: 14px; }
+.tier-blurb { font-size: 12px; color: var(--mut); line-height: 1.45; }
+.tier-soon {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mut-2);
+  margin-top: 3px;
+}
+
+/* ---- rail additions (anchors + foot) ---- */
+.snav .snav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--mut);
+  background: transparent;
+  border: 1px solid transparent;
+  text-align: left;
+  padding: 10px 11px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-body);
+  text-decoration: none;
+}
+.snav .snav-link:hover { color: var(--ink); }
+.snav .snav-link.on {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border-color: var(--line);
+}
+.snav .snav-link.on svg { stroke: var(--rose); }
+.snav .snav-link svg { width: 16px; height: 16px; flex: none; }
+.snav-label { flex: 1; }
+.snav-soon {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mut-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 2px 5px;
+}
+.snav .snav-link.on .snav-soon { color: var(--mut); }
+
+.rail-foot { margin-top: 22px; padding: 0 4px; display: grid; gap: 14px; }
+.rail-mode { display: flex; align-items: center; gap: 9px; }
+.rail-mode__label { font-size: 12.5px; color: var(--ink); font-weight: 600; }
+.rail-tier {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--rose);
+}
+.rail-signout {
+  font-size: 12px;
+  color: var(--mut);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.rail-signout:hover { color: var(--ink); }
+
+/* ---- dashboard ---- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px;
+}
+.kpi-skel {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  background: #fff;
+}
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+@media (max-width: 760px) { .dash-grid { grid-template-columns: 1fr; } }
+
+.dash-list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+.dash-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  padding: 9px 10px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.dash-row:hover { background: var(--fill); }
+.dash-row__title { font-size: 13.5px; color: var(--ink); }
+.dash-row__meta { font-size: 11.5px; color: var(--mut); flex: none; }
+.nba { display: grid; gap: 12px; margin-top: 4px; }
+.nba .muted { font-size: 13px; line-height: 1.5; }

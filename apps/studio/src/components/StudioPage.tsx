@@ -3,6 +3,11 @@
 // Media & variants, Pricing, Publish. The active series (the real seeded "The Last Signal" by default) is
 // loaded once as a FLATTENED graph (beat_id re-stamped onto every variant) and shared across the panels.
 // A successful create bumps a reload token so the graph refreshes. No em dashes.
+//
+// CONTROLLED MODE: when the Creator Studio shell drives the workflow it passes an external `panel` +
+// `onPanelChange` and `hideRail`, so the shell's 14-section rail is the only rail. With NO props the page
+// keeps its original behavior (its own SideRail, internal panel state, default "library"), so the existing
+// integration test that renders <StudioPage /> directly stays green.
 import { useCallback, useState } from "react";
 import { SideRail, type PanelId } from "./studio/SideRail.js";
 import { LibraryPanel } from "./studio/LibraryPanel.js";
@@ -15,8 +20,24 @@ import { OperatorPanel } from "./studio/OperatorPanel.js";
 import { ProducePanel } from "./studio/ProducePanel.js";
 import { useFlatGraph } from "../api/useFlatGraph.js";
 
-export function StudioPage(): JSX.Element {
-  const [panel, setPanel] = useState<PanelId>("library");
+export interface StudioPageProps {
+  // Controlled active panel. When provided, the shell owns navigation and the internal SideRail is hidden.
+  panel?: PanelId;
+  onPanelChange?: (panel: PanelId) => void;
+  // Hide the legacy in-workspace SideRail (the Creator Studio shell provides the 14-section rail instead).
+  hideRail?: boolean;
+}
+
+export function StudioPage({ panel: controlledPanel, onPanelChange, hideRail }: StudioPageProps = {}): JSX.Element {
+  const [internalPanel, setInternalPanel] = useState<PanelId>("library");
+  const panel = controlledPanel ?? internalPanel;
+  const setPanel = useCallback(
+    (next: PanelId) => {
+      setInternalPanel(next);
+      onPanelChange?.(next);
+    },
+    [onPanelChange],
+  );
   // No series loaded until the author opens one from the Library (which lists the real published series).
   // Empty id keeps the graph idle, so the Studio never tries to load a series that is not in the schema.
   const [seriesId, setSeriesId] = useState<string>("");
@@ -35,17 +56,17 @@ export function StudioPage(): JSX.Element {
       }
       setPanel("branch");
     },
-    [reload],
+    [reload, setPanel],
   );
 
   const selectBeat = useCallback((beatId: string) => setSelectedBeatId(beatId), []);
 
-  return (
-    <div className="studio-shell">
-      <div className="studio-wrap">
-        <div className="studio">
-          <SideRail active={panel} onSelect={setPanel} />
-          <div className="smain">
+  // In controlled/embedded mode the shell renders its own 14-section rail and the surrounding chrome, so the
+  // workspace is just the main column. Standalone (no props) keeps the original shell + SideRail unchanged.
+  const main = (
+    <>
+      {!hideRail && <SideRail active={panel} onSelect={setPanel} />}
+      <div className="smain">
             {panel === "library" && <LibraryPanel onOpenSeries={openSeries} />}
 
             {panel === "operator" && <OperatorPanel />}
@@ -102,8 +123,19 @@ export function StudioPage(): JSX.Element {
             {panel === "publish" && graphState.status === "loaded" && (
               <PublishPanel graph={graphState.graph} onPublished={reload} />
             )}
-          </div>
-        </div>
+      </div>
+    </>
+  );
+
+  // Embedded: the shell wraps the workspace, so return just the columns it expects.
+  if (hideRail) {
+    return main;
+  }
+  // Standalone: the original full-bleed studio shell (unchanged for the existing test + direct mounting).
+  return (
+    <div className="studio-shell">
+      <div className="studio-wrap">
+        <div className="studio">{main}</div>
       </div>
     </div>
   );

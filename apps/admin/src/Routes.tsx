@@ -22,6 +22,8 @@ import { Growth } from "./pages/Growth";
 import { Moderation } from "./pages/Moderation";
 import { Trust } from "./pages/Trust";
 import { Finance } from "./pages/Finance";
+import { Health } from "./pages/Health";
+import { Settings } from "./pages/Settings";
 import { ComingSoon } from "./pages/ComingSoon";
 import { PageHead } from "./pages/Page";
 import { NAV_ITEMS } from "./shell/nav";
@@ -137,6 +139,13 @@ export function Routes() {
 
   // Section 15: Finance. Double-entry ledger + revenue + 70/30 payouts + FinOps. Stripe TEST.
   if (path === "/admin/finance" || path === "/admin/finance/") return <Finance />;
+
+  // Section 16: System health. Service status board + QoE + error rates + job failures + active alerts.
+  if (path === "/admin/health" || path === "/admin/health/") return <Health />;
+
+  // Section 17: Settings & roles. RBAC role-matrix VIEW + integrations + feature flags + env-config policy +
+  // the immutable admin audit trail (broad read).
+  if (path === "/admin/settings" || path === "/admin/settings/") return <Settings />;
 
   // The remaining not-yet-built sections (and any drill-through that targets them with a query): a real
   // report stub when there is a query (a drill target), otherwise the section coming-soon state.

@@ -692,6 +692,40 @@ export function consentTableProbeSql(): Sql {
   };
 }
 
+// ---- Admin settings: audit log (GET /admin/settings/audit) ------------------------------------------
+//
+// A PAGED read of the immutable audit trail (mobile.admin_audit_log, the table queued in
+// scripts/sql/07_admin_audit.sql). The table may be UNAPPLIED on the hosted project, so a tolerant catalog
+// probe decides between a real read and an empty + source:"unwired" view (the audit page is never
+// fabricated). Reads are ordered ts DESC (newest first) and bounded by limit/offset so the trail never
+// unbounded-scans. The probe reads only information_schema (no audit rows), so it is safe pre-apply.
+export function adminAuditTableProbeSql(): Sql {
+  return {
+    text:
+      "select table_name from information_schema.tables " +
+      "where table_schema = 'mobile' and table_name = 'admin_audit_log' limit 1",
+    values: [],
+  };
+}
+
+// One page of audit rows, newest first. SELECT-only over the append-only table. limit/offset are the page
+// window so the read is bounded. Only invoked by the aggregate AFTER the table probe confirms the table
+// exists (so a pre-apply project never errors on a missing relation).
+export function adminAuditPageSql(limit = 50, offset = 0): Sql {
+  return {
+    text:
+      "select id, ts, operator_id, role, action, target, before, after " +
+      "from mobile.admin_audit_log order by ts desc limit $1 offset $2",
+    values: [limit, offset],
+  };
+}
+
+// Total audit-row count for the page's pagination header. Only invoked after the table probe confirms the
+// table exists.
+export function adminAuditCountSql(): Sql {
+  return { text: "select count(*)::int as n from mobile.admin_audit_log", values: [] };
+}
+
 // ---- Accessibility readiness (GET /admin/accessibility) ---------------------------------------------
 
 // Per-series accessibility track coverage: total variants and how many carry each of the four tracks

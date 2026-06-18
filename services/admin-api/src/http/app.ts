@@ -43,6 +43,8 @@ import { buildGrowth } from "../growth.js";
 import { buildModerationQueue, buildModerationPolicy } from "../moderation.js";
 import { buildTrust } from "../trust.js";
 import { buildFinance } from "../finance.js";
+import { buildHealth } from "../health.js";
+import { buildAuditPage, buildRolesView } from "../settings.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -383,6 +385,51 @@ export function createAdminApp(deps: AppDeps): Hono {
       501,
     );
   });
+
+  // ---- Section 16: HEALTH (service-status registry) -------------------------------------------------
+  // GET /admin/health : a STATIC service-status registry for the known services (the 5 live + the new
+  // services) with QoE + error-rate placeholders, a job-failures block (unwired-honest: no jobs table), and
+  // active alerts (empty + unwired). HARD RULE this wave: NO cross-service health ping is issued (the admin
+  // API never calls the 5 live services); per-service liveness is honestly "unknown" + source:"unwired"
+  // with a followup to wire real health checks. PURE (no DB, no fetch). RBAC: read Admin/Owner/Support only.
+  app.get("/admin/health", (c) => c.json(buildHealth()));
+
+  // ---- Section 17: SETTINGS (audit trail read + RBAC roles read model + flag toggle seam) ------------
+  // GET /admin/settings/audit : a PAGED read of the immutable mobile.admin_audit_log, newest first. The
+  // table is queued in scripts/sql/07_admin_audit.sql and may be unapplied; the read model probes for it and
+  // returns empty + source:"unwired" when absent (audit rows are never fabricated). limit/offset page the
+  // trail (clamped in the read model). The audit READ is broad (any operator may review who-did-what).
+  app.get("/admin/settings/audit", async (c) => {
+    const limit = Number(c.req.query("limit") ?? "50");
+    const offset = Number(c.req.query("offset") ?? "0");
+    return c.json(await buildAuditPage(db, limit, offset));
+  });
+
+  // GET /admin/settings/roles : the RBAC matrix as a read model derived from rbac.ts (the 8 roles x route
+  // capabilities). PURE (no DB); the surfaced grid is the same MATRIX the decide() gate enforces, so it can
+  // never drift from policy. Read-broad.
+  app.get("/admin/settings/roles", (c) => c.json(buildRolesView()));
+
+  // POST/PATCH /admin/settings/flags/:key : feature-flag TOGGLE audit seam. RBAC gates this to the settings
+  // write roles (Owner/Admin) at the middleware. 501 audit seam: records the attempt (executed:false),
+  // touches NO flag config. A flag toggle backend is unwired; surfacing the audited seam is the deliverable.
+  async function flagToggleSeam(c: Context<{ Variables: Vars }>): Promise<Response> {
+    const key = c.req.param("key") ?? "";
+    await recordMutation(audit, c.get("operator"), "settings.flag.toggle", `flag:${key}`, undefined, {
+      executed: false,
+      reason: "not_implemented",
+    });
+    return c.json(
+      {
+        error: "not_implemented",
+        action: "settings.flag.toggle",
+        note: "feature-flag toggle backend is unwired; this seam audited the attempt and changed no flag config. Reward weights are never a feature flag (founder sign-off)",
+      },
+      501,
+    );
+  }
+  app.post("/admin/settings/flags/:key", (c) => flagToggleSeam(c));
+  app.patch("/admin/settings/flags/:key", (c) => flagToggleSeam(c));
 
   // ---- DESTRUCTIVE SEAMS (GDPR export/delete, ban, refund) ------------------------------------------
   // These are RBAC-gated by the elevated write surfaces (gdpr/moderation) in rbac.ts. They are PURE SEAMS

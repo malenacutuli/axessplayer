@@ -31,6 +31,11 @@ import type {
   ProvenanceLedger,
   GdprQueue,
   AdminFinance,
+  AdminHealth,
+  AdminSettings,
+  AuditPage,
+  OperatorRole,
+  RoleCapability,
 } from "./adminApi";
 
 export const DEMO_ME: AdminMe = {
@@ -878,4 +883,115 @@ export const DEMO_FINANCE: AdminFinance = {
     { titleId: "ser_heiress", title: "The Hidden Heiress", revenueUsd: 640_000, costUsd: 196_000, marginPct: 69 },
     { titleId: "ser_director", title: "The Director's Daughter", revenueUsd: 120_000, costUsd: 168_000, marginPct: -40 },
   ],
+};
+
+// Section 16: system health. The five known platform services, QoE against targets, recent error rates, a
+// produce-pipeline job-failure list, and active alerts. Operational telemetry only; no PII, no reward
+// weights. The status board mixes up / degraded / down so the chips are exercised.
+export const DEMO_HEALTH: AdminHealth = {
+  services: [
+    { key: "content", name: "Content service", status: "up", latencyMs: 84, uptime: "99.98%", runbook: "RUNBOOK-content" },
+    { key: "decision", name: "Decision service", status: "up", latencyMs: 112, uptime: "99.95%", runbook: "RUNBOOK-decision" },
+    { key: "economy", name: "Economy / ledger service", status: "up", latencyMs: 73, uptime: "99.99%", runbook: "RUNBOOK-economy" },
+    { key: "manifest", name: "Manifest service", status: "degraded", latencyMs: 318, uptime: "99.71%", runbook: "RUNBOOK-manifest" },
+    { key: "settlement", name: "Settlement service", status: "up", latencyMs: 96, uptime: "99.97%", runbook: "RUNBOOK-settlement" },
+  ],
+  qoe: [
+    { key: "startup", label: "Median startup time", value: "1.4s", target: "< 2.0s", withinTarget: true },
+    { key: "rebuffer", label: "Rebuffer ratio", value: "0.6%", target: "< 1.0%", withinTarget: true },
+    { key: "manifest_p95", label: "Manifest p95", value: "318ms", target: "< 250ms", withinTarget: false },
+    { key: "decision_p95", label: "Decision p95", value: "112ms", target: "< 150ms", withinTarget: true },
+  ],
+  errorRates: [
+    { service: "Content service", ratePct: 0.2, window: "last 1h" },
+    { service: "Decision service", ratePct: 0.4, window: "last 1h" },
+    { service: "Manifest service", ratePct: 2.1, window: "last 1h" },
+    { service: "Settlement service", ratePct: 0.1, window: "last 1h" },
+  ],
+  jobFailures: [
+    { id: "job_8841", stage: "render", title: "Shadow Signal S1E4 variant 12", reason: "GPU node preempted; auto-requeued", at: "2026-06-18 09:12", retries: 2 },
+    { id: "job_8839", stage: "caption", title: "The Hidden Heiress S1E2", reason: "Caption vendor timeout", at: "2026-06-18 08:47", retries: 1 },
+    { id: "job_8832", stage: "publish", title: "The Director's Daughter S1E1", reason: "Manifest service degraded; awaiting retry", at: "2026-06-18 08:05", retries: 0 },
+  ],
+  alerts: [
+    { id: "al_1", severity: "warning", summary: "Manifest p95 above 250ms target for 18m", at: "2026-06-18 09:02", runbook: "RUNBOOK-manifest" },
+    { id: "al_2", severity: "info", summary: "Storage + CDN egress nearing budget cap (94k / 85k)", at: "2026-06-18 07:30", runbook: "RUNBOOK-finops" },
+  ],
+};
+
+// Section 17: settings & roles. The role-matrix VIEW is derived from the rbac policy capabilities; the
+// integrations list, feature flags (one founder-gated, display-only), and the env-config KEY list (no secret
+// values ever) round it out. The audit trail is a separate paged fetch (DEMO_SETTINGS_AUDIT below).
+const ROLE_ORDER: OperatorRole[] = ["Owner", "Admin", "Content", "Finance", "Marketing", "Moderation", "Support", "ReadOnly"];
+
+// Build a capability row from a per-role map, defaulting any unset role to "none".
+function capRow(key: string, label: string, byRole: Partial<Record<OperatorRole, RoleCapability>>) {
+  const full: Record<OperatorRole, RoleCapability> = {
+    Owner: "none", Admin: "none", Content: "none", Finance: "none",
+    Marketing: "none", Moderation: "none", Support: "none", ReadOnly: "none",
+  };
+  for (const r of ROLE_ORDER) if (byRole[r]) full[r] = byRole[r]!;
+  return { key, label, byRole: full };
+}
+
+export const DEMO_SETTINGS: AdminSettings = {
+  roles: ROLE_ORDER,
+  capabilities: [
+    capRow("content", "Content CMS", { Owner: "full", Admin: "full", Content: "full", Finance: "read", Marketing: "read", Moderation: "read", Support: "read", ReadOnly: "read" }),
+    capRow("storygraph", "Adaptive story graph", { Owner: "full", Admin: "full", Content: "full", Finance: "read", Marketing: "read", Moderation: "read", Support: "read", ReadOnly: "read" }),
+    capRow("media", "Media factory", { Owner: "manage", Admin: "manage", Content: "manage", Finance: "read", Marketing: "read", Moderation: "read", Support: "read", ReadOnly: "read" }),
+    capRow("accessibility", "Accessibility factory", { Owner: "manage", Admin: "manage", Content: "manage", Moderation: "manage", Finance: "read", Marketing: "read", Support: "read", ReadOnly: "read" }),
+    capRow("brands", "Brand integration", { Owner: "read", Admin: "read", Marketing: "read", ReadOnly: "read" }),
+    capRow("users", "Users", { Owner: "manage", Admin: "manage", Support: "read", ReadOnly: "read" }),
+    capRow("creators", "Creators", { Owner: "manage", Admin: "manage", Finance: "read", ReadOnly: "read" }),
+    capRow("moderation", "Community & moderation", { Owner: "manage", Admin: "manage", Moderation: "manage", Content: "read", Finance: "read", Marketing: "read", Support: "read", ReadOnly: "read" }),
+    capRow("monetization", "Monetization", { Owner: "read", Admin: "read", Content: "read", Finance: "read", Marketing: "read", Moderation: "read", Support: "read", ReadOnly: "read" }),
+    capRow("analytics", "Analytics", { Owner: "read", Admin: "read", Content: "read", Finance: "read", Marketing: "read", Moderation: "read", Support: "read", ReadOnly: "read" }),
+    capRow("growth", "Growth & UA", { Owner: "read", Admin: "read", Content: "read", Finance: "read", Marketing: "read", Moderation: "read", Support: "read", ReadOnly: "read" }),
+    capRow("finance", "Finance & payouts", { Owner: "manage", Admin: "manage", Finance: "manage", ReadOnly: "read" }),
+    capRow("trust", "Rights, consent, provenance", { Owner: "manage", Admin: "manage", Moderation: "read", ReadOnly: "read" }),
+    capRow("health", "System health", { Owner: "read", Admin: "read", Support: "read", ReadOnly: "read" }),
+    capRow("settings", "Settings & roles", { Owner: "manage", Admin: "manage" }),
+    capRow("audit", "Admin audit trail (read)", { Owner: "read", Admin: "read", Content: "read", Finance: "read", Marketing: "read", Moderation: "read", Support: "read", ReadOnly: "read" }),
+    capRow("reward_weights", "Reward-function weights", { Owner: "read", Admin: "read", Content: "read", Finance: "read", Marketing: "read", Moderation: "read", Support: "read", ReadOnly: "read" }),
+  ],
+  integrations: [
+    { key: "stripe", name: "Stripe", description: "Payments and payouts. TEST mode until the live-rail cutover decision.", status: "test_mode" },
+    { key: "supabase", name: "Supabase", description: "Hosted Postgres + auth for the sovereign data plane.", status: "connected" },
+    { key: "captions", name: "Caption vendor", description: "Automated closed-caption generation in the accessibility factory.", status: "connected" },
+    { key: "dub", name: "Dub / localization vendor", description: "Multi-language dubbing pipeline.", status: "connected" },
+    { key: "sign", name: "Sign-language partner", description: "Human signer review and clip delivery.", status: "test_mode" },
+    { key: "c2pa", name: "C2PA provenance", description: "Content credentials signing and public verification.", status: "degraded" },
+    { key: "email", name: "Transactional email", description: "Operator and creator notifications.", status: "not_configured" },
+  ],
+  featureFlags: [
+    { key: "social", label: "Viewer social (comments, feeds)", description: "Gates the moderation surface and community spaces.", enabled: false },
+    { key: "alt_endings", label: "Alternate-ending purchases", description: "Lets viewers unlock alternate endings with credits.", enabled: true },
+    { key: "pov_switch", label: "POV switching", description: "Lets viewers switch character POV mid-episode.", enabled: true },
+    { key: "live_stripe", label: "Stripe live rail", description: "Switches Stripe from TEST to LIVE. Hard cutover gate, kept off.", enabled: false },
+    { key: "reward_weights", label: "Reward-weight tuning", description: "Tuning the reward function is a founder sign-off, never an operator/agent action.", enabled: false, founderGated: true },
+  ],
+  envKeys: [
+    { key: "VITE_ADMIN_API_BASE_URL", description: "Base URL the console points the admin API client at.", secret: false },
+    { key: "VITE_ADMIN_OPERATOR_TOKEN", description: "Operator bearer (MFA-backed session token in production).", secret: true },
+    { key: "SUPABASE_SERVICE_ROLE_KEY", description: "Server-side Supabase key used by the services, never the browser.", secret: true },
+    { key: "STRIPE_SECRET_KEY", description: "Stripe secret key (TEST). Used only by the settlement service.", secret: true },
+    { key: "C2PA_SIGNING_KEY", description: "Signing key for content-credentials provenance.", secret: true },
+  ],
+};
+
+// The immutable admin audit trail demo page. tableApplied is true here so the UI shows a populated paged
+// list; the live service returns tableApplied=false (empty) until the audit table is applied, and the page
+// then renders the honest "audit table not yet applied" note instead.
+export const DEMO_SETTINGS_AUDIT: AuditPage = {
+  tableApplied: true,
+  entries: [
+    { id: "aud_1042", at: "2026-06-18 09:14", actor: "op_avery", role: "Owner", action: "settings.view", target: "Settings & roles", outcome: "executed" },
+    { id: "aud_1041", at: "2026-06-18 09:02", actor: "op_lin", role: "Finance", action: "finance.payout", target: "run_2026_06", outcome: "seam_501" },
+    { id: "aud_1040", at: "2026-06-18 08:51", actor: "op_kai", role: "Moderation", action: "moderation.act", target: "report rep_8812", outcome: "executed" },
+    { id: "aud_1039", at: "2026-06-18 08:40", actor: "op_sam", role: "Support", action: "users.manage", target: "GDPR export usr_44102", outcome: "seam_501" },
+    { id: "aud_1038", at: "2026-06-18 08:22", actor: "op_rosa", role: "Content", action: "content.publish", target: "Shadow Signal S1E4", outcome: "executed" },
+    { id: "aud_1037", at: "2026-06-18 08:05", actor: "op_dev", role: "ReadOnly", action: "settings.manage", target: "feature flag: social", outcome: "denied" },
+  ],
+  nextCursor: null,
 };

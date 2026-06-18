@@ -29,6 +29,9 @@ import {
   type ProvenanceLedger,
   type GdprQueue,
   type AdminFinance,
+  type AdminHealth,
+  type AdminSettings,
+  type AuditPage,
 } from "./adminApi";
 import {
   DEMO_ACCESSIBILITY,
@@ -54,6 +57,9 @@ import {
   DEMO_TRUST_PROVENANCE,
   DEMO_TRUST_GDPR,
   DEMO_FINANCE,
+  DEMO_HEALTH,
+  DEMO_SETTINGS,
+  DEMO_SETTINGS_AUDIT,
 } from "./demoData";
 
 export const AdminApiContext = createContext<AdminApi | null>(null);
@@ -208,4 +214,18 @@ export function useTrustGdpr(): AsyncResult<GdprQueue> {
 // Section 15: finance (double-entry ledger, revenue, 70/30 payouts, FinOps).
 export function useFinance(): AsyncResult<AdminFinance> {
   return useAsync<AdminFinance>((api) => api.finance(), () => DEMO_FINANCE, []);
+}
+
+// Section 16: system health (service status board, QoE, error rates, job failures, alerts).
+export function useHealth(): AsyncResult<AdminHealth> {
+  return useAsync<AdminHealth>((api) => api.health(), () => DEMO_HEALTH, []);
+}
+
+// Section 17: settings & roles (role-matrix VIEW + integrations + feature flags + env-config key list).
+export function useSettings(): AsyncResult<AdminSettings> {
+  return useAsync<AdminSettings>((api) => api.settings(), () => DEMO_SETTINGS, []);
+}
+// The immutable admin audit trail, paged by cursor. Empty (tableApplied false) until the audit table exists.
+export function useSettingsAudit(cursor?: string): AsyncResult<AuditPage> {
+  return useAsync<AuditPage>((api) => api.settingsAudit(cursor), () => DEMO_SETTINGS_AUDIT, [cursor]);
 }

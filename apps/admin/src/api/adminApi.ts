@@ -768,6 +768,150 @@ export interface AdminFinance {
   margins: TitleMargin[];
 }
 
+/* -------------------------------- System health ------------------------------ */
+// Section 16. GET /admin/health -> the operational status board. services are the known platform services
+// (content, decision, economy, manifest, settlement) each with an up / degraded / down chip, latency, and a
+// runbook handle. qoe are quality-of-experience metrics (startup time, rebuffer, error rate) shown against a
+// target. errorRates are recent per-service error percentages. jobFailures is the recent produce / pipeline
+// job-failure list. alerts are the active alerts (severity + when + a runbook link). No reward weights, no
+// PII; this is purely operational telemetry. RBAC: health.view -> Admin / Owner + Support (ReadOnly mirror).
+// No em dashes.
+export type ServiceStatus = "up" | "degraded" | "down";
+
+export interface HealthService {
+  key: string;
+  name: string;
+  status: ServiceStatus;
+  // p95 latency in milliseconds (display only). A short human uptime string (e.g. "99.96%").
+  latencyMs: number;
+  uptime: string;
+  // A stable runbook handle the UI links to (relative doc path or ticket label). Never a secret URL.
+  runbook?: string;
+}
+
+export interface QoeMetric {
+  key: string;
+  label: string;
+  // The current value formatted (e.g. "1.4s", "0.6%") and the target it is measured against (e.g. "< 2s").
+  value: string;
+  target: string;
+  // Whether the metric is currently inside its target.
+  withinTarget: boolean;
+}
+
+export interface ErrorRate {
+  service: string;
+  // Recent error rate as a percent (0..100) and the window it covers (e.g. "last 1h").
+  ratePct: number;
+  window: string;
+}
+
+export type JobFailureStage = "ingest" | "cut_select" | "render" | "caption" | "dub" | "sign" | "publish";
+
+export interface JobFailure {
+  id: string;
+  // The pipeline stage that failed and a short, non-sensitive reason. The title is a display label only.
+  stage: JobFailureStage;
+  title: string;
+  reason: string;
+  // When it failed (formatted) and how many times it has been retried.
+  at: string;
+  retries: number;
+}
+
+export type AlertSeverity = "critical" | "warning" | "info";
+
+export interface HealthAlert {
+  id: string;
+  severity: AlertSeverity;
+  // A short alert summary and when it fired (formatted). runbook is a stable handle, never a secret.
+  summary: string;
+  at: string;
+  runbook?: string;
+}
+
+export interface AdminHealth {
+  services: HealthService[];
+  qoe: QoeMetric[];
+  errorRates: ErrorRate[];
+  jobFailures: JobFailure[];
+  alerts: HealthAlert[];
+}
+
+/* ------------------------------ Settings & roles ----------------------------- */
+// Section 17. The operator-console settings surface. It is overwhelmingly a READ surface: the RBAC role
+// matrix is a VIEW of the policy in src/access/rbac.ts (the 8 roles x capabilities, never editable here);
+// the admin audit trail is an immutable, paged VIEW from GET /admin/settings/audit (empty with a clear note
+// when the audit table is unapplied); integrations are a status list; feature flags render with an
+// RBAC-gated coming-soon toggle (no write this wave); and the env-config panel STATES that secrets live in
+// the platform env store ONLY and are never shown or edited here. Founder sign-off items (reward-function
+// weights) are display-only with the standing note. No secret values ever cross this boundary. No em dashes.
+
+// One page of the immutable admin audit trail. GET /admin/settings/audit?cursor=...&limit=... Entries are
+// append-only; the UI never edits or deletes one. When the audit table is not yet applied the server returns
+// an empty page and tableApplied=false so the UI can show the honest "audit table not yet applied" note
+// rather than fabricating rows.
+export interface AuditEntry {
+  id: string;
+  // When the action happened (formatted) and the operator + role that performed it (pseudonymous display).
+  at: string;
+  actor: string;
+  role: OperatorRole;
+  // The audited action key (mirrors the RBAC action) and the target it acted on (a label, never PII).
+  action: string;
+  target: string;
+  // The outcome: allowed and executed, allowed but a gated 501 seam (recorded, no effect), or denied.
+  outcome: "executed" | "seam_501" | "denied";
+}
+export interface AuditPage {
+  // False when the immutable audit table has not been applied to the hosted DB yet (entries will be empty).
+  tableApplied: boolean;
+  entries: AuditEntry[];
+  // Opaque cursor for the next page, or null when this is the last page.
+  nextCursor: string | null;
+}
+
+// A capability cell in the role matrix VIEW. Derived from the rbac policy, read-only.
+export type RoleCapability = "full" | "read" | "manage" | "none";
+
+export type IntegrationStatus = "connected" | "test_mode" | "not_configured" | "degraded";
+export interface Integration {
+  key: string;
+  name: string;
+  // What the integration does (display only) and its current status. Secrets are NEVER returned here.
+  description: string;
+  status: IntegrationStatus;
+}
+
+export interface FeatureFlag {
+  key: string;
+  label: string;
+  description: string;
+  enabled: boolean;
+  // A flag that is locked behind a founder sign-off (e.g. reward-weights related) renders display-only with
+  // the standing note and no toggle, even for Owner / Admin.
+  founderGated?: boolean;
+}
+
+// The env-config panel content. It NEVER carries a secret value. It lists the config KEYS the platform reads
+// and states, per key, that the value lives in the platform env store only and is not shown or edited here.
+export interface EnvConfigKey {
+  key: string;
+  // What the key configures (display only). secret=true keys are stored in the platform secret store and are
+  // never shown; non-secret keys (e.g. a public base url) still are not edited from this panel this wave.
+  description: string;
+  secret: boolean;
+}
+
+export interface AdminSettings {
+  // The 8 roles, in display order, and the capability columns of the matrix VIEW.
+  roles: OperatorRole[];
+  capabilities: { key: string; label: string; byRole: Record<OperatorRole, RoleCapability> }[];
+  integrations: Integration[];
+  featureFlags: FeatureFlag[];
+  envKeys: EnvConfigKey[];
+}
+
 /* ----------------------------------- Client ---------------------------------- */
 export interface AdminApiConfig {
   baseUrl: string;
@@ -948,6 +1092,26 @@ export class AdminApi {
   // GET /admin/finance -> double-entry ledger, revenue by source/market, 70/30 payouts, FinOps cost
   finance(): Promise<AdminFinance> {
     return this.get<AdminFinance>("/admin/finance");
+  }
+
+  // GET /admin/health -> service status board, QoE, error rates, job failures, active alerts (operational
+  // telemetry only; no reward weights, no PII).
+  health(): Promise<AdminHealth> {
+    return this.get<AdminHealth>("/admin/health");
+  }
+
+  // GET /admin/settings -> the role-matrix VIEW + integrations + feature flags + env-config key list. The
+  // settings surface never returns a secret value; secrets live in the platform env store only.
+  settings(): Promise<AdminSettings> {
+    return this.get<AdminSettings>("/admin/settings");
+  }
+  // GET /admin/settings/audit -> a page of the immutable admin audit trail. Empty with tableApplied=false
+  // when the audit table is not yet applied to the hosted DB (the UI shows an honest note, never fabricates).
+  settingsAudit(cursor?: string, limit = 20): Promise<AuditPage> {
+    const q = new URLSearchParams();
+    if (cursor) q.set("cursor", cursor);
+    q.set("limit", String(limit));
+    return this.get<AuditPage>(`/admin/settings/audit?${q.toString()}`);
   }
 }
 

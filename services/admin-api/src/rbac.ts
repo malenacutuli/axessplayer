@@ -68,6 +68,12 @@ export type RouteKey =
   | "moderationQueue"
   | "trust"
   | "finance"
+  // Section 16-17 surfaces (slice B). health is the service-status surface: read by the operations roles
+  // (Admin/Owner/Support); there is no health write (the registry is static this wave). settings is the
+  // platform-settings surface: read-broad (audit-trail read is broad so any operator can review who-did-
+  // what), with WRITES (feature-flag toggles) gated to Owner/Admin as 501 audit seams this wave.
+  | "health"
+  | "settings"
   | "unknown";
 
 // Classify a request path into a policy RouteKey. Trailing-slash and id-suffix tolerant. An unrecognized
@@ -86,6 +92,10 @@ export function classifyRoute(path: string): RouteKey {
   }
   if (clean === "/admin/trust" || clean.startsWith("/admin/trust/")) return "trust";
   if (clean === "/admin/finance" || clean.startsWith("/admin/finance/")) return "finance";
+  // Section 16-17 (slice B). health is a single read surface. settings covers the audit read, the roles
+  // read model, and the feature-flag toggle write seams (all under /admin/settings/...).
+  if (clean === "/admin/health" || clean.startsWith("/admin/health/")) return "health";
+  if (clean === "/admin/settings" || clean.startsWith("/admin/settings/")) return "settings";
   if (clean === "/admin/content" || clean.startsWith("/admin/content/")) return "content";
   if (clean === "/admin/story-graph" || clean.startsWith("/admin/story-graph/")) return "storyGraph";
   if (clean === "/admin/media-factory/jobs" || clean.startsWith("/admin/media-factory")) return "mediaFactory";
@@ -166,14 +176,14 @@ const NONE: Caps = { read: false, write: false };
 //   - growth: the acquisition/referral/creative-test surface. Owned by Marketing for writes
 //     (growth->Marketing/Admin/Owner); everyone else reads. Write is dormant this slice (read-only routes).
 const MATRIX: Record<Role, Record<Exclude<RouteKey, "unknown">, Caps>> = {
-  Owner: { me: ALL, dashboard: ALL, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: ALL, campaigns: ALL, placements: ALL, users: ALL, creators: ALL, payouts: ALL, gdpr: ALL, moderation: ALL, monetization: ALL, analytics: READ_ONLY, growth: ALL, moderationQueue: ALL, trust: ALL, finance: ALL },
-  Admin: { me: ALL, dashboard: ALL, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: ALL, campaigns: ALL, placements: ALL, users: ALL, creators: ALL, payouts: ALL, gdpr: ALL, moderation: ALL, monetization: ALL, analytics: READ_ONLY, growth: ALL, moderationQueue: ALL, trust: ALL, finance: ALL },
-  Content: { me: READ_ONLY, dashboard: READ_ONLY, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY, moderationQueue: READ_ONLY, trust: READ_ONLY, finance: READ_ONLY },
-  Finance: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: ALL, gdpr: NONE, moderation: ALL, monetization: ALL, analytics: READ_ONLY, growth: READ_ONLY, moderationQueue: READ_ONLY, trust: READ_ONLY, finance: ALL },
-  Marketing: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: ALL, campaigns: ALL, placements: ALL, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: ALL, moderationQueue: READ_ONLY, trust: READ_ONLY, finance: READ_ONLY },
-  Moderation: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: ALL, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY, moderationQueue: ALL, trust: READ_ONLY, finance: READ_ONLY },
-  Support: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: ALL, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY, moderationQueue: READ_ONLY, trust: READ_ONLY, finance: READ_ONLY },
-  ReadOnly: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY, moderationQueue: READ_ONLY, trust: READ_ONLY, finance: READ_ONLY },
+  Owner: { me: ALL, dashboard: ALL, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: ALL, campaigns: ALL, placements: ALL, users: ALL, creators: ALL, payouts: ALL, gdpr: ALL, moderation: ALL, monetization: ALL, analytics: READ_ONLY, growth: ALL, moderationQueue: ALL, trust: ALL, finance: ALL, health: READ_ONLY, settings: ALL },
+  Admin: { me: ALL, dashboard: ALL, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: ALL, campaigns: ALL, placements: ALL, users: ALL, creators: ALL, payouts: ALL, gdpr: ALL, moderation: ALL, monetization: ALL, analytics: READ_ONLY, growth: ALL, moderationQueue: ALL, trust: ALL, finance: ALL, health: READ_ONLY, settings: ALL },
+  Content: { me: READ_ONLY, dashboard: READ_ONLY, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY, moderationQueue: READ_ONLY, trust: READ_ONLY, finance: READ_ONLY, health: NONE, settings: READ_ONLY },
+  Finance: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: ALL, gdpr: NONE, moderation: ALL, monetization: ALL, analytics: READ_ONLY, growth: READ_ONLY, moderationQueue: READ_ONLY, trust: READ_ONLY, finance: ALL, health: NONE, settings: READ_ONLY },
+  Marketing: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: ALL, campaigns: ALL, placements: ALL, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: ALL, moderationQueue: READ_ONLY, trust: READ_ONLY, finance: READ_ONLY, health: NONE, settings: READ_ONLY },
+  Moderation: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: ALL, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY, moderationQueue: ALL, trust: READ_ONLY, finance: READ_ONLY, health: NONE, settings: READ_ONLY },
+  Support: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: ALL, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY, moderationQueue: READ_ONLY, trust: READ_ONLY, finance: READ_ONLY, health: READ_ONLY, settings: READ_ONLY },
+  ReadOnly: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY, moderationQueue: READ_ONLY, trust: READ_ONLY, finance: READ_ONLY, health: NONE, settings: READ_ONLY },
 };
 
 export interface RbacDecision {
@@ -201,4 +211,62 @@ export function decide(role: Role, path: string, method: string): RbacDecision {
   return caps.read
     ? { allow: false, reason: "read_only_violation" }
     : { allow: false, reason: "role_forbidden" };
+}
+
+// ---- RBAC read model (GET /admin/settings/roles) ----------------------------------------------------
+//
+// The roles matrix as a READ MODEL derived directly from the in-code MATRIX above (the single source of
+// truth). GET /admin/settings/roles serves this so the console renders the 8 roles x route-capability grid
+// WITHOUT re-declaring the policy: the derivation reads the same MATRIX the decide() gate reads, so the
+// surfaced grid can never drift from the enforced policy. The route surfaces (RouteKey minus "unknown")
+// are the columns; the 8 roles are the rows. There is no write here; this is purely a projection.
+
+export const ROUTE_KEYS: ReadonlyArray<Exclude<RouteKey, "unknown">> = [
+  "me",
+  "dashboard",
+  "content",
+  "storyGraph",
+  "mediaFactory",
+  "accessibility",
+  "brands",
+  "campaigns",
+  "placements",
+  "users",
+  "creators",
+  "payouts",
+  "gdpr",
+  "moderation",
+  "monetization",
+  "analytics",
+  "growth",
+  "moderationQueue",
+  "trust",
+  "finance",
+  "health",
+  "settings",
+];
+
+// One role's capabilities, route by route. read = may GET; write = may mutate. Mirrors the Caps shape, but
+// is a fresh plain object per cell so a consumer cannot mutate the live MATRIX through the read model.
+export interface RoleRouteCap {
+  route: Exclude<RouteKey, "unknown">;
+  read: boolean;
+  write: boolean;
+}
+
+export interface RoleCapabilities {
+  role: Role;
+  routes: RoleRouteCap[];
+}
+
+// Derive the full role x route capability grid from the live MATRIX. This is the single derivation: it
+// reads MATRIX, never a hand-maintained copy, so the read model is always in lock-step with the gate.
+export function rolesMatrix(): RoleCapabilities[] {
+  return ROLES.map((role) => ({
+    role,
+    routes: ROUTE_KEYS.map((route) => {
+      const caps = MATRIX[role][route] ?? NONE;
+      return { route, read: caps.read, write: caps.write };
+    }),
+  }));
 }
