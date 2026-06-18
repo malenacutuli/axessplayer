@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useCatalogClient } from "./useCatalogClient.js";
 import { CatalogApiError } from "./catalogClient.js";
-import type { SeriesGraphView, SeriesAnalytics } from "./catalogTypes.js";
+import type { SeriesGraphView, SeriesAnalytics, SeriesRevenue } from "./catalogTypes.js";
 
 export type CatalogState<T> =
   | { status: "idle" }
@@ -52,5 +52,11 @@ export function useSeriesGraphView(seriesId: string, reloadToken: number): Catal
 export function useSeriesAnalytics(seriesId: string, reloadToken: number): CatalogState<SeriesAnalytics> {
   const client = useCatalogClient();
   const fetcher = useCallback((id: string) => client.getSeriesAnalytics(id), [client]);
+  return useCatalogResource(seriesId, reloadToken, fetcher);
+}
+
+export function useSeriesRevenue(seriesId: string, reloadToken: number): CatalogState<SeriesRevenue> {
+  const client = useCatalogClient();
+  const fetcher = useCallback((id: string) => client.getSeriesRevenue(id), [client]);
   return useCatalogResource(seriesId, reloadToken, fetcher);
 }

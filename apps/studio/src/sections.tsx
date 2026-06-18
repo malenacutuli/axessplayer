@@ -14,8 +14,10 @@ export type SectionId =
   | "accessibility"
   | "brand"
   | "poster"
+  | "posters"
   | "analytics"
   | "monetization"
+  | "content"
   | "channel"
   | "team"
   | "rights"
@@ -47,8 +49,10 @@ export const STUDIO_SECTIONS: StudioSection[] = [
   },
   { id: "brand", label: "Brand", built: false, proOnly: true, blurb: "Brand offers and sponsorship, firewalled from content decisions." },
   { id: "poster", label: "Poster", built: true, blurb: "Generate and set the series poster." },
+  { id: "posters", label: "Posters and marketing", built: true, blurb: "Posters, A/B variants, localized art, channel creatives, and marketing clips." },
   { id: "analytics", label: "Analytics", built: true, blurb: "Retention and counterfactual lift, shown as bands." },
-  { id: "monetization", label: "Monetization", built: true, blurb: "Premium pricing and payout balance." },
+  { id: "monetization", label: "Monetization", built: true, blurb: "Pricing, the 70/30 revenue share, and payouts." },
+  { id: "content", label: "Modify content", built: true, blurb: "Edit a published title: unpublish, replace, enhance, re-run, exclusions." },
   { id: "channel", label: "Channel", built: false, blurb: "Your public channel page and publishing schedule." },
   { id: "team", label: "Team", built: false, proOnly: true, blurb: "Seats, roles, and approvals (Production tier)." },
   { id: "rights", label: "Rights", built: false, proOnly: true, blurb: "Licensing, territories, and content rights." },
@@ -128,10 +132,23 @@ export const SECTION_ICONS: Record<SectionId, JSX.Element> = {
       <path d="M5 19l5-5 4 3 3-3 2 2" />
     </svg>
   ),
+  posters: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+      <rect x="3" y="4" width="8" height="16" rx="1.5" />
+      <rect x="13" y="4" width="8" height="9" rx="1.5" />
+      <path d="M13 16h8M13 19h5" />
+    </svg>
+  ),
   analytics: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
       <path d="M3 3v18h18" />
       <path d="M7 14l3-4 3 3 4-6" />
+    </svg>
+  ),
+  content: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
     </svg>
   ),
   monetization: (

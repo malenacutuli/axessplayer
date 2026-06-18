@@ -282,3 +282,48 @@ test("GET /series/:id/analytics with a valid bearer aggregates (200) with lift a
   assert.equal(body.branchPerformance[0].direction, "up");
   assert.equal(body.completion, 0.25);
 });
+
+// --- creator-scoped revenue endpoint (session-authed, 70/30 split) ---------------------------------
+
+test("GET /series/:id/revenue without a creator bearer is 401 (no db read)", async () => {
+  const { db, calls } = fakePg([]);
+  const res = await route(db, verifiers, "GET", urlOf("/series/s1/revenue"), null, undefined);
+  assert.equal(res.status, 401);
+  assert.equal(calls.length, 0);
+});
+
+test("GET /series/:id/revenue with a valid bearer but unknown series is 404 (only the exists read)", async () => {
+  const { db, calls } = fakePg([[]]);
+  const res = await route(db, verifiers, "GET", urlOf("/series/ghost/revenue"), BEARER, undefined);
+  assert.equal(res.status, 404);
+  assert.equal(calls.length, 1); // short-circuits after the existence check
+});
+
+test("GET /series/:id/revenue with a valid bearer returns the 70/30 split (200)", async () => {
+  const { db } = fakePg([
+    [{ id: "s1" }], // exists
+    [
+      { source: "unlock", gross: 100 },
+      { source: "rewarded_ad", gross: 33 },
+    ], // bySource
+    [{ episode_id: "e1", gross: 90 }], // byEpisode
+    [{ cohort_id: "high_intent", gross: 133 }], // byCohort
+    [{ gross: 133 }], // payout balance read
+  ]);
+  const res = await route(db, verifiers, "GET", urlOf("/series/s1/revenue"), BEARER, undefined);
+  assert.equal(res.status, 200);
+  const body = res.body as {
+    totalGross: number;
+    creator70: number;
+    platform30: number;
+    payoutBalance: number;
+    bySource: Array<{ source: string; creatorShare: number; platformShare: number }>;
+  };
+  assert.equal(body.totalGross, 133);
+  assert.equal(body.creator70, 93);
+  assert.equal(body.platform30, 40);
+  assert.equal(body.creator70 + body.platform30, body.totalGross); // no rounding leak
+  assert.equal(body.payoutBalance, 93);
+  assert.equal(body.bySource[0].creatorShare, 70);
+  assert.equal(body.bySource[0].platformShare, 30);
+});

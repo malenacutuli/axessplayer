@@ -139,3 +139,45 @@ export interface SeriesAnalytics {
   watchTimeMs: number;
   byCohort: CohortSlice[];
 }
+
+// ---------------------------------------------------------------------------------------------------
+// GET /series/:id/revenue  (services/catalog additive route)
+// Revenue computed from coin_transactions with the 70/30 creator/platform split, broken down by source,
+// episode, and cohort. Every monetary figure is in COINS (own-once economy); there is NO live Stripe rail.
+// ---------------------------------------------------------------------------------------------------
+
+// A revenue row by source (e.g. premium_unlock, series_unlock, rewarded_ad, subscription_share). The split
+// is COMPUTED server-side from the gross: creatorShare = gross * 0.70, platformShare = gross * 0.30.
+export interface RevenueBySource {
+  source: string;
+  gross: number;
+  creatorShare: number;
+  platformShare: number;
+}
+
+export interface RevenueByEpisode {
+  episodeId: string;
+  label?: string;
+  gross: number;
+  creatorShare: number;
+  platformShare: number;
+}
+
+export interface RevenueByCohort {
+  cohort: string;
+  gross: number;
+  creatorShare: number;
+  platformShare: number;
+}
+
+export interface SeriesRevenue {
+  bySource: RevenueBySource[];
+  totalGross: number;
+  // The aggregate 70/30 split across all sources, computed server-side.
+  creator70: number;
+  platform30: number;
+  // The creator's current withdrawable balance in coins.
+  payoutBalance: number;
+  byEpisode: RevenueByEpisode[];
+  byCohort: RevenueByCohort[];
+}

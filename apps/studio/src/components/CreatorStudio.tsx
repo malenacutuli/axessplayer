@@ -25,6 +25,9 @@ import { UploadPanel } from "./studio/UploadPanel.js";
 import { ProcessPanel } from "./studio/ProcessPanel.js";
 import { BranchesSection } from "./studio/BranchesSection.js";
 import { AnalyticsSection } from "./studio/AnalyticsSection.js";
+import { PostersMarketingSection } from "./studio/PostersMarketingSection.js";
+import { MonetizationSection } from "./studio/MonetizationSection.js";
+import { ModifyContentSection } from "./studio/ModifyContentSection.js";
 import { sectionById, type SectionId } from "../sections.js";
 import { useStudioRoute } from "../router.js";
 import { useCreatorAuth } from "../auth/creatorAuth.js";
@@ -37,7 +40,6 @@ const WORKFLOW_PANEL: Partial<Record<SectionId, PanelId>> = {
   library: "library",
   media: "media",
   poster: "poster",
-  monetization: "pricing",
 };
 
 // Sections that render their own dedicated panel here (not the StudioPage workflow, not coming-soon). The
@@ -51,11 +53,14 @@ const DEDICATED_SECTIONS = new Set<SectionId>([
   "process",
   "branch",
   "analytics",
+  "posters",
+  "monetization",
+  "content",
 ]);
 
 export function CreatorStudio(): JSX.Element {
   const { session, mode } = useCreatorAuth();
-  const { section, navigate } = useStudioRoute();
+  const { section, param, navigate, navigateParam } = useStudioRoute();
 
   // The route is the single source of truth for the active section; the workflow panel is derived from it.
   const onSelect = useCallback((id: SectionId) => navigate(id), [navigate]);
@@ -124,6 +129,24 @@ export function CreatorStudio(): JSX.Element {
             {active.id === "analytics" && (
               <div className="smain">
                 <AnalyticsSection />
+              </div>
+            )}
+            {active.id === "posters" && (
+              <div className="smain">
+                <PostersMarketingSection />
+              </div>
+            )}
+            {active.id === "monetization" && (
+              <div className="smain">
+                <MonetizationSection />
+              </div>
+            )}
+            {active.id === "content" && (
+              <div className="smain">
+                <ModifyContentSection
+                  seriesId={param}
+                  onSelectSeries={(id) => (id ? navigateParam("content", id) : navigate("content"))}
+                />
               </div>
             )}
             {workflow && (

@@ -1105,3 +1105,276 @@ export interface SeriesAnalytics {
   watchTimeMs: number;
   byCohort: CohortSlice[];
 }
+
+// ===================================================================================================
+// GET /series/:id/revenue (CREATOR-SCOPED; session-authed creator bearer).
+//
+// Aggregates the immutable coin_transactions ledger for a single series and applies the 70/30
+// creator/platform split transparently. The ledger is polymorphic: a row's reference_id is the scope_id
+// of the unlock it paid for (episodes.id for an episode unlock, beat_variants.id for a premium beat-variant
+// cut). We attribute a transaction TO a series by resolving reference_id through episodes (scope=episode)
+// or through beat_variants -> beats (scope=beat_variant) back to series.id. Only attributable rows are
+// summed, so account-level top-ups that never bought this series' content do not inflate its revenue.
+//
+// "gross" per source is the coin VOLUME of revenue, always a non-negative magnitude. A spend is stored as a
+// negative amount (- coins leave the wallet) and represents creator-content revenue, so its gross is
+// abs(amount). A positive grant amount contributes its face value. A refund (negative, type=refund) nets
+// the gross back down. We never read or return a reward weight (reward-weights firewall) and the endpoint
+// is strictly SELECT-only / read-only.
+//
+// The 70/30 split is computed with the pure revenueShare() helper (floor on the creator side, platform gets
+// the exact remainder) so the two shares always sum back to gross with NO rounding leak.
+// ---------------------------------------------------------------------------------------------------
+
+// The creator's cut, in basis points, of every gross coin. Display-only economics: the split is computed
+// and shown transparently; it is not a live charge. 70% creator / 30% platform.
+export const CREATOR_SHARE_BPS = 7000;
+
+export interface RevenueShare {
+  creator: number;
+  platform: number;
+}
+
+// The 70/30 split with NO rounding leak: the creator gets floor(0.70 * gross) and the platform gets the
+// EXACT remainder (gross - creator), so creator + platform === gross for every integer gross, including
+// values where 0.70*gross is not an integer. Negative or non-finite input is floored to a 0/0 split rather
+// than producing nonsense. Pure.
+export function revenueShare(gross: number): RevenueShare {
+  const g = Number.isFinite(gross) ? Math.trunc(gross) : 0;
+  if (g <= 0) return { creator: 0, platform: 0 };
+  const creator = Math.floor((g * CREATOR_SHARE_BPS) / 10000);
+  return { creator, platform: g - creator };
+}
+
+// The ledger source taxonomy surfaced by the revenue breakdown, mapped from coin_transactions.type. The
+// ledger stores type as iap|rewarded_ad|offer_wall|checkin|spend|refund (0001_init.sql); the revenue view
+// presents creator-facing SOURCES. A content spend (an unlock) is the creator-content revenue source
+// 'unlock'; the grant rails keep their own source; an in-app purchase / subscription top-up is
+// 'subscription'; a refund is folded back into 'unlock' (it reverses a content spend) by the SQL CASE.
+export const REVENUE_SOURCES = [
+  "unlock",
+  "rewarded_ad",
+  "offer_wall",
+  "checkin",
+  "subscription",
+] as const;
+export type RevenueSource = (typeof REVENUE_SOURCES)[number];
+
+// Map a raw coin_transactions.type to a creator-facing RevenueSource, or null when the type is outside the
+// revenue taxonomy (it is then excluded from the breakdown rather than bucketed wrongly). Pure; mirrors the
+// CASE in buildSeriesRevenueBySourceQuery so the SQL and the type are kept in lockstep.
+export function revenueSourceFromType(type: unknown): RevenueSource | null {
+  switch (type) {
+    case "spend":
+    case "refund":
+      return "unlock";
+    case "rewarded_ad":
+      return "rewarded_ad";
+    case "offer_wall":
+      return "offer_wall";
+    case "checkin":
+      return "checkin";
+    case "iap":
+    case "subscription":
+      return "subscription";
+    default:
+      return null;
+  }
+}
+
+// The series-attribution CTE shared by every revenue query: the set of (transaction_id, amount, type,
+// user_id, reference_id) ledger rows that resolve to THIS series, via reference_id -> episodes.id OR
+// reference_id -> beat_variants.id -> beats.series_id. Kept as a string so the by-source / by-episode /
+// by-cohort builders compose it identically and the attribution logic lives in one place. $1 is the
+// series id. reference_id is text in the ledger and id columns are uuid, so we cast the join key.
+const SERIES_TXN_CTE = `with series_txn as (
+  select t.id as txn_id,
+         t.amount as amount,
+         t.type as type,
+         t.user_id as user_id,
+         t.reference_id as reference_id,
+         coalesce(ep.id, bep.id) as episode_id
+    from coin_transactions t
+    left join episodes ep on ep.id::text = t.reference_id and ep.series_id = $1
+    left join beat_variants bv on bv.id::text = t.reference_id
+    left join beats b on b.id = bv.beat_id and b.series_id = $1
+    left join episodes bep on bep.id = b.episode_id
+   where ep.id is not null or b.id is not null
+)`;
+
+// gross per source for the series. gross is the non-negative coin VOLUME: a spend is negative in the
+// ledger so we take abs(amount); a positive grant contributes its face value; everything is summed within
+// the mapped source bucket. The CASE mirrors revenueSourceFromType exactly. Rows whose type is outside the
+// taxonomy are dropped by the inner WHERE so they neither appear nor distort totals. SELECT-only.
+export function buildSeriesRevenueBySourceQuery(seriesId: string): SqlSpec {
+  return {
+    text: `${SERIES_TXN_CTE}
+    select source, sum(gross)::bigint as gross
+      from (
+        select case
+                 when type in ('spend', 'refund') then 'unlock'
+                 when type = 'rewarded_ad' then 'rewarded_ad'
+                 when type = 'offer_wall' then 'offer_wall'
+                 when type = 'checkin' then 'checkin'
+                 when type in ('iap', 'subscription') then 'subscription'
+                 else null
+               end as source,
+               abs(amount) as gross
+          from series_txn
+      ) mapped
+     where source is not null
+     group by source
+     order by source asc`,
+    values: [seriesId],
+  };
+}
+
+// gross per episode for the series (the byEpisode slice). Same attribution + abs(amount) gross, grouped by
+// the resolved episode_id (an unlock of a premium beat-variant is attributed to the variant's episode).
+// Rows that resolve to no episode (should not happen given the CTE join) are excluded. SELECT-only.
+export function buildSeriesRevenueByEpisodeQuery(seriesId: string): SqlSpec {
+  return {
+    text: `${SERIES_TXN_CTE}
+    select episode_id, sum(abs(amount))::bigint as gross
+      from series_txn
+     where episode_id is not null
+     group by episode_id
+     order by gross desc`,
+    values: [seriesId],
+  };
+}
+
+// gross per viewer cohort for the series (the byCohort slice). Joins each attributed transaction's buyer to
+// their per-series cohort via viewer_state.cohort_id; buyers with no cohort row bucket under 'unassigned'
+// so the slice is total. SELECT-only.
+export function buildSeriesRevenueByCohortQuery(seriesId: string): SqlSpec {
+  return {
+    text: `${SERIES_TXN_CTE}
+    select coalesce(vs.cohort_id, 'unassigned') as cohort_id,
+           sum(abs(st.amount))::bigint as gross
+      from series_txn st
+      left join viewer_state vs on vs.user_id = st.user_id and vs.series_id = $1
+     group by coalesce(vs.cohort_id, 'unassigned')
+     order by gross desc`,
+    values: [seriesId],
+  };
+}
+
+// payoutBalance read: the creator's currently withdrawable balance for the series, derived as the creator
+// 70% share of the net attributable gross (sum of abs(amount), refunds already negative-then-abs nets via
+// the source mapping at the breakdown layer; here we read the raw net volume). Returned as a single scalar
+// so the route reads it directly. SELECT-only, read-only (no payout table is written).
+export function buildSeriesPayoutBalanceQuery(seriesId: string): SqlSpec {
+  return {
+    text: `${SERIES_TXN_CTE}
+    select coalesce(sum(abs(amount)), 0)::bigint as gross
+      from series_txn`,
+    values: [seriesId],
+  };
+}
+
+export interface RevenueSourceRow {
+  source: RevenueSource;
+  gross: number;
+  creatorShare: number;
+  platformShare: number;
+}
+
+export interface RevenueEpisodeRow {
+  episodeId: string;
+  gross: number;
+  creatorShare: number;
+  platformShare: number;
+}
+
+export interface RevenueCohortRow {
+  cohortId: string;
+  gross: number;
+  creatorShare: number;
+  platformShare: number;
+}
+
+export interface SeriesRevenue {
+  bySource: RevenueSourceRow[];
+  totalGross: number;
+  creator70: number;
+  platform30: number;
+  payoutBalance: number;
+  byEpisode: RevenueEpisodeRow[];
+  byCohort: RevenueCohortRow[];
+}
+
+// Map the by-source rows, applying revenueShare() per source so each row carries its own transparent split.
+// The SQL CASE already emits the mapped source token (unlock|rewarded_ad|offer_wall|checkin|subscription);
+// we validate it against the closed REVENUE_SOURCES union so an unexpected token is dropped rather than
+// widening the contract. Pure.
+export function mapRevenueBySource(rows: Array<Record<string, unknown>>): RevenueSourceRow[] {
+  const out: RevenueSourceRow[] = [];
+  for (const r of rows) {
+    const source = asRevenueSource(r.source);
+    if (source == null) continue;
+    const gross = toInt(r.gross);
+    const split = revenueShare(gross);
+    out.push({ source, gross, creatorShare: split.creator, platformShare: split.platform });
+  }
+  return out;
+}
+
+// Narrow a raw by-source token to the closed RevenueSource union, or null when it is outside it. Pure.
+function asRevenueSource(v: unknown): RevenueSource | null {
+  return (REVENUE_SOURCES as readonly string[]).includes(v as string) ? (v as RevenueSource) : null;
+}
+
+export function mapRevenueByEpisode(rows: Array<Record<string, unknown>>): RevenueEpisodeRow[] {
+  return rows.map((r) => {
+    const gross = toInt(r.gross);
+    const split = revenueShare(gross);
+    return {
+      episodeId: String(r.episode_id),
+      gross,
+      creatorShare: split.creator,
+      platformShare: split.platform,
+    };
+  });
+}
+
+export function mapRevenueByCohort(rows: Array<Record<string, unknown>>): RevenueCohortRow[] {
+  return rows.map((r) => {
+    const gross = toInt(r.gross);
+    const split = revenueShare(gross);
+    return {
+      cohortId: String(r.cohort_id ?? "unassigned"),
+      gross,
+      creatorShare: split.creator,
+      platformShare: split.platform,
+    };
+  });
+}
+
+// Compose the full revenue payload. totalGross is the sum of the by-source gross (the authoritative gross
+// the split is applied to); creator70/platform30 are the split of THAT total computed once with
+// revenueShare() so the headline split has no rounding leak and is internally consistent with bySource.
+// payoutBalance is the creator 70% share of the payout-balance read. Pure composition. The byEpisode and
+// byCohort slices carry their own per-row splits. The revenueSourceFromType taxonomy keeps the source
+// token a closed union so the bySource rows are always one of REVENUE_SOURCES.
+export function composeSeriesRevenue(
+  bySourceRows: Array<Record<string, unknown>>,
+  byEpisodeRows: Array<Record<string, unknown>>,
+  byCohortRows: Array<Record<string, unknown>>,
+  payoutRows: Array<Record<string, unknown>>
+): SeriesRevenue {
+  const bySource = mapRevenueBySource(bySourceRows);
+  const totalGross = bySource.reduce((acc, r) => acc + r.gross, 0);
+  const headline = revenueShare(totalGross);
+  const payoutGross = toInt((payoutRows[0] ?? {}).gross);
+  const payoutBalance = revenueShare(payoutGross).creator;
+  return {
+    bySource,
+    totalGross,
+    creator70: headline.creator,
+    platform30: headline.platform,
+    payoutBalance,
+    byEpisode: mapRevenueByEpisode(byEpisodeRows),
+    byCohort: mapRevenueByCohort(byCohortRows),
+  };
+}

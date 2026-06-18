@@ -70,6 +70,11 @@ import {
   mapCompletion,
   buildCohortFunnelQuery,
   mapCohortSlices,
+  buildSeriesRevenueBySourceQuery,
+  buildSeriesRevenueByEpisodeQuery,
+  buildSeriesRevenueByCohortQuery,
+  buildSeriesPayoutBalanceQuery,
+  composeSeriesRevenue,
   type SeriesAnalytics,
   type Queryable,
 } from "./queries.js";
@@ -238,6 +243,29 @@ async function handleSeriesAnalytics(db: Queryable, seriesId: string): Promise<H
   return { status: 200, body };
 }
 
+// CREATOR-SCOPED. Aggregate the series revenue from the coin_transactions ledger and apply the transparent
+// 70/30 creator/platform split. session-authed: the studio sends a creator session bearer; the route
+// enforces the verified session before any DB read. A missing series is a 404. Read-only / SELECT-only;
+// never reads or returns a reward weight (reward-weights firewall) and never issues a charge.
+async function handleSeriesRevenue(db: Queryable, seriesId: string): Promise<HandlerResult> {
+  const exists = buildSeriesExistsQuery(seriesId);
+  const xRes = await db.query(exists.text, exists.values);
+  if (xRes.rows[0] == null) return { status: 404, body: { error: "not_found" } };
+
+  const bySource = buildSeriesRevenueBySourceQuery(seriesId);
+  const byEpisode = buildSeriesRevenueByEpisodeQuery(seriesId);
+  const byCohort = buildSeriesRevenueByCohortQuery(seriesId);
+  const payout = buildSeriesPayoutBalanceQuery(seriesId);
+  const [sRes, eRes, cRes, pRes] = await Promise.all([
+    db.query(bySource.text, bySource.values),
+    db.query(byEpisode.text, byEpisode.values),
+    db.query(byCohort.text, byCohort.values),
+    db.query(payout.text, payout.values),
+  ]);
+  const body = composeSeriesRevenue(sRes.rows, eRes.rows, cRes.rows, pRes.rows);
+  return { status: 200, body };
+}
+
 async function handleSearch(db: Queryable, q: string): Promise<HandlerResult> {
   const trimmed = q.trim();
   if (trimmed.length === 0) {
@@ -283,6 +311,7 @@ const SERIES_DETAIL_RE = /^\/series\/([^/]+)\/detail$/;
 const SERIES_CUTS_RE = /^\/series\/([^/]+)\/cuts$/;
 const SERIES_GRAPH_RE = /^\/series\/([^/]+)\/graph$/;
 const SERIES_ANALYTICS_RE = /^\/series\/([^/]+)\/analytics$/;
+const SERIES_REVENUE_RE = /^\/series\/([^/]+)\/revenue$/;
 const CHANNEL_DETAIL_RE = /^\/channel\/([^/]+)$/;
 
 export async function route(
@@ -352,6 +381,13 @@ export async function route(
     const identity = await verifiers.session.verifySession(parseBearer(authorization));
     if (identity == null) return { status: 401, body: { error: "unauthorized" } };
     return handleSeriesAnalytics(db, decodeURIComponent(analyticsMatch[1]));
+  }
+
+  const revenueMatch = method === "GET" ? SERIES_REVENUE_RE.exec(path) : null;
+  if (revenueMatch != null) {
+    const identity = await verifiers.session.verifySession(parseBearer(authorization));
+    if (identity == null) return { status: 401, body: { error: "unauthorized" } };
+    return handleSeriesRevenue(db, decodeURIComponent(revenueMatch[1]));
   }
 
   return { status: 404, body: { error: "not_found" } };

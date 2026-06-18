@@ -5,7 +5,7 @@
 // an upload + unwired AI-generate entry; memory variables are shown; and an undeployed catalog renders a
 // graceful empty state (no dead end). The fetches are stubbed so the tests are hermetic. No em dashes.
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup, within } from "@testing-library/react";
+import { render, screen, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ContentClient, type FeedSeries } from "../src/api/client.js";
 import { ContentClientContext } from "../src/api/useContentClient.js";

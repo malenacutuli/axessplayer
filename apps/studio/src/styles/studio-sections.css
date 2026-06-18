@@ -275,3 +275,43 @@
 .analytics-bar-row__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .analytics-bar-row__track { background: rgba(0,0,0,0.07); border-radius: 999px; height: 8px; overflow: hidden; }
 .analytics-bar-row__fill { display: block; height: 100%; background: var(--rose); }
+
+/* ---- Sections 7 / 10 / 11 (posters and marketing, monetization, modify content). Reuse the shared
+   .spanel / .sbar / .fld / .btn / .inspcard / .analytics-* rules; only the section-specific layout is
+   added here. No em dashes. ---- */
+
+/* Multi-column field grid shared by the poster, monetization, and creatives forms. */
+.fldgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+
+/* Poster + creative thumbnails and the A/B candidate grid. */
+.poster-thumb { width: 140px; max-width: 100%; aspect-ratio: 9 / 16; object-fit: cover; border-radius: 12px; display: block; margin-top: 8px; background: var(--line); }
+.poster-grid { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.poster-card { border: 1px solid var(--line); border-radius: 14px; padding: 10px; display: grid; gap: 8px; align-content: start; }
+.poster-card.on { border-color: var(--rose); box-shadow: 0 0 0 2px var(--rose-tint); }
+.poster-card .poster-thumb { width: 100%; }
+.poster-card__meta { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.tag-saved { display: inline-block; font-size: 11px; font-weight: 700; color: var(--rose-dark); background: var(--rose-tint); border-radius: 999px; padding: 1px 8px; width: fit-content; }
+
+/* Stripe TEST badge in the monetization header. */
+.stripe-test-badge { align-self: center; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--gold); background: var(--gold-tint); border: 1px solid var(--gold); border-radius: 999px; padding: 4px 10px; }
+
+/* Modify content action groups + cards. */
+.actiongroup__items { display: grid; gap: 10px; margin-top: 8px; }
+.actioncard { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.actioncard.danger { border-color: var(--rose-light); }
+.actioncard__text { display: flex; flex-direction: column; gap: 2px; }
+.actioncard__text b { font-size: 14px; }
+.actioncard__text .muted { font-size: 12px; }
+.varlist { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.varrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; font-size: 13px; }
+
+/* Danger button variant (destructive confirm + delete affordances). */
+.axp-btn--danger { border-color: var(--rose) !important; color: var(--rose-dark) !important; }
+.axp-btn--danger:hover { background: var(--rose-tint) !important; }
+
+/* Accessible confirmation modal. */
+.modal-scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
+.modal { background: var(--surface, #fff); border: 1px solid var(--line); border-radius: 16px; padding: 22px; max-width: 440px; width: 100%; box-shadow: 0 24px 60px rgba(0,0,0,0.25); }
+.modal__title { margin: 0 0 8px; font-size: 18px; }
+.modal__body { margin: 0; color: var(--ink); font-size: 14px; line-height: 1.5; }
+.modal__provenance { margin: 10px 0 0; font-size: 12px; color: var(--mut); font-style: italic; }

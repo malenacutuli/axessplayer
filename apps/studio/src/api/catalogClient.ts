@@ -6,7 +6,7 @@
 // Like the content client, this NEVER sends a user_id in a body (these are GETs, so it is not in play). No
 // em dashes.
 
-import type { SeriesGraphView, SeriesAnalytics } from "./catalogTypes.js";
+import type { SeriesGraphView, SeriesAnalytics, SeriesRevenue } from "./catalogTypes.js";
 
 export class CatalogApiError extends Error {
   readonly status: number;
@@ -55,6 +55,12 @@ export class CatalogClient {
   // GET /series/:id/analytics : per-series retention / branch perf / endings / funnel / cohorts.
   async getSeriesAnalytics(seriesId: string): Promise<SeriesAnalytics> {
     return this.get<SeriesAnalytics>(`/series/${encodeURIComponent(seriesId)}/analytics`);
+  }
+
+  // GET /series/:id/revenue : per-series revenue computed from coin_transactions with the 70/30 split,
+  // broken down by source / episode / cohort, plus the aggregate split and payout balance.
+  async getSeriesRevenue(seriesId: string): Promise<SeriesRevenue> {
+    return this.get<SeriesRevenue>(`/series/${encodeURIComponent(seriesId)}/revenue`);
   }
 
   private async get<T>(path: string): Promise<T> {
