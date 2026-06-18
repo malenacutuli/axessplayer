@@ -31,13 +31,16 @@ export type Action =
   | "creators.view"
   | "creators.payout" // Finance / Admin / Owner only: release a creator payout (destructive seam, gated).
   | "moderation.view"
-  | "moderation.act"
+  | "moderation.act" // approve/remove/escalate a report; block/mute; takedown (audit seam, destructive ones 501).
   | "monetization.view"
   | "analytics.view"
   | "growth.view"
   | "billing.view"
   | "billing.payout"
   | "trust.view"
+  | "trust.manage" // consent hard-delete, GDPR delete/export run (destructive 501 seam; not executed this wave).
+  | "finance.view"
+  | "finance.payout" // run a payout / generate a statement (destructive 501 seam; not executed this wave).
   | "health.view"
   | "settings.view"
   | "settings.manage"
@@ -59,7 +62,6 @@ const VIEW_ACTIONS: Action[] = [
   "analytics.view",
   "growth.view",
   "billing.view",
-  "trust.view",
   "health.view",
   "settings.view",
   "policy.view_reward_weights",
@@ -69,15 +71,20 @@ const MATRIX: Record<OperatorRole, Action[] | "*"> = {
   Owner: "*",
   Admin: "*",
   Content: [...VIEW_ACTIONS, "content.edit", "content.publish", "storygraph.edit", "media.control", "accessibility.review"],
-  // Finance can see creators (for payouts) and release payouts (seam this wave), plus billing payouts.
-  Finance: [...VIEW_ACTIONS, "creators.view", "creators.payout", "billing.payout"],
+  // Finance can see creators (for payouts) and release payouts (seam this wave), plus billing payouts. Finance
+  // owns the FINANCE section (section 15): finance.view + the gated payout-run seam (finance.payout).
+  Finance: [...VIEW_ACTIONS, "creators.view", "creators.payout", "billing.payout", "finance.view", "finance.payout"],
   // Marketing owns brand integration.
   Marketing: [...VIEW_ACTIONS, "brands.view"],
-  Moderation: [...VIEW_ACTIONS, "moderation.act", "accessibility.review"],
+  // Moderation owns the moderation gate (section 13: report-review + block/mute/takedown seams) and gets a
+  // COMPLIANCE READ into trust/consent/provenance (section 14: safety + compliance share a plane); the
+  // destructive trust seam (consent hard-delete / GDPR run) stays Admin/Owner only.
+  Moderation: [...VIEW_ACTIONS, "moderation.act", "accessibility.review", "trust.view"],
   // Support owns user accounts.
   Support: [...VIEW_ACTIONS, "users.view"],
-  // A read-only viewer can see every read surface (mirror), but performs no mutating action.
-  ReadOnly: [...VIEW_ACTIONS, "brands.view", "users.view", "creators.view"],
+  // A read-only viewer can see every read surface (mirror, including trust + finance), but performs no
+  // mutating action (no .act / .manage / .payout).
+  ReadOnly: [...VIEW_ACTIONS, "brands.view", "users.view", "creators.view", "trust.view", "finance.view"],
 };
 
 export function can(role: OperatorRole, action: Action): boolean {
@@ -98,6 +105,8 @@ const MUTATING_ACTIONS: Action[] = [
   "creators.payout",
   "moderation.act",
   "billing.payout",
+  "trust.manage",
+  "finance.payout",
   "settings.manage",
 ];
 

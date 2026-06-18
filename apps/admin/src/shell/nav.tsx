@@ -64,7 +64,7 @@ export const NAV: NavGroup[] = [
       { key: "monetization", label: "Monetization", path: "/admin/monetization", icon: s(<><circle cx="12" cy="12" r="9" /><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 010 3h-3a1.5 1.5 0 000 3h4" /></>) },
       { key: "analytics", label: "Analytics", path: "/admin/analytics", icon: s(<path d="M4 19V5M4 19h16M8 16v-4M12 16V8M16 16v-6M20 16v-2" />) },
       { key: "growth", label: "Growth & UA", path: "/admin/growth", icon: s(<path d="M3 17l6-6 4 4 7-8M21 7v5M21 7h-5" />) },
-      { key: "billing", label: "Billing & payouts", path: "/admin/billing", icon: s(<><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></>) },
+      { key: "finance", label: "Finance & payouts", path: "/admin/finance", icon: s(<><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></>) },
     ],
   },
   {

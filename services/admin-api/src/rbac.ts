@@ -59,6 +59,15 @@ export type RouteKey =
   | "monetization"
   | "analytics"
   | "growth"
+  // Section 13-15 surfaces (slice B). moderationQueue is the UGC moderation surface: read-broad (every
+  // operator reads the queue + policy) and the approve/remove/escalate/block/takedown seams are gated to
+  // Moderation/Admin/Owner. trust is the consent-ledger + C2PA-provenance + GDPR-queue surface: read-broad,
+  // with consent-hard-delete / GDPR-delete gated to Admin/Owner only. finance is the double-entry ledger /
+  // revenue / payout-accrual surface: read-broad, with the payout-run seam gated to Finance/Owner. The
+  // destructive POST seams on these surfaces are 501 audit seams this slice (touch no data).
+  | "moderationQueue"
+  | "trust"
+  | "finance"
   | "unknown";
 
 // Classify a request path into a policy RouteKey. Trailing-slash and id-suffix tolerant. An unrecognized
@@ -69,6 +78,14 @@ export function classifyRoute(path: string): RouteKey {
   const clean = path.replace(/\/+$/, "");
   if (clean === "/admin/me") return "me";
   if (clean === "/admin/dashboard") return "dashboard";
+  // Section 13-15 (slice B) classify FIRST so their own destructive sub-paths (e.g. a trust
+  // consent /delete or a finance /payouts/run) resolve to the section's own write surface, not to the
+  // generic gdpr (/delete) or moderation (/ban,/refund) destructive buckets below. Most specific first.
+  if (clean === "/admin/moderation/queue" || clean === "/admin/moderation/policy" || clean.startsWith("/admin/moderation/")) {
+    return "moderationQueue";
+  }
+  if (clean === "/admin/trust" || clean.startsWith("/admin/trust/")) return "trust";
+  if (clean === "/admin/finance" || clean.startsWith("/admin/finance/")) return "finance";
   if (clean === "/admin/content" || clean.startsWith("/admin/content/")) return "content";
   if (clean === "/admin/story-graph" || clean.startsWith("/admin/story-graph/")) return "storyGraph";
   if (clean === "/admin/media-factory/jobs" || clean.startsWith("/admin/media-factory")) return "mediaFactory";
@@ -149,14 +166,14 @@ const NONE: Caps = { read: false, write: false };
 //   - growth: the acquisition/referral/creative-test surface. Owned by Marketing for writes
 //     (growth->Marketing/Admin/Owner); everyone else reads. Write is dormant this slice (read-only routes).
 const MATRIX: Record<Role, Record<Exclude<RouteKey, "unknown">, Caps>> = {
-  Owner: { me: ALL, dashboard: ALL, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: ALL, campaigns: ALL, placements: ALL, users: ALL, creators: ALL, payouts: ALL, gdpr: ALL, moderation: ALL, monetization: ALL, analytics: READ_ONLY, growth: ALL },
-  Admin: { me: ALL, dashboard: ALL, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: ALL, campaigns: ALL, placements: ALL, users: ALL, creators: ALL, payouts: ALL, gdpr: ALL, moderation: ALL, monetization: ALL, analytics: READ_ONLY, growth: ALL },
-  Content: { me: READ_ONLY, dashboard: READ_ONLY, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY },
-  Finance: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: ALL, gdpr: NONE, moderation: ALL, monetization: ALL, analytics: READ_ONLY, growth: READ_ONLY },
-  Marketing: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: ALL, campaigns: ALL, placements: ALL, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: ALL },
-  Moderation: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: ALL, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY },
-  Support: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: ALL, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY },
-  ReadOnly: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY },
+  Owner: { me: ALL, dashboard: ALL, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: ALL, campaigns: ALL, placements: ALL, users: ALL, creators: ALL, payouts: ALL, gdpr: ALL, moderation: ALL, monetization: ALL, analytics: READ_ONLY, growth: ALL, moderationQueue: ALL, trust: ALL, finance: ALL },
+  Admin: { me: ALL, dashboard: ALL, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: ALL, campaigns: ALL, placements: ALL, users: ALL, creators: ALL, payouts: ALL, gdpr: ALL, moderation: ALL, monetization: ALL, analytics: READ_ONLY, growth: ALL, moderationQueue: ALL, trust: ALL, finance: ALL },
+  Content: { me: READ_ONLY, dashboard: READ_ONLY, content: ALL, storyGraph: ALL, mediaFactory: ALL, accessibility: ALL, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY, moderationQueue: READ_ONLY, trust: READ_ONLY, finance: READ_ONLY },
+  Finance: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: ALL, gdpr: NONE, moderation: ALL, monetization: ALL, analytics: READ_ONLY, growth: READ_ONLY, moderationQueue: READ_ONLY, trust: READ_ONLY, finance: ALL },
+  Marketing: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: ALL, campaigns: ALL, placements: ALL, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: ALL, moderationQueue: READ_ONLY, trust: READ_ONLY, finance: READ_ONLY },
+  Moderation: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: ALL, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY, moderationQueue: ALL, trust: READ_ONLY, finance: READ_ONLY },
+  Support: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: ALL, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY, moderationQueue: READ_ONLY, trust: READ_ONLY, finance: READ_ONLY },
+  ReadOnly: { me: READ_ONLY, dashboard: READ_ONLY, content: READ_ONLY, storyGraph: READ_ONLY, mediaFactory: READ_ONLY, accessibility: READ_ONLY, brands: READ_ONLY, campaigns: READ_ONLY, placements: READ_ONLY, users: READ_ONLY, creators: READ_ONLY, payouts: READ_ONLY, gdpr: NONE, moderation: NONE, monetization: READ_ONLY, analytics: READ_ONLY, growth: READ_ONLY, moderationQueue: READ_ONLY, trust: READ_ONLY, finance: READ_ONLY },
 };
 
 export interface RbacDecision {

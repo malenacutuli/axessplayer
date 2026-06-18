@@ -443,3 +443,179 @@ test("GET /admin/growth: referral health from referrals, creative bandit + acqui
   assert.deepEqual(body.acquisition.channels, []);
   assert.equal(body.referrals.invited, 10);
 });
+
+// ---- Section 13-15 routes: moderation, trust, finance -----------------------------------------------
+
+const probeEmptyDb = {
+  async query(text: string) {
+    void text;
+    return { rows: [] };
+  },
+} as unknown as QueryPort;
+
+test("GET /admin/moderation/queue is unwired empty (no social tables) and surfaces the scan provider", async () => {
+  const res = await app(probeEmptyDb).request("/admin/moderation/queue", { headers: { authorization: "Bearer operator:Moderation:mod1" } });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { items: unknown[]; source: string; scanProvider: string };
+  assert.deepEqual(body.items, []);
+  assert.equal(body.source, "unwired");
+  assert.equal(body.scanProvider, "unwired");
+});
+
+test("GET /admin/moderation/policy returns the documented policy and pending_provider scan status", async () => {
+  // The policy is pure; a throwing db proves it issues no query.
+  const res = await app(throwingDb).request("/admin/moderation/policy", { headers: { authorization: "Bearer operator:ReadOnly:r1" } });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { ageGate: { minViewAge: number }; communityRules: unknown[]; scanProvider: { status: string } };
+  assert.ok(body.communityRules.length > 0);
+  assert.equal(typeof body.ageGate.minViewAge, "number");
+  // HARD GATE: the scan provider is reported as pending_provider, never a clean enforcement.
+  assert.equal(body.scanProvider.status, "pending_provider");
+});
+
+test("moderation action seams 501 + audit without a data write; RBAC-gated to moderation roles", async () => {
+  const ugcId = "66666666-6666-6666-6666-666666666666";
+  const audit = new InMemoryAuditSink();
+  const a = createAdminApp({ db: throwingDb, verifier: testOperatorVerifier(), audit });
+
+  const actions: Array<{ verb: string; action: string }> = [
+    { verb: "approve", action: "moderation.approve" },
+    { verb: "remove", action: "moderation.remove" },
+    { verb: "escalate", action: "moderation.escalate" },
+    { verb: "block", action: "moderation.block" },
+    { verb: "takedown", action: "moderation.takedown" },
+  ];
+  for (const { verb, action } of actions) {
+    const res = await a.request(`/admin/moderation/items/${ugcId}/${verb}`, {
+      method: "POST",
+      headers: { authorization: "Bearer operator:Moderation:mod1", "content-type": "application/json" },
+      body: "{}",
+    });
+    assert.equal(res.status, 501, `${verb} -> 501`);
+    assert.equal((await res.json() as { action: string }).action, action);
+  }
+  const entries = audit.entries();
+  assert.equal(entries.length, actions.length);
+  for (const e of entries) assert.deepEqual(e.after, { executed: false, reason: "not_implemented" });
+
+  // A non-moderation role (Support reads but cannot run a takedown) is 403 and writes no audit.
+  const audit2 = new InMemoryAuditSink();
+  const a2 = createAdminApp({ db: throwingDb, verifier: testOperatorVerifier(), audit: audit2 });
+  const denied = await a2.request(`/admin/moderation/items/${ugcId}/takedown`, {
+    method: "POST",
+    headers: { authorization: "Bearer operator:Support:s1", "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(denied.status, 403);
+  assert.equal((await denied.json() as { reason: string }).reason, "read_only_violation");
+  assert.equal(audit2.entries().length, 0);
+});
+
+test("GET /admin/trust/consent is minimized + unwired and access-logs the read", async () => {
+  const audit = new InMemoryAuditSink();
+  const a = createAdminApp({ db: probeEmptyDb, verifier: testOperatorVerifier(), audit });
+  const res = await a.request("/admin/trust/consent", { headers: { authorization: "Bearer operator:Admin:a1" } });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { entries: unknown[]; source: string; minimized: boolean };
+  assert.deepEqual(body.entries, []);
+  assert.equal(body.source, "unwired");
+  assert.equal(body.minimized, true);
+  // The sensitive consent read was access-logged (who looked, when), carrying only non-PII metadata.
+  assert.equal(audit.entries().length, 1);
+  assert.equal(audit.entries()[0].action, "trust.consent.read");
+  assert.equal((audit.entries()[0].after as { source: string }).source, "unwired");
+});
+
+test("GET /admin/trust/provenance is readable and unwired when the substrate is absent", async () => {
+  const res = await app(probeEmptyDb).request("/admin/trust/provenance", { headers: { authorization: "Bearer operator:ReadOnly:r1" } });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { source: string; rollup: { total: number } };
+  assert.equal(body.source, "unwired");
+  assert.equal(body.rollup.total, 0);
+});
+
+test("trust destructive seams (consent hard-delete, GDPR delete) 501 + audit; Admin/Owner only", async () => {
+  const id = "77777777-7777-7777-7777-777777777777";
+  const audit = new InMemoryAuditSink();
+  const a = createAdminApp({ db: throwingDb, verifier: testOperatorVerifier(), audit });
+
+  const consentDel = await a.request(`/admin/trust/consent/${id}/delete`, {
+    method: "POST",
+    headers: { authorization: "Bearer operator:Owner:o1", "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(consentDel.status, 501);
+  assert.equal((await consentDel.json() as { action: string }).action, "trust.consent.hard_delete");
+
+  const gdprDel = await a.request(`/admin/trust/gdpr/${id}/delete`, {
+    method: "POST",
+    headers: { authorization: "Bearer operator:Admin:a1", "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(gdprDel.status, 501);
+  assert.equal((await gdprDel.json() as { action: string }).action, "trust.gdpr.delete");
+
+  assert.equal(audit.entries().length, 2);
+  for (const e of audit.entries()) assert.deepEqual(e.after, { executed: false, reason: "not_implemented" });
+
+  // A non-elevated role (Finance reads trust but cannot hard-delete consent) is 403, no audit.
+  const audit2 = new InMemoryAuditSink();
+  const a2 = createAdminApp({ db: throwingDb, verifier: testOperatorVerifier(), audit: audit2 });
+  const denied = await a2.request(`/admin/trust/consent/${id}/delete`, {
+    method: "POST",
+    headers: { authorization: "Bearer operator:Finance:f1", "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(denied.status, 403);
+  assert.equal(audit2.entries().length, 0);
+});
+
+test("GET /admin/finance is the double-entry view with a display-only 70/30 accrual; Stripe TEST", async () => {
+  const db = {
+    async query(text: string) {
+      if (/count\(\*\)::int as transactions/.test(text)) return { rows: [{ transactions: 3, credited: 1000, spent: 200, net: 800 }] };
+      if (/group by type order by credited/.test(text)) return { rows: [{ type: "purchase", count: 2, credited: 1000, spent: 0 }] };
+      if (/type = 'purchase'/.test(text)) return { rows: [{ gross: 1000 }] };
+      return { rows: [] };
+    },
+  } as unknown as QueryPort;
+  const res = await app(db).request("/admin/finance", { headers: { authorization: "Bearer operator:Finance:f1" } });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as {
+    ledger: { net: number };
+    payoutAccrual: { split: { creator: number; platform: number }; executed: boolean };
+    billingMode: string;
+  };
+  assert.equal(body.ledger.net, 800);
+  // 70/30 of 1000 gross.
+  assert.equal(body.payoutAccrual.split.creator, 700);
+  assert.equal(body.payoutAccrual.split.platform, 300);
+  assert.equal(body.payoutAccrual.executed, false);
+  assert.equal(body.billingMode, "stripe_test");
+});
+
+test("finance is read-broad: even ReadOnly can read it, but the payout-run is finance-gated", async () => {
+  const ro = await app(probeEmptyDb).request("/admin/finance", { headers: { authorization: "Bearer operator:ReadOnly:r1" } });
+  assert.equal(ro.status, 200);
+
+  // Payout-run seam: Finance may reach it (501, no payout), ReadOnly is 403.
+  const audit = new InMemoryAuditSink();
+  const a = createAdminApp({ db: probeEmptyDb, verifier: testOperatorVerifier(), audit });
+  const run = await a.request("/admin/finance/payouts/run", {
+    method: "POST",
+    headers: { authorization: "Bearer operator:Finance:f1", "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(run.status, 501);
+  assert.equal((await run.json() as { action: string }).action, "finance.payout.run");
+  assert.equal(audit.entries().length, 1);
+  assert.deepEqual(audit.entries()[0].after, { executed: false, reason: "not_implemented" });
+
+  const denied = await a.request("/admin/finance/payouts/run", {
+    method: "POST",
+    headers: { authorization: "Bearer operator:ReadOnly:r1", "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(denied.status, 403);
+  assert.equal((await denied.json() as { reason: string }).reason, "read_only_violation");
+});

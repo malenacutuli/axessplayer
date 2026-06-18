@@ -40,6 +40,9 @@ import { validateStoryGraph, simulateStoryGraph, type SimulateInput } from "../s
 import { buildMonetization } from "../monetization.js";
 import { buildAnalytics, parseDim } from "../analytics.js";
 import { buildGrowth } from "../growth.js";
+import { buildModerationQueue, buildModerationPolicy } from "../moderation.js";
+import { buildTrust } from "../trust.js";
+import { buildFinance } from "../finance.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -271,6 +274,115 @@ export function createAdminApp(deps: AppDeps): Hono {
   // payback as band estimates (unwired until a spend source lands), and referral-loop health from
   // mobile.referrals. RBAC: read-broad, Marketing-gated writes (no write route this slice).
   app.get("/admin/growth", async (c) => c.json(await buildGrowth(db)));
+
+  // ---- Section 13: MODERATION (UGC queue + policy + scan seam + destructive seams) -------------------
+  // GET /admin/moderation/queue : the UGC moderation queue. Empty + source:"unwired" until the social V8
+  // tables (posts/comments/reports) exist; never fabricated items. The scan provider status is surfaced
+  // (pending_provider while unwired). Read-broad (every operator reads); writes are the seams below.
+  app.get("/admin/moderation/queue", async (c) => c.json(await buildModerationQueue(db)));
+
+  // GET /admin/moderation/policy : the documented age-gate + rate-limit + community-rules read model. PURE
+  // (no DB). The scan-provider coverage is reported honestly (pending_provider while unwired), never as a
+  // clean enforcement of content that was not scanned.
+  app.get("/admin/moderation/policy", (c) => c.json(buildModerationPolicy()));
+
+  // POST /admin/moderation/items/:id/{approve|remove|escalate|block|takedown} : moderation action SEAMS.
+  // RBAC gates these to the moderation write roles (Moderation/Admin/Owner) at the middleware. Each is a
+  // 501 audit seam: it records the attempt (executed:false), touches NO data, and never invokes a scan
+  // verdict (the scan provider stays pending_provider). A malformed id is a clean 400 before any audit.
+  async function moderationSeam(c: Context<{ Variables: Vars }>, action: string): Promise<Response> {
+    const id = c.req.param("id") ?? "";
+    if (!UUID_RE.test(id)) return c.json({ error: "invalid_id" }, 400);
+    await recordMutation(audit, c.get("operator"), action, `ugc:${id}`, undefined, {
+      executed: false,
+      reason: "not_implemented",
+    });
+    return c.json(
+      {
+        error: "not_implemented",
+        action,
+        note: "moderation action backend is unwired; this seam audited the attempt and performed no data change. CSAM/harassment scanning is pending_provider, never a fabricated verdict",
+      },
+      501,
+    );
+  }
+  app.post("/admin/moderation/items/:id/approve", (c) => moderationSeam(c, "moderation.approve"));
+  app.post("/admin/moderation/items/:id/remove", (c) => moderationSeam(c, "moderation.remove"));
+  app.post("/admin/moderation/items/:id/escalate", (c) => moderationSeam(c, "moderation.escalate"));
+  app.post("/admin/moderation/items/:id/block", (c) => moderationSeam(c, "moderation.block"));
+  app.post("/admin/moderation/items/:id/takedown", (c) => moderationSeam(c, "moderation.takedown"));
+
+  // ---- Section 14: TRUST (consent ledger minimized + C2PA provenance + GDPR queue) -------------------
+  // GET /admin/trust/consent : the MINIMIZED consent-ledger view (scope/expiry/revocation only; no raw
+  // biometric/PII; the sovereign plane is never returned in full). The read is access-logged (who looked at
+  // the consent ledger, when), mirroring the user-admin privacy gate. Empty + unwired until a consent source
+  // exists. GET /admin/trust/provenance : C2PA signing status per asset from the beat_variants substrate.
+  // GET /admin/trust/gdpr : the GDPR data-subject-request queue (empty + unwired).
+  app.get("/admin/trust/consent", async (c) => {
+    const trust = await buildTrust(db);
+    await recordRead(audit, c.get("operator"), "trust.consent.read", "consent_ledger", {
+      entries: trust.consent.entries.length,
+      source: trust.consent.source,
+    });
+    return c.json(trust.consent);
+  });
+  app.get("/admin/trust/provenance", async (c) => c.json((await buildTrust(db)).provenance));
+  app.get("/admin/trust/gdpr", async (c) => c.json((await buildTrust(db)).gdpr));
+  // GET /admin/trust : the composed consent + provenance + gdpr view. The consent block is access-logged.
+  app.get("/admin/trust", async (c) => {
+    const trust = await buildTrust(db);
+    await recordRead(audit, c.get("operator"), "trust.consent.read", "consent_ledger", {
+      entries: trust.consent.entries.length,
+      source: trust.consent.source,
+    });
+    return c.json(trust);
+  });
+
+  // POST /admin/trust/consent/:id/delete and /admin/trust/gdpr/:id/delete : DESTRUCTIVE seams (consent
+  // hard-delete, GDPR delete). RBAC gates these to Admin/Owner (the trust write surface). Each is a 501
+  // audit seam: records the attempt (executed:false), touches NO consent/PII data. The audit `after` carries
+  // only the intent, never any consent payload (the sovereign plane is never logged to the console trail).
+  async function trustDeleteSeam(c: Context<{ Variables: Vars }>, action: string, targetPrefix: string): Promise<Response> {
+    const id = c.req.param("id") ?? "";
+    if (!UUID_RE.test(id)) return c.json({ error: "invalid_id" }, 400);
+    await recordMutation(audit, c.get("operator"), action, `${targetPrefix}:${id}`, undefined, {
+      executed: false,
+      reason: "not_implemented",
+    });
+    return c.json(
+      {
+        error: "not_implemented",
+        action,
+        note: "trust hard-delete backend is unwired; this seam audited the attempt and performed no data change. Consent/biometric data stays on the sovereign plane and is never returned or deleted by this seam",
+      },
+      501,
+    );
+  }
+  app.post("/admin/trust/consent/:id/delete", (c) => trustDeleteSeam(c, "trust.consent.hard_delete", "consent"));
+  app.post("/admin/trust/gdpr/:id/delete", (c) => trustDeleteSeam(c, "trust.gdpr.delete", "subject"));
+
+  // ---- Section 15: FINANCE (double-entry ledger + revenue + 70/30 payout accrual + FinOps) -----------
+  // GET /admin/finance : the double-entry view composed from coin_transactions (ledger totals, revenue by
+  // source), the creator 70/30 payout ACCRUAL (display-only via revenueShare; no payout executed), and a
+  // FinOps cost read model. Stripe stays TEST; no live rail is invoked. Read-broad; payout-run is a seam.
+  app.get("/admin/finance", async (c) => c.json(await buildFinance(db)));
+
+  // POST /admin/finance/payouts/run : the payout-run SEAM. RBAC gates it to Finance/Owner (finance write).
+  // 501 audit seam: records the attempt (executed:false), runs NO payout, invokes NO live Stripe rail.
+  app.post("/admin/finance/payouts/run", async (c) => {
+    await recordMutation(audit, c.get("operator"), "finance.payout.run", "payout_run", undefined, {
+      executed: false,
+      reason: "not_implemented",
+    });
+    return c.json(
+      {
+        error: "not_implemented",
+        action: "finance.payout.run",
+        note: "payout-run backend is unwired; this seam audited the attempt and ran no payout. The 70/30 accrual is display-only and Stripe stays TEST (no live rail invoked)",
+      },
+      501,
+    );
+  });
 
   // ---- DESTRUCTIVE SEAMS (GDPR export/delete, ban, refund) ------------------------------------------
   // These are RBAC-gated by the elevated write surfaces (gdpr/moderation) in rbac.ts. They are PURE SEAMS

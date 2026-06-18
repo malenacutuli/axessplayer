@@ -226,3 +226,67 @@ test("growth: read for all; write only Marketing/Admin/Owner", () => {
     assert.equal(decide(role, "/admin/growth", "POST").allow, false, `${role} may not write growth`);
   }
 });
+
+// ---- Section 13-15 additions: moderation queue, trust, finance --------------------------------------
+
+test("classifyRoute maps the section 13-15 surfaces and their seams", () => {
+  assert.equal(classifyRoute("/admin/moderation/queue"), "moderationQueue");
+  assert.equal(classifyRoute("/admin/moderation/policy"), "moderationQueue");
+  assert.equal(classifyRoute("/admin/moderation/items/abc/takedown"), "moderationQueue");
+  assert.equal(classifyRoute("/admin/trust/consent"), "trust");
+  assert.equal(classifyRoute("/admin/trust/provenance"), "trust");
+  assert.equal(classifyRoute("/admin/trust/gdpr"), "trust");
+  // A trust consent /delete resolves to the trust surface, NOT to the generic gdpr (/delete) bucket.
+  assert.equal(classifyRoute("/admin/trust/consent/abc/delete"), "trust");
+  assert.equal(classifyRoute("/admin/trust/gdpr/abc/delete"), "trust");
+  assert.equal(classifyRoute("/admin/finance"), "finance");
+  // A finance payout-run resolves to the finance surface, not to a destructive bucket.
+  assert.equal(classifyRoute("/admin/finance/payouts/run"), "finance");
+});
+
+test("moderation queue: read for all; action seams (write) only Moderation/Admin/Owner", () => {
+  for (const role of ROLES) {
+    assert.equal(decide(role, "/admin/moderation/queue", "GET").allow, true, `${role} reads queue`);
+    assert.equal(decide(role, "/admin/moderation/policy", "GET").allow, true, `${role} reads policy`);
+  }
+  for (const role of ["Moderation", "Admin", "Owner"] as Role[]) {
+    assert.equal(decide(role, "/admin/moderation/items/abc/takedown", "POST").allow, true, `${role} may take down`);
+  }
+  for (const role of ["Content", "Finance", "Marketing", "Support", "ReadOnly"] as Role[]) {
+    const v = decide(role, "/admin/moderation/items/abc/takedown", "POST");
+    assert.equal(v.allow, false, `${role} may not take down`);
+    assert.equal(v.reason, "read_only_violation");
+  }
+});
+
+test("trust: read for all; consent hard-delete + GDPR delete (write) only Admin/Owner", () => {
+  for (const role of ROLES) {
+    assert.equal(decide(role, "/admin/trust/consent", "GET").allow, true, `${role} reads consent`);
+    assert.equal(decide(role, "/admin/trust/provenance", "GET").allow, true, `${role} reads provenance`);
+  }
+  for (const role of ["Admin", "Owner"] as Role[]) {
+    assert.equal(decide(role, "/admin/trust/consent/abc/delete", "POST").allow, true, `${role} hard-deletes consent`);
+    assert.equal(decide(role, "/admin/trust/gdpr/abc/delete", "POST").allow, true, `${role} GDPR deletes`);
+  }
+  for (const role of ["Content", "Finance", "Marketing", "Moderation", "Support", "ReadOnly"] as Role[]) {
+    const v = decide(role, "/admin/trust/consent/abc/delete", "POST");
+    assert.equal(v.allow, false, `${role} may not hard-delete consent`);
+    assert.equal(v.reason, "read_only_violation");
+  }
+});
+
+test("finance: read for all; payout-run (write) only Finance/Owner", () => {
+  for (const role of ROLES) {
+    assert.equal(decide(role, "/admin/finance", "GET").allow, true, `${role} reads finance`);
+  }
+  for (const role of ["Finance", "Owner"] as Role[]) {
+    assert.equal(decide(role, "/admin/finance/payouts/run", "POST").allow, true, `${role} may run payouts`);
+  }
+  for (const role of ["Content", "Marketing", "Moderation", "Support", "ReadOnly"] as Role[]) {
+    const v = decide(role, "/admin/finance/payouts/run", "POST");
+    assert.equal(v.allow, false, `${role} may not run payouts`);
+    assert.equal(v.reason, "read_only_violation");
+  }
+  // Admin also has full finance write (Owner/Admin see everything).
+  assert.equal(decide("Admin", "/admin/finance/payouts/run", "POST").allow, true);
+});

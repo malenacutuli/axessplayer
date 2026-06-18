@@ -25,6 +25,12 @@ import type {
   StoryGraph,
   StoryValidation,
   UserDetail,
+  ModerationQueue,
+  ModerationPolicy,
+  ConsentLedger,
+  ProvenanceLedger,
+  GdprQueue,
+  AdminFinance,
 } from "./adminApi";
 
 export const DEMO_ME: AdminMe = {
@@ -49,7 +55,7 @@ export const DEMO_DASHBOARD: AdminDashboard = {
       // Counterfactual revenue lift band from the adaptive cut selection, shown as a band, never a point.
       band: { low: 8, high: 19, center: 13, label: "Estimated adaptive revenue lift between 8% and 19%" },
     },
-    { key: "payouts", label: "Creator payouts", value: "$1.28M", trend: "settled this period", drillTo: "/admin/billing?view=payouts", tone: "neutral" },
+    { key: "payouts", label: "Creator payouts", value: "$1.28M", trend: "settled this period", drillTo: "/admin/finance?view=payouts", tone: "neutral" },
     { key: "accessibility", label: "Accessibility usage", value: "41.6%", trend: "+2.0pp", drillTo: "/admin/analytics?metric=accessibility", tone: "green" },
     { key: "top_series", label: "Top series", value: "Shadow Signal", trend: "486 variants · 100% a11y", drillTo: "/admin/content", tone: "neutral" },
   ],
@@ -752,4 +758,124 @@ export const DEMO_GROWTH: AdminGrowth = {
       { label: "Retained (W4)", value: 41_000 },
     ],
   },
+};
+
+/* -------------------------------- Moderation --------------------------------- */
+// Section 13. The social tables do not exist yet, so the live queue is EMPTY. The demo fixture is also
+// EMPTY so the console shows the same honest empty state the (currently empty) live endpoint would, plus the
+// "scanner unwired" banner. We do NOT fabricate flagged/clean items: a fabricated clean verdict is a hard
+// gate violation, and there are no real items to scan yet. The POLICY fixture is real config (age-gating +
+// rate limits + the unwired-scanner status), which is safe to show because it is policy, not content. No em
+// dashes.
+export const DEMO_MODERATION_QUEUE: ModerationQueue = { items: [] };
+
+export const DEMO_MODERATION_POLICY: ModerationPolicy = {
+  ageGates: [
+    { id: "ag_minors_mature", label: "Minors and mature community", rule: "Accounts flagged as minors are blocked from mature community spaces (comments, character feeds on mature titles).", enforced: true },
+    { id: "ag_no_parasocial", label: "No romantic or parasocial overlap", rule: "Romantic or parasocial character interactions are never offered to or shown for minor accounts; community and character-companion surfaces do not overlap for minors.", enforced: true },
+    { id: "ag_dob_gate", label: "Age verification gate", rule: "Community write access requires a passed age gate; unverified accounts are read-only in social surfaces.", enforced: true },
+  ],
+  rateLimits: [
+    { id: "rl_comments", scope: "Comments", limit: "5 / min", appliesTo: "all" },
+    { id: "rl_comments_new", scope: "Comments", limit: "2 / min", appliesTo: "new accounts (< 48h)" },
+    { id: "rl_posts", scope: "Character-feed posts", limit: "20 / day", appliesTo: "all" },
+    { id: "rl_reports", scope: "Reports filed", limit: "30 / day", appliesTo: "all" },
+  ],
+  // The scanning interface is a REAL seam wired to a provider later. While unwired, every item's verdict is
+  // pending_provider; nothing is ever marked clean by fabrication.
+  scanProvider: {
+    wired: false,
+    note: "CSAM/illegal-content and harassment scanning is a real interface wired to a provider in a later wave. While unwired, every item's verdict is pending_provider. No item is ever auto-marked clean.",
+  },
+};
+
+/* ---------------------------- Trust / consent ------------------------------- */
+// Section 14 (the moat). The consent ledger is MINIMIZED: pseudonymous subject refs, scope/status/expiry and
+// residency only. NO biometric template, raw birthdate, legal name, or any full PII lives here; the full
+// record stays on the sovereign plane and the console only ever sees this projection. Synthetic. No em
+// dashes.
+export const DEMO_TRUST_CONSENT: ConsentLedger = {
+  records: [
+    { id: "cn_1", subjectRef: "subj_7f3a", scope: "likeness", status: "active", grantedAt: "2025-10-12", expiresAt: "2027-10-12", residency: "EU", sovereign: true },
+    { id: "cn_2", subjectRef: "subj_7f3a", scope: "voice", status: "active", grantedAt: "2025-10-12", expiresAt: "2027-10-12", residency: "EU", sovereign: true },
+    { id: "cn_3", subjectRef: "subj_91bd", scope: "biometric", status: "expiring", grantedAt: "2024-12-01", expiresAt: "2026-07-01", residency: "CH", sovereign: true },
+    { id: "cn_4", subjectRef: "subj_22e0", scope: "data_processing", status: "active", grantedAt: "2026-01-14", residency: "EU", sovereign: true },
+    { id: "cn_5", subjectRef: "subj_4c7f", scope: "marketing", status: "revoked", grantedAt: "2025-09-30", residency: "US", sovereign: true },
+    { id: "cn_6", subjectRef: "subj_91bd", scope: "likeness", status: "expired", grantedAt: "2023-06-01", expiresAt: "2025-06-01", residency: "CH", sovereign: true },
+  ],
+  residency: { eu: 3, ch: 2, us: 1 },
+};
+
+export const DEMO_TRUST_PROVENANCE: ProvenanceLedger = {
+  records: [
+    { id: "pv_1", assetTitle: "Shadow Signal · Ep1 · Maya POV · EN", status: "verified", signer: "Avalon Studios", signedAt: "2026-06-01", manifestId: "c2pa:9a21f0" },
+    { id: "pv_2", assetTitle: "The Hidden Heiress · Ep5 · EN", status: "verified", signer: "Avalon Studios", signedAt: "2026-05-18", manifestId: "c2pa:7c0b44" },
+    { id: "pv_3", assetTitle: "The Director's Daughter · Ep3 · EN", status: "pending", signer: "North Pivot Films" },
+    { id: "pv_4", assetTitle: "A Vow in Code · Ep2 · sign track (ASL)", status: "unsigned" },
+    { id: "pv_5", assetTitle: "Shadow Signal · Ep2 · trailer cut", status: "failed", signer: "Avalon Studios", signedAt: "2026-06-09", manifestId: "c2pa:invalid" },
+  ],
+};
+
+export const DEMO_TRUST_GDPR: GdprQueue = {
+  requests: [
+    { id: "gdpr_1", kind: "export", subjectRef: "subj_22e0", state: "in_progress", receivedAt: "2026-06-15", dueBy: "2026-07-15" },
+    { id: "gdpr_2", kind: "delete", subjectRef: "subj_4c7f", state: "awaiting_verification", receivedAt: "2026-06-14", dueBy: "2026-07-14" },
+    { id: "gdpr_3", kind: "rectify", subjectRef: "subj_91bd", state: "received", receivedAt: "2026-06-17", dueBy: "2026-07-17" },
+    { id: "gdpr_4", kind: "export", subjectRef: "subj_7f3a", state: "completed", receivedAt: "2026-05-20", dueBy: "2026-06-19" },
+  ],
+};
+
+/* ---------------------------------- Finance ---------------------------------- */
+// Section 15. Synthetic double-entry ledger + revenue + 70/30 payouts + FinOps. Coin-denominated; USD
+// equivalents are illustrative. Stripe is TEST (no live charges). Refs are pseudonymous, never raw PII. No
+// em dashes.
+function payoutRow(creatorId: string, creatorName: string, grossUsd: number, status: AdminFinance["payouts"][number]["status"], runId?: string): AdminFinance["payouts"][number] {
+  const creatorShareUsd = Math.round(grossUsd * 0.7);
+  return {
+    creatorId,
+    creatorName,
+    grossUsd,
+    creatorPct: 70,
+    platformPct: 30,
+    creatorShareUsd,
+    platformShareUsd: grossUsd - creatorShareUsd,
+    status,
+    runId,
+  };
+}
+
+export const DEMO_FINANCE: AdminFinance = {
+  stripeMode: "test",
+  ledger: [
+    { id: "tx_10231", at: "2026-06-17T20:14:00Z", kind: "purchase", debitAccount: "stripe_clearing", creditAccount: "user_wallet", amountCoins: 500, amountUsd: 3.99, ref: "subj_22e0" },
+    { id: "tx_10232", at: "2026-06-17T20:15:10Z", kind: "spend", debitAccount: "user_wallet", creditAccount: "platform_revenue", amountCoins: 120, amountUsd: 0.96, ref: "subj_22e0" },
+    { id: "tx_10233", at: "2026-06-17T21:02:00Z", kind: "credit", debitAccount: "promo_reserve", creditAccount: "user_wallet", amountCoins: 20, amountUsd: 0.0, ref: "subj_91bd" },
+    { id: "tx_10234", at: "2026-06-17T22:40:00Z", kind: "refund", debitAccount: "platform_revenue", creditAccount: "stripe_clearing", amountCoins: 100, amountUsd: 0.99, ref: "subj_4c7f" },
+    { id: "tx_10235", at: "2026-06-18T08:11:00Z", kind: "payout", debitAccount: "creator_payable", creditAccount: "stripe_payout_clearing", amountCoins: 0, amountUsd: 8400.0, ref: "cre_201" },
+    { id: "tx_10236", at: "2026-06-18T09:30:00Z", kind: "chargeback", debitAccount: "platform_revenue", creditAccount: "stripe_clearing", amountCoins: 0, amountUsd: 3.99, ref: "subj_4c7f" },
+  ],
+  revenue: [
+    { source: "Coins", market: "NA", amountUsd: 612_000, sharePct: 33 },
+    { source: "Coins", market: "EU", amountUsd: 408_000, sharePct: 22 },
+    { source: "Subscriptions", market: "all", amountUsd: 460_000, sharePct: 25 },
+    { source: "Ads", market: "all", amountUsd: 240_000, sharePct: 13 },
+    { source: "Brand", market: "all", amountUsd: 120_000, sharePct: 7 },
+  ],
+  payouts: [
+    payoutRow("cre_201", "Avalon Studios", 688_571, "paid", "run_2026_06"),
+    payoutRow("cre_202", "Rosa Marin", 183_428, "scheduled", "run_2026_06"),
+    payoutRow("cre_203", "North Pivot Films", 0, "pending"),
+    payoutRow("cre_204", "Kemi Adeyemi", 101_785, "on_hold"),
+  ],
+  finops: [
+    { line: "GPU compute (produce DAG)", spendUsd: 142_000, capUsd: 180_000, overCap: false },
+    { line: "Vendor APIs (captions/dub/sign)", spendUsd: 61_000, capUsd: 80_000, overCap: false },
+    { line: "Storage + CDN egress", spendUsd: 94_000, capUsd: 85_000, overCap: true },
+    { line: "LLM inference (cut selection)", spendUsd: 38_000, capUsd: 60_000, overCap: false },
+  ],
+  margins: [
+    { titleId: "ser_shadow", title: "Shadow Signal", revenueUsd: 980_000, costUsd: 214_000, marginPct: 78 },
+    { titleId: "ser_heiress", title: "The Hidden Heiress", revenueUsd: 640_000, costUsd: 196_000, marginPct: 69 },
+    { titleId: "ser_director", title: "The Director's Daughter", revenueUsd: 120_000, costUsd: 168_000, marginPct: -40 },
+  ],
 };

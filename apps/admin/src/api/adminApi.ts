@@ -566,6 +566,208 @@ export interface AdminGrowth {
   referral: ReferralHealth;
 }
 
+/* -------------------------------- Moderation --------------------------------- */
+// Section 13 [THE GATE for viewer V8 social]. GET /admin/moderation/queue -> the moderation queue (UGC
+// reports, comments, character-feed posts). The social tables do not exist yet, so the live endpoint
+// returns an EMPTY queue; the UI renders a real empty state, never fabricated rows. The CSAM/illegal-content
+// + harassment SCAN is a real INTERFACE wired to a provider later: when the scanner is unwired its verdict
+// is "pending_provider", NEVER a fabricated "clean" result. report-review (approve/remove/escalate),
+// block/mute, and takedown are RBAC-gated audit SEAMS rendered disabled this wave (the destructive ones are
+// 501 seams server side; nothing executes here). GET /admin/moderation/policy -> the age-gating policy
+// (minors blocked from mature community, no romantic/parasocial overlap) + rate-limit config. No em dashes.
+export type ModerationItemKind = "report" | "comment" | "post";
+// The scanner verdict. "pending_provider" is the ONLY verdict an unwired scanner returns; a clean verdict
+// is never fabricated. "flagged" / "blocked" come from a real provider once wired.
+export type ScanStatus = "pending_provider" | "clear" | "flagged" | "blocked";
+export type ScanCategory = "csam" | "illegal" | "harassment" | "spam" | "self_harm";
+export type ModerationState = "open" | "in_review" | "actioned" | "escalated";
+
+export interface ModerationScan {
+  // The provider-backed verdict. pending_provider when unwired (never a fabricated clean verdict).
+  status: ScanStatus;
+  // The categories the scan covers. The verdict applies across these once a provider is wired.
+  categories: ScanCategory[];
+  // Provider name once wired; null/undefined while pending. Display only.
+  provider?: string;
+  // Human note explaining the status (e.g. "scanner not yet wired; queued for provider").
+  note?: string;
+}
+export interface ModerationItem {
+  id: string;
+  kind: ModerationItemKind;
+  // Minimized author handle (no legal name / PII). The sovereign plane holds identity.
+  authorHandle: string;
+  // The reported/flagged text excerpt (truncated). For a report, the reason text.
+  excerpt: string;
+  // For a report: the reason category the reporter selected.
+  reportReason?: string;
+  // Where the content lives (series/episode/character feed), by title only.
+  context: string;
+  state: ModerationState;
+  // The provider scan verdict (pending_provider when unwired).
+  scan: ModerationScan;
+  // Whether the author is a minor (drives age-gating). Coarse boolean only, no birthdate.
+  authorIsMinor: boolean;
+  reportedAt: string;
+}
+export interface ModerationQueue {
+  items: ModerationItem[];
+}
+
+// GET /admin/moderation/policy -> age-gating + rules + rate-limit config (all display/read this wave).
+export interface AgeGateRule {
+  id: string;
+  label: string;
+  // The rule statement (e.g. "Minors blocked from mature community spaces"). Display only.
+  rule: string;
+  enforced: boolean;
+}
+export interface RateLimitRule {
+  id: string;
+  scope: string; // e.g. "comments per minute", "posts per day"
+  limit: string; // formatted (e.g. "5 / min")
+  appliesTo: string; // e.g. "all", "new accounts", "free tier"
+}
+export interface ModerationPolicy {
+  ageGates: AgeGateRule[];
+  rateLimits: RateLimitRule[];
+  // The provider wiring status for the scanning interface (display only; drives the "unwired" banner).
+  scanProvider: { wired: boolean; name?: string; note: string };
+}
+
+/* ---------------------------- Trust / consent ------------------------------- */
+// Section 14 (the moat). GET /admin/trust/consent -> the consent ledger, MINIMIZED: scope/expiry/revocation
+// status only; NO full biometric/PII is ever returned to the console (the sovereign plane holds it; the
+// console shows a minimized projection + an access-logged note). Hard-delete of a consent record is a
+// DESTRUCTIVE gated SEAM (501 server side; not executed here). GET /admin/trust/provenance -> C2PA status
+// per asset + a public-verification affordance. The GDPR request queue is surfaced; GDPR delete/export are
+// gated seams. Sovereign data-plane residency (EU / Swiss) is surfaced as an indicator. No em dashes.
+export type ConsentScope = "likeness" | "voice" | "biometric" | "data_processing" | "marketing";
+export type ConsentStatus = "active" | "expiring" | "expired" | "revoked";
+
+export interface ConsentRecord {
+  id: string;
+  // Minimized subject reference (a stable pseudonymous id, never a legal name / raw PII).
+  subjectRef: string;
+  scope: ConsentScope;
+  status: ConsentStatus;
+  grantedAt: string;
+  expiresAt?: string;
+  // Where the underlying record physically lives (data residency). Display only.
+  residency: "EU" | "CH" | "US";
+  // Whether the full record is held on the sovereign plane (always true; the console only sees this minimized
+  // projection). Drives the "minimized, access-logged" note.
+  sovereign: boolean;
+}
+export interface ConsentLedger {
+  records: ConsentRecord[];
+  // The aggregate residency posture (the moat indicator).
+  residency: { eu: number; ch: number; us: number };
+}
+
+export type ProvenanceStatus = "verified" | "pending" | "unsigned" | "failed";
+export interface ProvenanceRecord {
+  id: string;
+  assetTitle: string;
+  // C2PA manifest status. Display only; verification is performed against the signed manifest.
+  status: ProvenanceStatus;
+  // The signer (creator/studio) once signed. Display only.
+  signer?: string;
+  signedAt?: string;
+  // A public-verification handle (a manifest id) the console can hand to a public C2PA verifier. Display only.
+  manifestId?: string;
+}
+export interface ProvenanceLedger {
+  records: ProvenanceRecord[];
+}
+
+export type GdprRequestKind = "export" | "delete" | "rectify" | "restrict";
+export type GdprRequestState = "received" | "in_progress" | "awaiting_verification" | "completed" | "rejected";
+export interface GdprRequest {
+  id: string;
+  kind: GdprRequestKind;
+  // Minimized subject reference, never raw PII.
+  subjectRef: string;
+  state: GdprRequestState;
+  receivedAt: string;
+  // Statutory due date for the request (display only).
+  dueBy: string;
+}
+export interface GdprQueue {
+  requests: GdprRequest[];
+}
+
+export interface AdminTrust {
+  consent: ConsentLedger;
+  provenance: ProvenanceLedger;
+  gdpr: GdprQueue;
+}
+
+/* ---------------------------------- Finance ---------------------------------- */
+// Section 15. GET /admin/finance -> the double-entry coin ledger view (coin_transactions), revenue by
+// source/market, creator payouts with the 70/30 split computed + shown, payout runs/statements (a run is a
+// gated SEAM, not executed), and FinOps cost + budget cap + margin per title. Stripe is TEST until the
+// live-rail decision (a badge says so). No live charges. No em dashes.
+export type LedgerEntryKind = "purchase" | "spend" | "credit" | "refund" | "payout" | "chargeback" | "adjustment";
+
+export interface LedgerEntry {
+  id: string;
+  at: string;
+  kind: LedgerEntryKind;
+  // The double-entry legs. debit + credit account names (display only; the ledger service is the source).
+  debitAccount: string;
+  creditAccount: string;
+  // Amount in coins (the ledger is coin-denominated) and the USD equivalent (display only).
+  amountCoins: number;
+  amountUsd: number;
+  // Minimized reference to the actor (pseudonymous), never raw PII.
+  ref: string;
+}
+export interface RevenueBySource {
+  source: string; // Coins / Subscriptions / Ads / Brand
+  market: string; // market / region, or "all"
+  amountUsd: number;
+  sharePct: number;
+}
+export interface CreatorPayoutRow {
+  creatorId: string;
+  creatorName: string;
+  // Gross attributable revenue, then the transparent 70/30 split computed from it.
+  grossUsd: number;
+  creatorPct: number; // 70
+  platformPct: number; // 30
+  creatorShareUsd: number;
+  platformShareUsd: number;
+  status: PayoutStatus;
+  // The payout run this row belongs to (a statement), if scheduled.
+  runId?: string;
+}
+export interface FinOpsCost {
+  // The cost line (compute / vendor / storage / egress). Display only.
+  line: string;
+  spendUsd: number;
+  // The budget cap for the line and whether it is over.
+  capUsd: number;
+  overCap: boolean;
+}
+export interface TitleMargin {
+  titleId: string;
+  title: string;
+  revenueUsd: number;
+  costUsd: number;
+  // Margin percent (revenue - cost) / revenue. Display only.
+  marginPct: number;
+}
+export interface AdminFinance {
+  // Stripe is TEST until the live-rail decision; drives the visible badge + "no live charges" note.
+  stripeMode: "test" | "live";
+  ledger: LedgerEntry[];
+  revenue: RevenueBySource[];
+  payouts: CreatorPayoutRow[];
+  finops: FinOpsCost[];
+  margins: TitleMargin[];
+}
+
 /* ----------------------------------- Client ---------------------------------- */
 export interface AdminApiConfig {
   baseUrl: string;
@@ -718,6 +920,34 @@ export class AdminApi {
   // GET /admin/growth -> creative-test bandit win-rates, CAC/LTV/payback, referral-loop health
   growth(): Promise<AdminGrowth> {
     return this.get<AdminGrowth>("/admin/growth");
+  }
+
+  // GET /admin/moderation/queue -> the moderation queue (reports/comments/posts). Empty until the social
+  // tables exist; the scanner verdict is pending_provider while unwired (never a fabricated clean verdict).
+  moderationQueue(): Promise<ModerationQueue> {
+    return this.get<ModerationQueue>("/admin/moderation/queue");
+  }
+  // GET /admin/moderation/policy -> age-gating + rules + rate-limit config (display/read this wave)
+  moderationPolicy(): Promise<ModerationPolicy> {
+    return this.get<ModerationPolicy>("/admin/moderation/policy");
+  }
+
+  // GET /admin/trust/consent -> the minimized consent ledger (never full biometric/PII)
+  trustConsent(): Promise<ConsentLedger> {
+    return this.get<ConsentLedger>("/admin/trust/consent");
+  }
+  // GET /admin/trust/provenance -> C2PA provenance status + public-verification handles
+  trustProvenance(): Promise<ProvenanceLedger> {
+    return this.get<ProvenanceLedger>("/admin/trust/provenance");
+  }
+  // GET /admin/trust/gdpr -> the GDPR request queue (delete/export are gated seams)
+  trustGdpr(): Promise<GdprQueue> {
+    return this.get<GdprQueue>("/admin/trust/gdpr");
+  }
+
+  // GET /admin/finance -> double-entry ledger, revenue by source/market, 70/30 payouts, FinOps cost
+  finance(): Promise<AdminFinance> {
+    return this.get<AdminFinance>("/admin/finance");
   }
 }
 

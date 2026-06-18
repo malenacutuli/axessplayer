@@ -19,6 +19,9 @@ import { Creators, CreatorDetailPage } from "./pages/Creators";
 import { Monetization } from "./pages/Monetization";
 import { Analytics } from "./pages/Analytics";
 import { Growth } from "./pages/Growth";
+import { Moderation } from "./pages/Moderation";
+import { Trust } from "./pages/Trust";
+import { Finance } from "./pages/Finance";
 import { ComingSoon } from "./pages/ComingSoon";
 import { PageHead } from "./pages/Page";
 import { NAV_ITEMS } from "./shell/nav";
@@ -125,6 +128,15 @@ export function Routes() {
 
   // Section 12: Growth & UA (bandit win-rates, CAC/LTV/payback, referral-loop health).
   if (path === "/admin/growth" || path === "/admin/growth/") return <Growth />;
+
+  // Section 13: Moderation (the gate for viewer social). Queue + report-review + scan status + age-gating.
+  if (path === "/admin/moderation" || path === "/admin/moderation/") return <Moderation />;
+
+  // Section 14: Trust / consent / provenance (the moat). Minimized consent ledger + C2PA + GDPR queue.
+  if (path === "/admin/trust" || path === "/admin/trust/") return <Trust />;
+
+  // Section 15: Finance. Double-entry ledger + revenue + 70/30 payouts + FinOps. Stripe TEST.
+  if (path === "/admin/finance" || path === "/admin/finance/") return <Finance />;
 
   // The remaining not-yet-built sections (and any drill-through that targets them with a query): a real
   // report stub when there is a query (a drill target), otherwise the section coming-soon state.

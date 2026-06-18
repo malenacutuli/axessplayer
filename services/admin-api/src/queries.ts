@@ -563,6 +563,135 @@ export function creativeExperimentTableProbeSql(): Sql {
   };
 }
 
+// ---- Moderation (GET /admin/moderation/queue) -------------------------------------------------------
+//
+// UGC moderation (reports/comments/posts) is the SOCIAL V8 surface, which has no tables in the hosted
+// schema yet. This is a tolerant catalog probe over information_schema: it asks whether ANY of the social
+// UGC tables exist before any read is attempted. The aggregate uses the probe to decide between reading a
+// real queue and returning an empty + source:"unwired" view, so moderation items are NEVER fabricated.
+// Reads only the information_schema catalog (no UGC rows), keeping the firewall intact.
+export function socialTablesProbeSql(): Sql {
+  return {
+    text:
+      "select table_name from information_schema.tables " +
+      "where table_schema in ('mobile', 'public') " +
+      "and table_name in ('posts', 'comments', 'reports', 'moderation_reports', 'ugc_reports') ",
+    values: [],
+  };
+}
+
+// ---- Trust: provenance (GET /admin/trust/provenance) ------------------------------------------------
+//
+// C2PA / content-credentials signing status per asset, read from the additive substrate columns on
+// beat_variants (variant_substrate_additive.sql: c2pa_signed, c2pa_manifest_url, provenance_id,
+// content_credentials, article50_ai_label). To stay safe on hosted projects where that script may not be
+// applied yet, the aggregate probes for the columns first and reads them defensively. This probe asks the
+// catalog whether the c2pa/provenance columns exist before any select. Reads only information_schema.
+export function provenanceColumnsProbeSql(): Sql {
+  return {
+    text:
+      "select column_name from information_schema.columns " +
+      "where table_schema in ('mobile', 'public') and table_name = 'beat_variants' " +
+      "and column_name in ('c2pa_signed', 'c2pa_manifest_url', 'provenance_id', 'article50_ai_label')",
+    values: [],
+  };
+}
+
+// Per-asset C2PA signing status distribution + a bounded sample of recently-recorded assets. SELECT-only
+// over beat_variants, reading ONLY the provenance/c2pa columns (no playback URLs, no PII). Aggregated as a
+// signed/unsigned distribution plus a small recent sample so the console renders the surface without an
+// unbounded scan. Only invoked by the aggregate AFTER the column probe confirms the columns exist.
+export function provenanceStatusSql(limit = 50): Sql {
+  return {
+    text:
+      "select id as variant_id, " +
+      "coalesce(c2pa_signed, false) as c2pa_signed, " +
+      "(c2pa_manifest_url is not null) as has_manifest, " +
+      "(provenance_id is not null) as has_provenance, " +
+      "article50_ai_label " +
+      "from beat_variants order by id limit $1",
+    values: [limit],
+  };
+}
+
+// Signed-vs-unsigned rollup for the provenance summary card. One pass over beat_variants reading only the
+// c2pa flag. Only invoked after the column probe confirms the column exists.
+export function provenanceRollupSql(): Sql {
+  return {
+    text:
+      "select count(*)::int as total, " +
+      "count(*) filter (where coalesce(c2pa_signed, false))::int as signed, " +
+      "count(*) filter (where c2pa_manifest_url is not null)::int as with_manifest, " +
+      "count(*) filter (where provenance_id is not null)::int as with_provenance " +
+      "from beat_variants",
+    values: [],
+  };
+}
+
+// ---- Finance (GET /admin/finance) -------------------------------------------------------------------
+//
+// The double-entry-style ledger view is composed from coin_transactions. These are SELECT-only group-by
+// aggregates: totals (credited in vs spent), a per-type breakdown (the revenue-by-source rows), and the
+// gross purchase volume that feeds the creator-payout accrual (split via revenue.ts, display-only). No
+// payout is executed; payout-run is a 501 audit seam. Stripe stays TEST; no live rail is invoked here.
+
+// Double-entry totals: credits in, debits out, net, and the transaction count. Positive amounts are
+// credits (purchases/grants), negatives are spends. Mirrors coinTotalsSql but is scoped to the finance
+// surface intent and adds the net so the console shows the ledger balances.
+export function financeLedgerTotalsSql(): Sql {
+  return {
+    text:
+      "select count(*)::int as transactions, " +
+      "coalesce(sum(amount) filter (where amount > 0), 0)::int as credited, " +
+      "coalesce(-sum(amount) filter (where amount < 0), 0)::int as spent, " +
+      "coalesce(sum(amount), 0)::int as net " +
+      "from coin_transactions",
+    values: [],
+  };
+}
+
+// Revenue by source/type: per transaction `type`, the count and the gross credited (positive amounts) and
+// spent (negative). This is the revenue-by-source breakdown the finance view needs; "revenue" here is the
+// observed ledger volume per source, never a fabricated currency figure. SELECT-only over coin_transactions.
+export function financeRevenueByTypeSql(): Sql {
+  return {
+    text:
+      "select type, count(*)::int as count, " +
+      "coalesce(sum(amount) filter (where amount > 0), 0)::int as credited, " +
+      "coalesce(-sum(amount) filter (where amount < 0), 0)::int as spent " +
+      "from coin_transactions group by type order by credited desc",
+    values: [],
+  };
+}
+
+// The gross creator-revenue base for the payout accrual: the sum of purchase-type credits. The creator
+// 70/30 split is applied in the aggregate via the revenue.ts helper (display-only; no payout executed).
+// `purchase` is the monetized inflow; grants/rewards are excluded from the creator-revenue base.
+export function financePurchaseGrossSql(): Sql {
+  return {
+    text:
+      "select coalesce(sum(amount) filter (where amount > 0 and type = 'purchase'), 0)::int as gross " +
+      "from coin_transactions",
+    values: [],
+  };
+}
+
+// ---- Trust: consent ledger (GET /admin/trust/consent) -----------------------------------------------
+//
+// MINIMIZED consent-ledger read. Consent + biometric data lives on the SOVEREIGN plane and is NEVER
+// returned in full to the console. There is no consent table in the hosted schema; a catalog probe decides
+// between a minimized read and an empty + unwired view. This probe asks whether a consent ledger table
+// exists. Reads only information_schema (no consent rows), keeping the sovereign-plane firewall intact.
+export function consentTableProbeSql(): Sql {
+  return {
+    text:
+      "select table_name from information_schema.tables " +
+      "where table_schema in ('mobile', 'public') " +
+      "and table_name in ('consent_ledger', 'consents', 'consent_records')",
+    values: [],
+  };
+}
+
 // ---- Accessibility readiness (GET /admin/accessibility) ---------------------------------------------
 
 // Per-series accessibility track coverage: total variants and how many carry each of the four tracks

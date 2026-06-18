@@ -23,6 +23,12 @@ import {
   type MediaFactoryJobs,
   type StoryGraph,
   type UserDetail,
+  type ModerationQueue,
+  type ModerationPolicy,
+  type ConsentLedger,
+  type ProvenanceLedger,
+  type GdprQueue,
+  type AdminFinance,
 } from "./adminApi";
 import {
   DEMO_ACCESSIBILITY,
@@ -42,6 +48,12 @@ import {
   demoCreatorDetail,
   demoStoryGraph,
   demoUserDetail,
+  DEMO_MODERATION_QUEUE,
+  DEMO_MODERATION_POLICY,
+  DEMO_TRUST_CONSENT,
+  DEMO_TRUST_PROVENANCE,
+  DEMO_TRUST_GDPR,
+  DEMO_FINANCE,
 } from "./demoData";
 
 export const AdminApiContext = createContext<AdminApi | null>(null);
@@ -171,4 +183,29 @@ export function useAnalytics(dim: AnalyticsDim): AsyncResult<AnalyticsReport> {
 // Section 12: growth & UA.
 export function useGrowth(): AsyncResult<AdminGrowth> {
   return useAsync<AdminGrowth>((api) => api.growth(), () => DEMO_GROWTH, []);
+}
+
+// Section 13: moderation. The queue is empty until the social tables exist; the demo fallback is also empty
+// so the surface shows the same honest empty state plus the "scanner unwired" banner.
+export function useModerationQueue(): AsyncResult<ModerationQueue> {
+  return useAsync<ModerationQueue>((api) => api.moderationQueue(), () => DEMO_MODERATION_QUEUE, []);
+}
+export function useModerationPolicy(): AsyncResult<ModerationPolicy> {
+  return useAsync<ModerationPolicy>((api) => api.moderationPolicy(), () => DEMO_MODERATION_POLICY, []);
+}
+
+// Section 14: trust / consent / provenance. Consent is minimized (never full biometric/PII).
+export function useTrustConsent(): AsyncResult<ConsentLedger> {
+  return useAsync<ConsentLedger>((api) => api.trustConsent(), () => DEMO_TRUST_CONSENT, []);
+}
+export function useTrustProvenance(): AsyncResult<ProvenanceLedger> {
+  return useAsync<ProvenanceLedger>((api) => api.trustProvenance(), () => DEMO_TRUST_PROVENANCE, []);
+}
+export function useTrustGdpr(): AsyncResult<GdprQueue> {
+  return useAsync<GdprQueue>((api) => api.trustGdpr(), () => DEMO_TRUST_GDPR, []);
+}
+
+// Section 15: finance (double-entry ledger, revenue, 70/30 payouts, FinOps).
+export function useFinance(): AsyncResult<AdminFinance> {
+  return useAsync<AdminFinance>((api) => api.finance(), () => DEMO_FINANCE, []);
 }
