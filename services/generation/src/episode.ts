@@ -67,18 +67,21 @@ export async function runEpisode(req: EpisodeRequest, deps: EpisodeDeps): Promis
   const allAttempts: { passed: boolean }[] = [];
   let spentUsd = 0;
   let paused = false;
+  let anchorUrl: string | undefined; // previous shot's last frame, for first-last-frame continuity
   for (let i = 0; i < scenes.length; i++) {
     // Clamp to stay under Runway's 1000-char promptText limit (the edge fn also truncates, double-safe).
     const prompt = `${req.style} ${scenes[i]}`.trim().slice(0, 980);
     const res = await produceConsistentShot({
       brief: { modality: "video", durationS },
-      params: { prompt },
+      // FLF chaining: seed each shot on the previous shot's last frame so the episode flows continuously.
+      params: anchorUrl ? { prompt, anchorUrl } : { prompt },
       refs: {}, // no character lock yet: accept the first valid shot per scene
       registry: deps.registry,
       client: deps.client,
       scorer: deps.scorer,
       budget: { capUsd: req.budgetUsd, spentUsd },
-      policy: { maxAttempts: 2 },
+      // Prefer Seedance (cheaper, 15s, returns last frame); fall back to Runway if it errors (e.g. no credits).
+      policy: { maxAttempts: 3, providerOrder: ["seedance", "runway"] },
       cache: deps.cache,
     });
     spentUsd += res.spentUsd;
@@ -112,6 +115,8 @@ export async function runEpisode(req: EpisodeRequest, deps: EpisodeDeps): Promis
       }
     }
     shots.push({ index: i, prompt: scenes[i], url: res.accepted?.outputUrl ?? null });
+    // Chain the next shot on this shot's last frame (FLF continuity) when the provider returned one.
+    if (res.accepted?.lastFrameUrl) anchorUrl = res.accepted.lastFrameUrl;
     if (res.paused) {
       paused = true;
       break; // budget exhausted: stitch what we have

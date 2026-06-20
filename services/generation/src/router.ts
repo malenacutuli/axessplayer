@@ -143,6 +143,9 @@ export interface RawProviderOutput {
   outputUrl: string;
   contentHash?: string;
   durationS?: number;
+  // The last frame of the produced clip, when the provider returns one. Used to seed the next segment for
+  // first-last-frame continuity (episode chaining) without an ffmpeg frame-extract step.
+  lastFrameUrl?: string | null;
   raw?: unknown; // the untouched vendor payload, for debugging/audit
 }
 
@@ -159,6 +162,7 @@ export interface NormalizedOutput {
   outputUrl: string;
   contentHash: string | null;
   durationS: number | null;
+  lastFrameUrl: string | null; // for first-last-frame chaining
   invocation: Invocation;
   cached: boolean;
 }
@@ -219,6 +223,7 @@ export async function runModel(req: ProviderRequest, opts: RunModelOptions): Pro
     outputUrl: sub.output.outputUrl,
     contentHash: sub.output.contentHash ?? null,
     durationS: sub.output.durationS ?? null,
+    lastFrameUrl: sub.output.lastFrameUrl ?? null,
     invocation: req.model.invocation,
     cached: false,
   };
@@ -236,6 +241,11 @@ export function cacheKey(req: ProviderRequest): string {
 // sources and MUST be re-verified before any real spend. The router logic above never hard-codes a model.
 export function defaultRegistry(): ModelRegistry {
   return [
+    // Video: Seedance 2.0 is the preferred default (direct text-to-video, up to 15s, native 9:16,
+    // first-last-frame continuity via return_last_frame, character refs). Cheapest final so the router picks
+    // it; Runway stays as the fallback when Seedance errors (e.g. out of credits). FLAGGED placeholder pricing.
+    { id: "seedance-fast", provider: "seedance", model_id: "seedance-2-0-fast", modality: "video", invocation: "poll", capabilities: ["first_last_frame", "animated"], costPerSecondUsd: 0.02, costPerCallUsd: 0.0, maxDurationS: 15, renderTier: "both" },
+    { id: "seedance-pro", provider: "seedance", model_id: "seedance-2-0", modality: "video", invocation: "poll", capabilities: ["first_last_frame", "animated", "reference"], costPerSecondUsd: 0.04, costPerCallUsd: 0.0, maxDurationS: 15, renderTier: "final" },
     // Video: a cheap preview model and two finals (one multi-shot, one best-physics).
     { id: "preview-video", provider: "fal", model_id: "ltx-video-preview", modality: "video", invocation: "poll", capabilities: ["first_last_frame", "animated"], costPerSecondUsd: 0.01, costPerCallUsd: 0.0, maxDurationS: 15, renderTier: "preview" },
     { id: "runway-multishot", provider: "runway", model_id: "gen4-multishot", modality: "video", invocation: "poll", capabilities: ["multi_shot", "first_last_frame"], costPerSecondUsd: 0.12, costPerCallUsd: 0.0, maxDurationS: 15, renderTier: "final" },

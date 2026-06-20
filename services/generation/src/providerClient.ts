@@ -70,19 +70,38 @@ export function makeEdgeProviderClient(cfg: EdgeConfig, fetchFn: typeof fetch = 
     }
   };
 
+  const reqDuration = (req: ProviderRequest, fallback: number) =>
+    typeof req.params.durationS === "number" ? (req.params.durationS as number) : fallback;
+
   return {
     async submit(req: ProviderRequest): Promise<Submission> {
+      const anchor = typeof req.params.anchorUrl === "string" ? (req.params.anchorUrl as string) : undefined;
+      if (req.model.provider === "seedance") {
+        // Seedance 2.0: direct text-to-video, up to 15s. When chaining, image-to-video with the previous
+        // shot's last frame as the first frame (first-last-frame continuity).
+        const out = await post("axessplayer-seedance-video", {
+          action: "start",
+          model: req.model.model_id,
+          prompt: req.params.prompt ?? "",
+          duration: Math.max(4, Math.min(15, reqDuration(req, 5))),
+          aspectRatio: "9:16",
+          resolution: "720p",
+          returnLastFrame: true,
+          ...(anchor ? { imageUrls: [anchor] } : {}),
+        });
+        const id = out.id as string | undefined;
+        if (!id) throw new Error(`seedance start returned no id: ${JSON.stringify(out).slice(0, 160)}`);
+        return { status: "pending", handle: `seedance:${id}` };
+      }
       if (req.model.provider === "runway") {
         // Runway gen4_turbo accepts only duration 5 or 10. Clamp (the brief duration is threaded via params).
-        const reqDur = typeof req.params.durationS === "number" ? req.params.durationS : 5;
-        const duration = reqDur >= 8 ? 10 : 5;
+        const duration = reqDuration(req, 5) >= 8 ? 10 : 5;
         const out = await post("axessplayer-runway-video", {
           action: "start",
           prompt: req.params.prompt ?? "",
           duration,
           ratio: "720:1280", // vertical 9:16
-          // First-last-frame continuation: seed the next segment on the anchor frame when chaining.
-          ...(typeof req.params.anchorUrl === "string" ? { promptImage: req.params.anchorUrl } : {}),
+          ...(anchor ? { promptImage: anchor } : {}),
         });
         const id = out.id as string | undefined;
         if (!id) throw new Error(`runway start returned no id: ${JSON.stringify(out).slice(0, 160)}`);
@@ -91,18 +110,22 @@ export function makeEdgeProviderClient(cfg: EdgeConfig, fetchFn: typeof fetch = 
       throw new ProviderNotWiredError(req.model.provider);
     },
     async poll(handle: string): Promise<Submission> {
-      const [provider, id] = handle.split(":");
-      if (provider !== "runway") throw new ProviderNotWiredError(provider);
-      const out = await post("axessplayer-runway-video", { action: "status", id });
+      const idx = handle.indexOf(":");
+      const provider = handle.slice(0, idx);
+      const id = handle.slice(idx + 1);
+      const fnName = provider === "seedance" ? "axessplayer-seedance-video" : provider === "runway" ? "axessplayer-runway-video" : null;
+      if (!fnName) throw new ProviderNotWiredError(provider);
+      const out = await post(fnName, { action: "status", id });
       const status = String(out.status ?? "").toUpperCase();
       if (status === "SUCCEEDED") {
         const ephemeral = out.videoUrl as string | undefined;
-        if (!ephemeral) throw new Error("runway succeeded with no video url");
+        if (!ephemeral) throw new Error(`${provider} succeeded with no video url`);
         const durable = await rehost(ephemeral);
-        return { status: "done", output: { outputUrl: durable, raw: out } as RawProviderOutput };
+        // last_frame_url stays ephemeral: it is consumed immediately by the next chained shot.
+        return { status: "done", output: { outputUrl: durable, lastFrameUrl: (out.lastFrameUrl as string) ?? null, raw: out } as RawProviderOutput };
       }
       if (status === "FAILED" || status === "CANCELLED" || status === "ERROR") {
-        throw new Error(`runway failed: ${JSON.stringify(out).slice(0, 160)}`);
+        throw new Error(`${provider} failed: ${JSON.stringify(out).slice(0, 160)}`);
       }
       return { status: "pending", handle };
     },

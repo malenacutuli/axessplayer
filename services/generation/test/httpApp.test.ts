@@ -136,10 +136,9 @@ test("CONSENT GATE: B_likeness with a current consent entry runs", async () => {
   assert.equal(gen.body.status, "done");
 });
 
-test("COST GATE: a tiny budget pauses the run including its retries", async () => {
-  // Each attempt estimates 0.05*5 = 0.25 on the cheapest final model; budget 0.3 affords one attempt only.
-  // A face ref is enrolled so the (failing) scorer actually rejects and forces a retry the budget cannot fund.
-  const { app } = makeApp({ score: { faceCosine: 0.1, sceneScore: 0.1 }, maxBudgetUsd: 0.3 });
+test("COST GATE: an over-budget run is paused before any spend", async () => {
+  // Budget below the cheapest single shot, so the gate trips on the first attempt (no spend).
+  const { app } = makeApp({ score: { faceCosine: 0.1, sceneScore: 0.1 }, maxBudgetUsd: 0.01 });
   await req(app, "POST", "/references", { seriesId: SERIES, ownerType: "character", ownerRef: "hero", kind: "face", embedding: [1, 0, 0, 0], model: "arcface" });
   const gen = await generateAndWait(app, "spec-budget", {
     specId: "spec-budget",
@@ -149,7 +148,7 @@ test("COST GATE: a tiny budget pauses the run including its retries", async () =
     brief: videoBrief(),
     params: {},
     policy: { maxAttempts: 5 },
-    budgetUsd: 0.3,
+    budgetUsd: 0.01,
   });
   assert.equal(gen.startStatus, 202);
   const body = gen.body as { paused: boolean; accepted: unknown };

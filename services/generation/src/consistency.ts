@@ -188,7 +188,26 @@ export async function produceConsistentShot(input: ProduceConsistentInput): Prom
     }
 
     const params = anchorUrl != null ? { ...input.params, anchorUrl } : input.params;
-    const out = await runModel({ model: decision.model, params }, { client: input.client, cache: input.cache });
+    let out: NormalizedOutput;
+    try {
+      out = await runModel({ model: decision.model, params }, { client: input.client, cache: input.cache });
+    } catch (err) {
+      // PROVIDER FALLBACK: a provider error (out of credits, vendor 5xx) is not fatal. Log a zero-cost failed
+      // attempt and let the next iteration try the next provider in providerOrder (e.g. seedance -> runway).
+      attempts.push({
+        attempt: i + 1,
+        provider: decision.model.provider,
+        modelHandle: decision.model.id,
+        modelId: decision.model.model_id,
+        outputUrl: null,
+        score: null,
+        pass: false,
+        reason: `provider_error:${(err instanceof Error ? err.message : String(err)).slice(0, 100)}`,
+        costUsd: 0,
+        cached: false,
+      });
+      continue;
+    }
     const cost = out.cached ? 0 : estimate;
     spentUsd += cost;
 
