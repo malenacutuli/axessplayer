@@ -97,7 +97,8 @@ export interface ConsistencyScorer {
 export interface GenerationAttempt {
   attempt: number; // 1-based
   provider: string;
-  modelHandle: string;
+  modelHandle: string; // our registry id
+  modelId: string; // the vendor model id
   outputUrl: string | null;
   score: ShotScore | null;
   pass: boolean;
@@ -171,6 +172,7 @@ export async function produceConsistentShot(input: ProduceConsistentInput): Prom
         attempt: i + 1,
         provider: decision.model.provider,
         modelHandle: decision.model.id,
+        modelId: decision.model.model_id,
         outputUrl: null,
         score: null,
         pass: false,
@@ -192,6 +194,7 @@ export async function produceConsistentShot(input: ProduceConsistentInput): Prom
       attempt: i + 1,
       provider: out.provider,
       modelHandle: out.modelHandle,
+      modelId: out.model_id,
       outputUrl: out.outputUrl,
       score,
       pass: verdict.pass,

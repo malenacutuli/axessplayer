@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
-# Multi-stage image for @axessplayer/generation (the offline Tier A/B/C pipeline + C2PA stamping). Built
-# from the REPO ROOT context (docker build -f services/generation/Dockerfile .) so pnpm resolves the whole
-# workspace. Node 20, pnpm via corepack, frozen lockfile. No em dashes.
+# Multi-stage image for @axessplayer/generation. Built from the REPO ROOT context (docker build -f
+# services/generation/Dockerfile .) so pnpm resolves the whole workspace. Node 20, pnpm via corepack, frozen
+# lockfile. Mirrors services/recap/Dockerfile with WORKDIR /app/services/generation. No em dashes.
 #
-# FLAG (human cutover): generation is an OFFLINE batch pipeline, not a long-running HTTP service. It
-# exposes a library surface plus a `dryrun` harness, no `serve`. This image is meant to run as a job (a
-# pipeline invocation), not a server. The CMD runs the dryrun harness as a safe default; the generation
-# team wires the real batch entrypoint and its arguments. No EXPOSE, since it does not listen. No em dashes.
+# Prompt 26: generation now ALSO serves an HTTP API (the model-agnostic router + consistency QA + the attempt
+# log) via src/serve.ts, in addition to the offline pipeline library. The container serves. Real model
+# backends stay OFF unless GENERATION_REAL_BACKEND=1, and /generate refuses real spend unless
+# GENERATION_ALLOW_REAL_SPEND=1 (the human cost gate); the default is the deterministic fake backend.
 
 FROM node:20-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm
@@ -25,10 +25,13 @@ COPY scripts ./scripts
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
-RUN pnpm --filter @axessplayer/generation... build
+RUN pnpm gen
+RUN pnpm --filter @axessplayer/generation typecheck
 
 FROM base AS runtime
 ENV NODE_ENV=production
 COPY --from=build /app /app
-# Offline job, no listener. Default to the dryrun harness. See the FLAG at the top.
-CMD ["pnpm", "--filter", "@axessplayer/generation", "dryrun"]
+ENV PORT=8107
+EXPOSE 8107
+WORKDIR /app/services/generation
+CMD ["node", "--import", "tsx", "src/serve.ts"]
