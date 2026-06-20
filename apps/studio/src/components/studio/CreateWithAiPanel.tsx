@@ -14,6 +14,7 @@
 import { useMemo, useState } from "react";
 import { ProvenanceLabel } from "./ProvenanceLabel.js";
 import type { SectionId } from "../../sections.js";
+import { generateShot, isGenerationConfigured, GenerationError, type GenerateShotResult } from "../../api/generation.js";
 
 export interface CreateWithAiPanelProps {
   // Navigate to a sibling studio section (upload, process). Keeps the panel a non-dead-end surface.
@@ -52,6 +53,17 @@ export function CreateWithAiPanel({ onNavigate }: CreateWithAiPanelProps): JSX.E
   // The cost gate flow: false until the creator asks to preview cost; the confirm button only appears then.
   const [gateOpen, setGateOpen] = useState(false);
   const [stageState, setStageState] = useState<StageState>("idle");
+  // Real generation against the live engine: state + the returned QA result.
+  const [genState, setGenState] = useState<"idle" | "generating" | "done" | "error">("idle");
+  const [genResult, setGenResult] = useState<GenerateShotResult | null>(null);
+  const [genError, setGenError] = useState<string | null>(null);
+  const genConfigured = useMemo(() => isGenerationConfigured(), []);
+  const uuid = () =>
+    (globalThis.crypto?.randomUUID?.() ??
+      "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+      }));
 
   const trimmedPremise = premise.trim();
   const canPlan = trimmedPremise.length >= 12;
@@ -71,10 +83,34 @@ export function CreateWithAiPanel({ onNavigate }: CreateWithAiPanelProps): JSX.E
     setStageState("previewing");
   };
 
-  // Generate is COST-GATED: it only acts after the creator confirms the estimate. The router is not wired
-  // here, so it resolves to a graceful "not configured" state instead of fabricating a draft.
-  const onConfirmGenerate = () => {
-    setStageState("unwired");
+  // Generate is COST-GATED: it only acts after the creator confirms the estimate. When the engine is wired,
+  // this runs a REAL consistency-checked shot through the live router + QA + consent + cost gates and shows
+  // the result. When unconfigured, it resolves to a graceful "not connected" state, never a fabricated draft.
+  const onConfirmGenerate = async () => {
+    if (!genConfigured) {
+      setStageState("unwired");
+      return;
+    }
+    setGenState("generating");
+    setGenError(null);
+    setGenResult(null);
+    try {
+      const result = await generateShot({
+        specId: `create-${uuid()}`,
+        seriesId: uuid(),
+        prompt: trimmedPremise,
+        durationS: 5,
+        // The included stage count stands in for the requested cut count (more cuts route to a multi-shot model).
+        shotCount: estimate.rows.length,
+        tier: "C_ai",
+        budgetUsd: Math.max(1, Math.ceil(estimate.credits / 50)),
+      });
+      setGenResult(result);
+      setGenState("done");
+    } catch (e) {
+      setGenError(e instanceof GenerationError ? e.message : e instanceof Error ? e.message : "generation_failed");
+      setGenState("error");
+    }
   };
 
   return (
@@ -204,10 +240,16 @@ export function CreateWithAiPanel({ onNavigate }: CreateWithAiPanelProps): JSX.E
               Preview cost
             </button>
           )}
-          {gateOpen && stageState !== "unwired" && (
+          {gateOpen && stageState !== "unwired" && genState !== "done" && (
             <>
-              <button type="button" className="btn pri" onClick={onConfirmGenerate} data-testid="create-confirm-generate">
-                Confirm and generate {estimate.credits} credits
+              <button
+                type="button"
+                className="btn pri"
+                onClick={() => void onConfirmGenerate()}
+                disabled={genState === "generating"}
+                data-testid="create-confirm-generate"
+              >
+                {genState === "generating" ? "Generating..." : `Confirm and generate ${estimate.credits} credits`}
               </button>
               <button
                 type="button"
@@ -215,6 +257,7 @@ export function CreateWithAiPanel({ onNavigate }: CreateWithAiPanelProps): JSX.E
                 onClick={() => {
                   setGateOpen(false);
                   setStageState("idle");
+                  setGenState("idle");
                 }}
                 data-testid="create-cancel"
               >
@@ -228,6 +271,53 @@ export function CreateWithAiPanel({ onNavigate }: CreateWithAiPanelProps): JSX.E
             The showrunner router is not connected in this environment. When it is, the {estimate.rows.length}{" "}
             confirmed stages run here and each produces an editable artifact, signed and labeled.
           </p>
+        )}
+
+        {genState === "error" && (
+          <p className="statusline err" role="alert" data-testid="create-gen-error" style={{ marginTop: 10 }}>
+            Generation failed: {genError}
+          </p>
+        )}
+
+        {genState === "done" && genResult && (
+          <div className="inspcard" data-testid="create-gen-result" style={{ marginTop: 10 }}>
+            <div className="scaption">Generation result</div>
+            {genResult.blocked ? (
+              <p className="statusline err" role="alert" data-testid="create-gen-blocked">
+                Blocked by the consent gate ({genResult.blocked.reason}). A likeness generation needs a current
+                consent-ledger entry.
+              </p>
+            ) : genResult.accepted ? (
+              <>
+                <p className="statusline ok" role="status">
+                  A shot passed consistency QA on {genResult.attempts.length} attempt
+                  {genResult.attempts.length === 1 ? "" : "s"} via {genResult.accepted.provider}. It is registered
+                  as an AI-generated variant, signed and Article 50 labeled.
+                </p>
+                <div className="kv" style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+                  <span>QA pass-rate</span>
+                  <b data-testid="create-gen-passrate">{Math.round(genResult.passRate * 100)}%</b>
+                </div>
+                <div className="kv" style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+                  <span>Estimated spend</span>
+                  <b>${genResult.spentUsd.toFixed(2)}</b>
+                </div>
+                <a className="btn" href={genResult.accepted.outputUrl} target="_blank" rel="noreferrer" data-testid="create-gen-open" style={{ marginTop: 8 }}>
+                  Open the generated shot
+                </a>
+              </>
+            ) : genResult.paused ? (
+              <p className="statusline" role="status" data-testid="create-gen-paused">
+                Paused by the cost gate before a shot locked ({genResult.pauseReason}). Raise the budget or trim
+                the draft and try again. Nothing over budget was charged.
+              </p>
+            ) : (
+              <p className="statusline" role="status">
+                No shot held the character above the consistency threshold across {genResult.attempts.length}{" "}
+                attempts. Try a clearer reference or a different prompt.
+              </p>
+            )}
+          </div>
         )}
       </div>
 
