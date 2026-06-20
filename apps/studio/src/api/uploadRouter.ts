@@ -5,6 +5,7 @@
 
 import { uploadMaster, type UploadOptions, type UploadResult } from "./storageUpload.js";
 import { uploadMasterR2 } from "./r2Upload.js";
+import { uploadMasterFast } from "./r2FastUpload.js";
 
 export type UploadBackend = "supabase" | "r2";
 
@@ -36,15 +37,25 @@ export function chooseBackend(sizeBytes: number, threshold: number = r2Threshold
   return sizeBytes > threshold ? "r2" : "supabase";
 }
 
-// Upload a master through whichever backend fits its size, returning the result plus which backend was used
-// (so the panel can show "stored on R2" for overflow uploads).
+// Upload a master. The DEFAULT is the FAST path: presigned multipart directly to R2 with parts in parallel
+// (2-4x faster than sequential Supabase TUS chunks). If that fails (CORS, transient, or a build without R2),
+// it falls back to the Supabase resumable path so an upload still succeeds. Very large files (> threshold)
+// keep the proven R2 multipart path explicitly.
 export async function uploadMasterRouted(
   file: File,
   seriesId: string,
   opts: UploadOptions = {},
 ): Promise<RoutedUploadResult> {
-  const backend = chooseBackend(file.size);
-  const result =
-    backend === "r2" ? await uploadMasterR2(file, seriesId, opts) : await uploadMaster(file, seriesId, opts);
-  return { ...result, backend };
+  try {
+    const result = await uploadMasterFast(file, seriesId, opts);
+    return { ...result, backend: "r2" };
+  } catch {
+    // Fast path failed: fall back to the reliable Supabase resumable upload (or R2 overflow for huge files).
+    if (chooseBackend(file.size) === "r2") {
+      const result = await uploadMasterR2(file, seriesId, opts);
+      return { ...result, backend: "r2" };
+    }
+    const result = await uploadMaster(file, seriesId, opts);
+    return { ...result, backend: "supabase" };
+  }
 }
