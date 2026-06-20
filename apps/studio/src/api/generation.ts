@@ -73,13 +73,22 @@ export interface GenerateShotInput {
   preview?: boolean;
 }
 
-// Run one consistency-checked shot generation against the live engine.
-export async function generateShot(input: GenerateShotInput, fetchImpl: typeof fetch = fetch): Promise<GenerateShotResult> {
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// Run one consistency-checked shot generation against the live engine. Real video generation is async and
+// takes 60-120s: POST /generate kicks it and returns 202; this then polls GET /generate/:specId until done.
+export async function generateShot(
+  input: GenerateShotInput,
+  opts: { fetchImpl?: typeof fetch; pollMs?: number; maxPolls?: number } = {},
+): Promise<GenerateShotResult> {
+  const fetchImpl = opts.fetchImpl ?? fetch;
   const cfg = generationConfig();
   if (!cfg) throw new GenerationError(0, "Generation is not configured for this build (set VITE_GENERATION_BASE_URL).");
-  const res = await fetchImpl(`${cfg.baseUrl}/generate`, {
+  const headers = { "content-type": "application/json", authorization: `Bearer ${cfg.token}`, accept: "application/json" };
+
+  const start = await fetchImpl(`${cfg.baseUrl}/generate`, {
     method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${cfg.token}`, accept: "application/json" },
+    headers,
     body: JSON.stringify({
       specId: input.specId,
       seriesId: input.seriesId,
@@ -97,10 +106,22 @@ export async function generateShot(input: GenerateShotInput, fetchImpl: typeof f
       ...(input.budgetUsd ? { budgetUsd: input.budgetUsd } : {}),
     }),
   });
-  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (res.status === 403 && body.error === "consent_blocked") {
-    return { specId: input.specId, accepted: null, attempts: [], passRate: 0, paused: false, spentUsd: 0, blocked: { reason: String(body.reason ?? "consent") } };
+  const startBody = (await start.json().catch(() => ({}))) as Record<string, unknown>;
+  if (start.status === 403 && startBody.error === "consent_blocked") {
+    return { specId: input.specId, accepted: null, attempts: [], passRate: 0, paused: false, spentUsd: 0, blocked: { reason: String(startBody.reason ?? "consent") } };
   }
-  if (!res.ok) throw new GenerationError(res.status, String(body.error ?? `error_${res.status}`));
-  return body as unknown as GenerateShotResult;
+  if (start.status !== 202 && !start.ok) throw new GenerationError(start.status, String(startBody.error ?? `error_${start.status}`));
+
+  // Poll the result.
+  const pollMs = opts.pollMs ?? 4000;
+  const maxPolls = opts.maxPolls ?? 60;
+  for (let i = 0; i < maxPolls; i++) {
+    await sleep(pollMs);
+    const res = await fetchImpl(`${cfg.baseUrl}/generate/${encodeURIComponent(input.specId)}`, { headers });
+    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (body.status === "done") return body as unknown as GenerateShotResult;
+    if (body.status === "failed") throw new GenerationError(500, String(body.error ?? "generation_failed"));
+    // running or unknown -> keep polling
+  }
+  throw new GenerationError(408, "Generation is taking longer than expected. Check back shortly.");
 }

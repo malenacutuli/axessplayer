@@ -13,12 +13,19 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { parseBearer, type Verifiers } from "./auth.js";
-import { runGeneration, attemptsPassRate, type GenerateRequest } from "../engine.js";
+import { runGeneration, attemptsPassRate, type GenerateRequest, type GenerateResult } from "../engine.js";
 import type { EngineDb } from "../engineDb.js";
 import type { ConsistencyScorer, ConsistencyThresholds, RetryPolicy } from "../consistency.js";
-import type { ConsentGate } from "../consentGate.js";
+import { guardLikenessConsent, ConsentBlockedError, type ConsentGate } from "../consentGate.js";
 import type { GenerationBrief, ModelRegistry, ProviderClient, SubGenerationCache } from "../router.js";
 import { VARIANT_TIERS, type VariantTier } from "../spec.js";
+
+// Real video generation takes 60-120s, too long for one synchronous HTTP request through a proxy. POST
+// /generate kicks the run in the background and returns immediately; GET /generate/:specId polls the result.
+type JobState =
+  | { status: "running" }
+  | { status: "done"; result: GenerateResult }
+  | { status: "failed"; error: string };
 
 export interface GenerationAppDeps {
   db: EngineDb;
@@ -60,6 +67,9 @@ export function createGenerationApp(deps: GenerationAppDeps): Hono {
     cors({ origin: "*", allowMethods: ["GET", "POST", "OPTIONS"], allowHeaders: ["content-type", "authorization", "accept"] }),
   );
   const { db, verifiers } = deps;
+  // In-memory job store for async generation (single-instance QA; lost on restart, which is acceptable since
+  // the attempt log is persisted to Postgres regardless).
+  const jobs = new Map<string, JobState>();
 
   const auth = async (authorization: string | undefined) =>
     verifiers.session.verifySession(parseBearer(authorization));
@@ -127,19 +137,40 @@ export function createGenerationApp(deps: GenerationAppDeps): Hono {
       policy: isObject(body.policy) ? (body.policy as unknown as RetryPolicy) : undefined,
     };
 
-    const result = await runGeneration(req, {
+    // Consent gate runs SYNCHRONOUSLY so a blocked likeness fails fast with a 403 (no background work).
+    try {
+      await guardLikenessConsent(deps.consent, req.tier, req.consentRef, req.realLikeness ?? false);
+    } catch (e) {
+      if (e instanceof ConsentBlockedError) return c.json({ error: "consent_blocked", reason: e.reason, specId: req.specId }, 403);
+      throw e;
+    }
+
+    // Kick the (long-running) generation in the background and return immediately. The client polls
+    // GET /generate/:specId. The attempt log is persisted to Postgres by runGeneration regardless.
+    jobs.set(req.specId, { status: "running" });
+    void runGeneration(req, {
       db: deps.db,
       registry: deps.registry,
       client: deps.client,
       scorer: deps.scorer,
       consent: deps.consent,
       cache: deps.cache,
-    });
+    })
+      .then((result) => jobs.set(req.specId, { status: "done", result }))
+      .catch((err) => jobs.set(req.specId, { status: "failed", error: err instanceof Error ? err.message : String(err) }));
 
-    if (result.blocked) {
-      return c.json({ error: "consent_blocked", reason: result.blocked.reason, specId: result.specId }, 403);
-    }
-    return c.json(result, 200);
+    return c.json({ specId: req.specId, status: "running" }, 202);
+  });
+
+  // GET /generate/:specId : poll the result of an async generation run.
+  app.get("/generate/:specId", async (c) => {
+    if ((await auth(c.req.header("authorization"))) == null) return c.json({ error: "unauthorized" }, 401);
+    const specId = c.req.param("specId");
+    const job = jobs.get(specId);
+    if (job == null) return c.json({ specId, status: "unknown" }, 404);
+    if (job.status === "done") return c.json({ ...job.result, status: "done" }, 200);
+    if (job.status === "failed") return c.json({ specId, status: "failed", error: job.error }, 200);
+    return c.json({ specId, status: "running" }, 200);
   });
 
   // GET /attempts/:specId : the attempt log + QA pass-rate for a spec.

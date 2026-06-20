@@ -43,6 +43,20 @@ function req(app: ReturnType<typeof makeApp>["app"], method: string, path: strin
 
 const videoBrief = (over: Record<string, unknown> = {}) => ({ modality: "video", durationS: 5, ...over });
 
+// POST /generate is async (202 + background run). Poll GET /generate/:specId until done/failed. Returns the
+// final result body. Non-202 starts (400/401/403) are returned as { status, body } so callers assert directly.
+async function generateAndWait(app: ReturnType<typeof makeApp>["app"], specId: string, payload: Record<string, unknown>) {
+  const start = await req(app, "POST", "/generate", payload);
+  if (start.status !== 202) return { startStatus: start.status, body: (await start.json()) as Record<string, unknown> };
+  for (let i = 0; i < 100; i++) {
+    await new Promise((r) => setTimeout(r, 5));
+    const res = await req(app, "GET", `/generate/${specId}`);
+    const body = (await res.json()) as Record<string, unknown>;
+    if (body.status === "done" || body.status === "failed") return { startStatus: 202, body };
+  }
+  throw new Error("generation did not finish");
+}
+
 test("GET /healthz reports source + backend", async () => {
   const { app } = makeApp();
   const res = await req(app, "GET", "/healthz", undefined, "");
@@ -70,7 +84,7 @@ test("enroll a reference, then generate -> accepted shot, attempts persisted wit
   });
   assert.equal(enroll.status, 201);
 
-  const gen = await req(app, "POST", "/generate", {
+  const gen = await generateAndWait(app, "spec-1", {
     specId: "spec-1",
     seriesId: SERIES,
     tier: "C_ai",
@@ -78,8 +92,8 @@ test("enroll a reference, then generate -> accepted shot, attempts persisted wit
     brief: videoBrief({ shotCount: 4 }),
     params: { prompt: "hero walks in" },
   });
-  assert.equal(gen.status, 200);
-  const body = (await gen.json()) as { accepted: unknown; passRate: number; paused: boolean; attempts: unknown[] };
+  assert.equal(gen.startStatus, 202);
+  const body = gen.body as { accepted: unknown; passRate: number; paused: boolean };
   assert.ok(body.accepted, "a shot passed");
   assert.equal(body.paused, false);
   assert.equal(body.passRate, 1);
@@ -109,7 +123,7 @@ test("CONSENT GATE: B_likeness with a current consent entry runs", async () => {
   const consent = new InMemoryConsentGate();
   consent.grant("consent-xyz");
   const { app } = makeApp({ consent });
-  const res = await req(app, "POST", "/generate", {
+  const gen = await generateAndWait(app, "spec-ok", {
     specId: "spec-ok",
     seriesId: SERIES,
     tier: "B_likeness",
@@ -118,7 +132,8 @@ test("CONSENT GATE: B_likeness with a current consent entry runs", async () => {
     brief: videoBrief(),
     params: {},
   });
-  assert.equal(res.status, 200);
+  assert.equal(gen.startStatus, 202);
+  assert.equal(gen.body.status, "done");
 });
 
 test("COST GATE: a tiny budget pauses the run including its retries", async () => {
@@ -126,7 +141,7 @@ test("COST GATE: a tiny budget pauses the run including its retries", async () =
   // A face ref is enrolled so the (failing) scorer actually rejects and forces a retry the budget cannot fund.
   const { app } = makeApp({ score: { faceCosine: 0.1, sceneScore: 0.1 }, maxBudgetUsd: 0.3 });
   await req(app, "POST", "/references", { seriesId: SERIES, ownerType: "character", ownerRef: "hero", kind: "face", embedding: [1, 0, 0, 0], model: "arcface" });
-  const res = await req(app, "POST", "/generate", {
+  const gen = await generateAndWait(app, "spec-budget", {
     specId: "spec-budget",
     seriesId: SERIES,
     tier: "C_ai",
@@ -136,8 +151,8 @@ test("COST GATE: a tiny budget pauses the run including its retries", async () =
     policy: { maxAttempts: 5 },
     budgetUsd: 0.3,
   });
-  assert.equal(res.status, 200);
-  const body = (await res.json()) as { paused: boolean; accepted: unknown; spentUsd: number };
+  assert.equal(gen.startStatus, 202);
+  const body = gen.body as { paused: boolean; accepted: unknown };
   assert.equal(body.paused, true);
   assert.equal(body.accepted, null);
 });
