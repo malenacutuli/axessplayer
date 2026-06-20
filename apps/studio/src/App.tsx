@@ -8,14 +8,17 @@ import { resolveContentBaseUrl } from "./api/config.js";
 import { CatalogClient } from "./api/catalogClient.js";
 import { CatalogClientContext } from "./api/useCatalogClient.js";
 import { resolveCatalogBaseUrl, resolveCreatorToken } from "./api/catalogConfig.js";
-import { IngestionClient, resolveIngestionBaseUrl } from "./api/ingestion.js";
+import { IngestionClient, resolveIngestionBaseUrl, resolveIngestionToken } from "./api/ingestion.js";
 import { IngestionClientContext } from "./api/useIngestionClient.js";
 import { CreatorStudio } from "./components/CreatorStudio.js";
 import { CreatorAuthProvider } from "./auth/creatorAuth.js";
 
 export function App(): JSX.Element {
   const client = useMemo(() => new ContentClient({ baseUrl: resolveContentBaseUrl() }), []);
-  const ingestion = useMemo(() => new IngestionClient({ baseUrl: resolveIngestionBaseUrl() }), []);
+  const ingestion = useMemo(
+    () => new IngestionClient({ baseUrl: resolveIngestionBaseUrl(), token: resolveIngestionToken() }),
+    [],
+  );
   const catalog = useMemo(
     () => new CatalogClient({ baseUrl: resolveCatalogBaseUrl(), token: resolveCreatorToken() }),
     [],

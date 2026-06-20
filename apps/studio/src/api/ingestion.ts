@@ -86,24 +86,34 @@ function joinUrl(baseUrl: string, path: string): string {
 
 export interface IngestionClientOptions {
   baseUrl: string;
+  // Session-authed creator token (session:<uuid>). The ingestion service requires it on /produce and /jobs;
+  // without it every call is 401 unauthenticated. Resolved from VITE_CREATOR_SESSION_TOKEN.
+  token?: string;
   fetchImpl?: FetchLike;
 }
 
 export class IngestionClient {
   private readonly baseUrl: string;
+  private readonly token?: string;
   private readonly fetchImpl: FetchLike;
 
   constructor(opts: IngestionClientOptions) {
     this.baseUrl = opts.baseUrl;
+    this.token = opts.token;
     // Bind global fetch to its receiver: a detached browser fetch throws "Illegal invocation". Tests inject.
     this.fetchImpl = opts.fetchImpl ?? globalThis.fetch.bind(globalThis);
+  }
+
+  // Request headers, including the session bearer token when configured.
+  private headers(extra: Record<string, string> = {}): Record<string, string> {
+    return { accept: "application/json", ...(this.token ? { authorization: `Bearer ${this.token}` } : {}), ...extra };
   }
 
   // GET /jobs : every job for the dashboard list (newest first by service convention).
   async listJobs(): Promise<Job[]> {
     const res = await this.fetchImpl(joinUrl(this.baseUrl, "/jobs"), {
       method: "GET",
-      headers: { accept: "application/json" },
+      headers: this.headers(),
     });
     const body = await this.parse<Job[] | { jobs?: Job[] }>(res);
     return Array.isArray(body) ? body : body.jobs ?? [];
@@ -114,7 +124,7 @@ export class IngestionClient {
   async getJob(jobId: string): Promise<Job> {
     const res = await this.fetchImpl(joinUrl(this.baseUrl, `/jobs/${encodeURIComponent(jobId)}`), {
       method: "GET",
-      headers: { accept: "application/json" },
+      headers: this.headers(),
     });
     return this.parse<Job>(res);
   }
@@ -124,7 +134,7 @@ export class IngestionClient {
   async produce(body: ProduceRequest): Promise<ProduceResponse> {
     const res = await this.fetchImpl(joinUrl(this.baseUrl, "/produce"), {
       method: "POST",
-      headers: { "content-type": "application/json", accept: "application/json" },
+      headers: this.headers({ "content-type": "application/json" }),
       body: JSON.stringify(body),
     });
     return this.parse<ProduceResponse>(res);
@@ -151,6 +161,14 @@ export function resolveIngestionBaseUrl(env?: Record<string, string | undefined>
   const source = env ?? readImportMetaEnv();
   const fromEnv = source?.VITE_INGESTION_BASE_URL;
   return fromEnv && fromEnv.length > 0 ? fromEnv : "";
+}
+
+// Resolve the session-authed creator token (session:<uuid>) the ingestion service requires. Same token the
+// catalog/content clients use (VITE_CREATOR_SESSION_TOKEN), with VITE_SESSION_TOKEN as a fallback.
+export function resolveIngestionToken(env?: Record<string, string | undefined>): string | undefined {
+  const source = env ?? readImportMetaEnv();
+  const t = source?.VITE_CREATOR_SESSION_TOKEN ?? source?.VITE_SESSION_TOKEN;
+  return t && t.length > 0 ? t : undefined;
 }
 
 function readImportMetaEnv(): Record<string, string | undefined> | undefined {
