@@ -75,6 +75,57 @@ export interface GenerateShotInput {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+export interface EpisodeShot {
+  index: number;
+  prompt: string;
+  url: string | null;
+}
+export interface GenerateEpisodeResult {
+  specId: string;
+  episodeUrl: string | null;
+  shots: EpisodeShot[];
+  shotCount: number;
+  stitched: boolean;
+  passRate: number;
+  spentUsd: number;
+  paused: boolean;
+  error?: string;
+}
+export interface GenerateEpisodeInput {
+  specId: string;
+  seriesId: string;
+  premise?: string;
+  scenes?: string[];
+  style?: string;
+  count?: number;
+  budgetUsd?: number;
+}
+
+// Generate a CONTINUOUS episode: premise -> N shots -> one stitched video. Async; polls GET /episode/:specId.
+// Episode builds take several minutes (N shots + stitch), so the poll window is generous.
+export async function generateEpisode(
+  input: GenerateEpisodeInput,
+  opts: { fetchImpl?: typeof fetch; pollMs?: number; maxPolls?: number } = {},
+): Promise<GenerateEpisodeResult> {
+  const fetchImpl = opts.fetchImpl ?? fetch;
+  const cfg = generationConfig();
+  if (!cfg) throw new GenerationError(0, "Generation is not configured for this build (set VITE_GENERATION_BASE_URL).");
+  const headers = { "content-type": "application/json", authorization: `Bearer ${cfg.token}`, accept: "application/json" };
+  const start = await fetchImpl(`${cfg.baseUrl}/episode`, { method: "POST", headers, body: JSON.stringify(input) });
+  const startBody = (await start.json().catch(() => ({}))) as Record<string, unknown>;
+  if (start.status !== 202 && !start.ok) throw new GenerationError(start.status, String(startBody.error ?? `error_${start.status}`));
+  const pollMs = opts.pollMs ?? 6000;
+  const maxPolls = opts.maxPolls ?? 120; // ~12 min
+  for (let i = 0; i < maxPolls; i++) {
+    await sleep(pollMs);
+    const res = await fetchImpl(`${cfg.baseUrl}/episode/${encodeURIComponent(input.specId)}`, { headers });
+    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (body.status === "done") return body as unknown as GenerateEpisodeResult;
+    if (body.status === "failed") throw new GenerationError(500, String(body.error ?? "episode_failed"));
+  }
+  throw new GenerationError(408, "Episode is taking longer than expected. Check back shortly.");
+}
+
 // Run one consistency-checked shot generation against the live engine. Real video generation is async and
 // takes 60-120s: POST /generate kicks it and returns 202; this then polls GET /generate/:specId until done.
 export async function generateShot(

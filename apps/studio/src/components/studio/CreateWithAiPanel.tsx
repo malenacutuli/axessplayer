@@ -14,7 +14,7 @@
 import { useMemo, useState } from "react";
 import { ProvenanceLabel } from "./ProvenanceLabel.js";
 import type { SectionId } from "../../sections.js";
-import { generateShot, isGenerationConfigured, GenerationError, type GenerateShotResult } from "../../api/generation.js";
+import { generateEpisode, isGenerationConfigured, GenerationError, type GenerateEpisodeResult } from "../../api/generation.js";
 
 export interface CreateWithAiPanelProps {
   // Navigate to a sibling studio section (upload, process). Keeps the panel a non-dead-end surface.
@@ -55,7 +55,7 @@ export function CreateWithAiPanel({ onNavigate }: CreateWithAiPanelProps): JSX.E
   const [stageState, setStageState] = useState<StageState>("idle");
   // Real generation against the live engine: state + the returned QA result.
   const [genState, setGenState] = useState<"idle" | "generating" | "done" | "error">("idle");
-  const [genResult, setGenResult] = useState<GenerateShotResult | null>(null);
+  const [genResult, setGenResult] = useState<GenerateEpisodeResult | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
   const genConfigured = useMemo(() => isGenerationConfigured(), []);
   const uuid = () =>
@@ -95,15 +95,13 @@ export function CreateWithAiPanel({ onNavigate }: CreateWithAiPanelProps): JSX.E
     setGenError(null);
     setGenResult(null);
     try {
-      const result = await generateShot({
-        specId: `create-${uuid()}`,
+      // Generate a CONTINUOUS episode: the premise is expanded into shots and stitched into one video.
+      const result = await generateEpisode({
+        specId: `episode-${uuid()}`,
         seriesId: uuid(),
-        prompt: trimmedPremise,
-        durationS: 5,
-        // The included stage count stands in for the requested cut count (more cuts route to a multi-shot model).
-        shotCount: estimate.rows.length,
-        tier: "C_ai",
-        budgetUsd: Math.max(1, Math.ceil(estimate.credits / 50)),
+        premise: trimmedPremise,
+        count: 12, // ~60s at 5s/shot
+        budgetUsd: 12,
       });
       setGenResult(result);
       setGenState("done");
@@ -249,7 +247,7 @@ export function CreateWithAiPanel({ onNavigate }: CreateWithAiPanelProps): JSX.E
                 disabled={genState === "generating"}
                 data-testid="create-confirm-generate"
               >
-                {genState === "generating" ? "Generating..." : `Confirm and generate ${estimate.credits} credits`}
+                {genState === "generating" ? "Generating episode (this takes a few minutes)..." : `Confirm and generate ${estimate.credits} credits`}
               </button>
               <button
                 type="button"
@@ -266,6 +264,12 @@ export function CreateWithAiPanel({ onNavigate }: CreateWithAiPanelProps): JSX.E
             </>
           )}
         </div>
+        {genState === "generating" && (
+          <p className="statusline" role="status" data-testid="create-gen-progress" style={{ marginTop: 10 }}>
+            Expanding the premise into shots, generating each one, and stitching them into a continuous episode.
+            This runs for several minutes. Keep this tab open.
+          </p>
+        )}
         {stageState === "unwired" && (
           <p className="statusline" role="status" data-testid="create-unwired" style={{ marginTop: 10 }}>
             The showrunner router is not connected in this environment. When it is, the {estimate.rows.length}{" "}
@@ -281,40 +285,40 @@ export function CreateWithAiPanel({ onNavigate }: CreateWithAiPanelProps): JSX.E
 
         {genState === "done" && genResult && (
           <div className="inspcard" data-testid="create-gen-result" style={{ marginTop: 10 }}>
-            <div className="scaption">Generation result</div>
-            {genResult.blocked ? (
-              <p className="statusline err" role="alert" data-testid="create-gen-blocked">
-                Blocked by the consent gate ({genResult.blocked.reason}). A likeness generation needs a current
-                consent-ledger entry.
-              </p>
-            ) : genResult.accepted ? (
+            <div className="scaption">Episode result</div>
+            {genResult.episodeUrl ? (
               <>
                 <p className="statusline ok" role="status">
-                  A shot passed consistency QA on {genResult.attempts.length} attempt
-                  {genResult.attempts.length === 1 ? "" : "s"} via {genResult.accepted.provider}. It is registered
-                  as an AI-generated variant, signed and Article 50 labeled.
+                  Generated a continuous episode from {genResult.shotCount} shots
+                  {genResult.stitched ? ", stitched into one video" : ""}. AI-generated, Article 50 labeled.
                 </p>
+                <video
+                  src={genResult.episodeUrl}
+                  controls
+                  playsInline
+                  data-testid="create-gen-video"
+                  style={{ width: "100%", maxWidth: 320, borderRadius: 8, marginTop: 8, background: "#000" }}
+                />
                 <div className="kv" style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
-                  <span>QA pass-rate</span>
-                  <b data-testid="create-gen-passrate">{Math.round(genResult.passRate * 100)}%</b>
+                  <span>Shots stitched</span>
+                  <b data-testid="create-gen-shots">{genResult.shotCount}</b>
                 </div>
                 <div className="kv" style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
                   <span>Estimated spend</span>
                   <b>${genResult.spentUsd.toFixed(2)}</b>
                 </div>
-                <a className="btn" href={genResult.accepted.outputUrl} target="_blank" rel="noreferrer" data-testid="create-gen-open" style={{ marginTop: 8 }}>
-                  Open the generated shot
+                <a className="btn" href={genResult.episodeUrl} target="_blank" rel="noreferrer" data-testid="create-gen-open" style={{ marginTop: 8 }}>
+                  Open the episode
                 </a>
               </>
             ) : genResult.paused ? (
               <p className="statusline" role="status" data-testid="create-gen-paused">
-                Paused by the cost gate before a shot locked ({genResult.pauseReason}). Raise the budget or trim
-                the draft and try again. Nothing over budget was charged.
+                Paused by the cost gate after {genResult.shotCount} shots ({genResult.spentUsd.toFixed(2)} spent).
+                Raise the budget to generate the full episode. Nothing over budget was charged.
               </p>
             ) : (
               <p className="statusline" role="status">
-                No shot held the character above the consistency threshold across {genResult.attempts.length}{" "}
-                attempts. Try a clearer reference or a different prompt.
+                No shots were produced. Try a different premise.
               </p>
             )}
           </div>
