@@ -196,21 +196,38 @@ export function makeSceneExpander(cfg: EdgeConfig, fetchFn: typeof fetch = fetch
         const res = await fetchFn(`${cfg.supabaseUrl}/functions/v1/google-gemini`, {
           method: "POST",
           headers,
-          body: JSON.stringify({ prompt: ask, messages: [{ role: "user", content: ask }] }),
+          // gemini-1.5-flash is retired (404); use a current model. maxTokens covers ~18 scene lines.
+          body: JSON.stringify({ prompt: ask, model: "gemini-2.5-flash", temperature: 0.8, maxTokens: 1400 }),
         });
         if (res.ok) {
-          const j = (await res.json()) as Record<string, unknown>;
-          const text = String(j.text ?? j.response ?? j.content ?? j.output ?? "");
+          // google-gemini returns the RAW Gemini API shape: candidates[0].content.parts[0].text.
+          const j = (await res.json()) as {
+            candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+            text?: string;
+            response?: string;
+          };
+          const text = String(
+            j?.candidates?.[0]?.content?.parts?.[0]?.text ?? j?.text ?? j?.response ?? "",
+          );
           const lines = text
             .split("\n")
-            .map((l) => l.replace(/^\s*\d+[.):]\s*/, "").trim())
-            .filter((l) => l.length > 8);
+            .map((l) => l.replace(/^\s*\d+[.):\-]\s*/, "").replace(/^["'\s]+|["'\s]+$/g, "").trim())
+            .filter((l) => l.length > 8)
+            // each shot prompt stays well under Runway's 1000-char limit
+            .map((l) => l.slice(0, 600));
           if (lines.length >= 2) return lines.slice(0, count);
         }
       } catch {
         // fall through to fallback
       }
-      return Array.from({ length: count }, () => premise);
+      // Fallback when the LLM is unavailable: split the premise into sentences and pad to `count`, each kept
+      // short (never the whole premise, which would blow past Runway's prompt limit and be degenerate).
+      const sentences = premise
+        .split(/(?<=[.!?])\s+/)
+        .map((s) => s.trim().slice(0, 400))
+        .filter((s) => s.length > 8);
+      const base = sentences.length >= 2 ? sentences : [premise.slice(0, 400)];
+      return Array.from({ length: count }, (_, i) => base[i % base.length]);
     },
   };
 }

@@ -68,7 +68,8 @@ export async function runEpisode(req: EpisodeRequest, deps: EpisodeDeps): Promis
   let spentUsd = 0;
   let paused = false;
   for (let i = 0; i < scenes.length; i++) {
-    const prompt = `${req.style} ${scenes[i]}`.trim();
+    // Clamp to stay under Runway's 1000-char promptText limit (the edge fn also truncates, double-safe).
+    const prompt = `${req.style} ${scenes[i]}`.trim().slice(0, 980);
     const res = await produceConsistentShot({
       brief: { modality: "video", durationS },
       params: { prompt },
