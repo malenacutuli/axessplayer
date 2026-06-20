@@ -17,4 +17,5 @@ export * from "./consistency.js";
 export * from "./consentGate.js";
 export * from "./engineDb.js";
 export * from "./engine.js";
+export * from "./episode.js";
 export * from "./providerClient.js";

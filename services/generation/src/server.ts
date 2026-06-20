@@ -25,7 +25,7 @@ import { PgEngineDb, InMemoryEngineDb, type EngineDb } from "./engineDb.js";
 import { InMemorySubGenerationCache, FakeProviderClient, defaultRegistry, type ProviderClient } from "./router.js";
 import { ScriptedScorer, type ConsistencyScorer } from "./consistency.js";
 import { InMemoryConsentGate, type ConsentGate } from "./consentGate.js";
-import { makeEdgeProviderClient, makeEdgeScorer, makeTrustConsentGate, readEdgeConfig } from "./providerClient.js";
+import { makeEdgeProviderClient, makeEdgeScorer, makeTrustConsentGate, makeStitchClient, makeSceneExpander, readEdgeConfig, type StitchClient, type SceneExpander } from "./providerClient.js";
 
 export function buildGenerationApp(env: NodeJS.ProcessEnv = process.env): Hono {
   const databaseUrl = env.DATABASE_URL;
@@ -47,9 +47,13 @@ export function buildGenerationApp(env: NodeJS.ProcessEnv = process.env): Hono {
   let scorer: ConsistencyScorer;
   let consent: ConsentGate;
   let realBackend: boolean;
+  let stitch: StitchClient | undefined;
+  let expand: SceneExpander | undefined;
   if (useReal && edge) {
     client = makeEdgeProviderClient(edge);
     scorer = makeEdgeScorer(edge);
+    stitch = makeStitchClient(edge);
+    expand = makeSceneExpander(edge);
     realBackend = true;
   } else {
     client = new FakeProviderClient(1);
@@ -71,6 +75,8 @@ export function buildGenerationApp(env: NodeJS.ProcessEnv = process.env): Hono {
     maxBudgetUsd: Number(env.GENERATION_MAX_BUDGET_USD ?? "25"),
     source: realBackend ? "wired" : source,
     cache: new InMemorySubGenerationCache(),
+    stitch,
+    expand,
   };
   return createGenerationApp(deps);
 }

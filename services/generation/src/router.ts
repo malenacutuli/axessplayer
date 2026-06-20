@@ -196,7 +196,9 @@ export async function runModel(req: ProviderRequest, opts: RunModelOptions): Pro
   const hit = cache?.get(key);
   if (hit) return { ...hit, cached: true };
 
-  const maxPolls = opts.maxPolls ?? 60;
+  // Default high enough for slow real video jobs (Runway image-to-video runs 60-150s). The fake client
+  // finishes in one poll, so this does not slow tests.
+  const maxPolls = opts.maxPolls ?? 200;
   const sleep = opts.sleep ?? (async () => undefined);
 
   let sub = await opts.client.submit(req);

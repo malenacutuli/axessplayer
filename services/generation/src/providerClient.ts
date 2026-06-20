@@ -149,6 +149,72 @@ export function makeTrustConsentGate(baseUrl: string, fetchFn: typeof fetch = fe
   };
 }
 
+// ---------- episode stitch client (Rendi concat via axessplayer-stitch) ----------
+export interface StitchClient {
+  stitch(clips: string[]): Promise<string>; // returns the durable continuous-episode URL
+}
+
+// Calls the axessplayer-stitch edge fn (start + poll) to concatenate clips into one continuous mp4.
+export function makeStitchClient(cfg: EdgeConfig, fetchFn: typeof fetch = fetch): StitchClient {
+  const headers = { authorization: `Bearer ${cfg.apiKey}`, apikey: cfg.apiKey, "content-type": "application/json" };
+  const fn = `${cfg.supabaseUrl}/functions/v1/axessplayer-stitch`;
+  return {
+    async stitch(clips: string[]): Promise<string> {
+      if (clips.length === 1) return clips[0];
+      const start = await fetchFn(fn, { method: "POST", headers, body: JSON.stringify({ action: "start", clips }) });
+      if (!start.ok) throw new Error(`stitch start -> ${start.status}: ${(await start.text()).slice(0, 200)}`);
+      const id = ((await start.json()) as { id?: string }).id;
+      if (!id) throw new Error("stitch returned no command id");
+      for (let i = 0; i < 120; i++) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const res = await fetchFn(fn, { method: "POST", headers, body: JSON.stringify({ action: "status", id }) });
+        const body = (await res.json()) as { status?: string; url?: string; error?: string };
+        if (body.status === "SUCCESS" && body.url) return body.url;
+        if (body.error) throw new Error(`stitch failed: ${body.error}`);
+      }
+      throw new Error("stitch did not finish in time");
+    },
+  };
+}
+
+// ---------- scene expander (premise -> N scene prompts via an LLM edge fn) ----------
+export interface SceneExpander {
+  expand(premise: string, count: number, style: string): Promise<string[]>;
+}
+
+// Uses the google-gemini edge fn to expand a premise into N short, continuous scene descriptions. Robust:
+// on any failure it falls back to repeating the premise so the episode still generates.
+export function makeSceneExpander(cfg: EdgeConfig, fetchFn: typeof fetch = fetch): SceneExpander {
+  const headers = { authorization: `Bearer ${cfg.apiKey}`, apikey: cfg.apiKey, "content-type": "application/json" };
+  return {
+    async expand(premise: string, count: number, style: string): Promise<string[]> {
+      const ask =
+        `${style}\n\nBreak this premise into exactly ${count} consecutive ~5 second shot descriptions for a ` +
+        `continuous vertical episode, in order, each on its own line as "N. <visual action>", no extra text. ` +
+        `Keep the same characters and town across shots for continuity. Premise: ${premise}`;
+      try {
+        const res = await fetchFn(`${cfg.supabaseUrl}/functions/v1/google-gemini`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ prompt: ask, messages: [{ role: "user", content: ask }] }),
+        });
+        if (res.ok) {
+          const j = (await res.json()) as Record<string, unknown>;
+          const text = String(j.text ?? j.response ?? j.content ?? j.output ?? "");
+          const lines = text
+            .split("\n")
+            .map((l) => l.replace(/^\s*\d+[.):]\s*/, "").trim())
+            .filter((l) => l.length > 8);
+          if (lines.length >= 2) return lines.slice(0, count);
+        }
+      } catch {
+        // fall through to fallback
+      }
+      return Array.from({ length: count }, () => premise);
+    },
+  };
+}
+
 // A stable pseudo-score in [0,1] from a string (djb2), biased high so most shots pass and some fail, which
 // exercises the reject/retry path deterministically.
 function pseudoScore(s: string): number {
