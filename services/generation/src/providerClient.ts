@@ -77,17 +77,24 @@ export function makeEdgeProviderClient(cfg: EdgeConfig, fetchFn: typeof fetch = 
     async submit(req: ProviderRequest): Promise<Submission> {
       const anchor = typeof req.params.anchorUrl === "string" ? (req.params.anchorUrl as string) : undefined;
       if (req.model.provider === "seedance") {
-        // Seedance 2.0: direct text-to-video, up to 15s. When chaining, image-to-video with the previous
-        // shot's last frame as the first frame (first-last-frame continuity).
+        // Seedance 2.0: text-to-video, image-to-video, or reference-to-video (character lock via reference
+        // images). Reads the UI controls + reference urls from params; when chaining, the anchor last frame
+        // is the first frame.
+        const p = req.params;
+        const refImages = Array.isArray(p.imageUrls) ? (p.imageUrls as string[]) : anchor ? [anchor] : [];
         const out = await post("axessplayer-seedance-video", {
           action: "start",
           model: req.model.model_id,
-          prompt: req.params.prompt ?? "",
+          prompt: p.prompt ?? "",
           duration: Math.max(4, Math.min(15, reqDuration(req, 5))),
-          aspectRatio: "9:16",
-          resolution: "720p",
-          returnLastFrame: true,
-          ...(anchor ? { imageUrls: [anchor] } : {}),
+          aspectRatio: typeof p.aspectRatio === "string" ? p.aspectRatio : "9:16",
+          resolution: typeof p.resolution === "string" ? p.resolution : "720p",
+          returnLastFrame: p.returnLastFrame !== false,
+          generateAudio: p.generateAudio === true,
+          ...(typeof p.generationType === "string" ? { generationType: p.generationType } : {}),
+          ...(refImages.length > 0 ? { imageUrls: refImages } : {}),
+          ...(Array.isArray(p.videoUrls) ? { videoUrls: p.videoUrls } : {}),
+          ...(Array.isArray(p.audioUrls) ? { audioUrls: p.audioUrls } : {}),
         });
         const id = out.id as string | undefined;
         if (!id) throw new Error(`seedance start returned no id: ${JSON.stringify(out).slice(0, 160)}`);

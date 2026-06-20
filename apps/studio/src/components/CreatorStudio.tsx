@@ -20,7 +20,7 @@ import { StudioRail } from "./StudioRail.js";
 import { DashboardHome } from "./DashboardHome.js";
 import { ComingSoon } from "./ComingSoon.js";
 import { SettingsPanel } from "./SettingsPanel.js";
-import { CreateWithAiPanel } from "./studio/CreateWithAiPanel.js";
+import { AiStudioPanel } from "./studio/AiStudioPanel.js";
 import { UploadPanel } from "./studio/UploadPanel.js";
 import { ProcessPanel } from "./studio/ProcessPanel.js";
 import { BranchesSection } from "./studio/BranchesSection.js";
@@ -114,7 +114,7 @@ export function CreatorStudio(): JSX.Element {
             )}
             {active.id === "create" && (
               <div className="smain">
-                <CreateWithAiPanel onNavigate={onSelect} />
+                <AiStudioPanel onNavigate={onSelect} />
               </div>
             )}
             {active.id === "upload" && (

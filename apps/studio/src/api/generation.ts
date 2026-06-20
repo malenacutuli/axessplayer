@@ -71,6 +71,14 @@ export interface GenerateShotInput {
   consentRef?: string | null;
   budgetUsd?: number;
   preview?: boolean;
+  // Seedance multi-reference controls (carried in params to the provider).
+  referenceImageUrls?: string[];
+  referenceVideoUrls?: string[];
+  referenceAudioUrls?: string[];
+  resolution?: "480p" | "720p" | "1080p";
+  aspectRatio?: string;
+  returnLastFrame?: boolean;
+  generationMode?: "text-to-video" | "image-to-video" | "reference-to-video";
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -153,7 +161,16 @@ export async function generateShot(
         ...(input.shotCount ? { shotCount: input.shotCount } : {}),
         ...(input.preview ? { preview: true } : {}),
       },
-      params: { prompt: input.prompt },
+      params: {
+        prompt: input.prompt,
+        ...(input.referenceImageUrls && input.referenceImageUrls.length > 0 ? { imageUrls: input.referenceImageUrls } : {}),
+        ...(input.referenceVideoUrls && input.referenceVideoUrls.length > 0 ? { videoUrls: input.referenceVideoUrls } : {}),
+        ...(input.referenceAudioUrls && input.referenceAudioUrls.length > 0 ? { audioUrls: input.referenceAudioUrls } : {}),
+        ...(input.resolution ? { resolution: input.resolution } : {}),
+        ...(input.aspectRatio ? { aspectRatio: input.aspectRatio } : {}),
+        ...(input.generationMode ? { generationType: input.generationMode } : {}),
+        returnLastFrame: input.returnLastFrame ?? false,
+      },
       ...(input.budgetUsd ? { budgetUsd: input.budgetUsd } : {}),
     }),
   });
