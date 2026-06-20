@@ -22,12 +22,14 @@ export interface AsrWord {
   word: string;
   start: number; // seconds
   end: number; // seconds
+  speaker?: string; // ASR speaker label ("A"/"B"/...) when the provider ran speaker diarization on this pass
 }
 export interface AsrSegment {
   text: string;
   start: number;
   end: number;
   words: AsrWord[];
+  speaker?: string; // the speaker label shared by this segment's words (segments are split on speaker change)
 }
 export interface AsrTranscript {
   text: string;
@@ -146,13 +148,17 @@ export function normalizeTranscript(raw: unknown): AsrTranscript {
     text = r.transcript;
   }
 
-  // Group words into segments on a >0.6s silence gap (sentence-ish), so the captions doc has segments even
-  // when the ASR returned only a flat word list.
+  // Group words into segments on a >0.6s silence gap (sentence-ish) OR a speaker change, so the captions doc
+  // has segments even when the ASR returned only a flat word list, and each segment belongs to one speaker
+  // (so a narrator turn and a character turn never share a caption line).
   const segments: AsrSegment[] = [];
   if (words.length > 0) {
     let cur: AsrWord[] = [];
     for (const w of words) {
-      if (cur.length > 0 && w.start - cur[cur.length - 1].end > 0.6) {
+      const prev = cur[cur.length - 1];
+      const gap = prev ? w.start - prev.end > 0.6 : false;
+      const speakerChange = prev ? (w.speaker ?? "") !== (prev.speaker ?? "") : false;
+      if (prev && (gap || speakerChange)) {
         segments.push(toSegment(cur));
         cur = [];
       }
@@ -165,22 +171,36 @@ export function normalizeTranscript(raw: unknown): AsrTranscript {
 }
 
 function toWord(w: Record<string, unknown>): AsrWord {
+  const speaker = w.speaker ?? w.speaker_label ?? w.speakerLabel;
   return {
     word: String(w.word ?? w.text ?? "").trim(),
     start: Number(w.start ?? w.startTime ?? 0) || 0,
     end: Number(w.end ?? w.endTime ?? 0) || 0,
+    ...(speaker != null && String(speaker).length > 0 ? { speaker: String(speaker) } : {}),
   };
 }
 function toSegment(words: AsrWord[]): AsrSegment {
+  const speaker = words.find((w) => w.speaker)?.speaker;
   return {
     text: wordsToText(words),
     start: words[0]?.start ?? 0,
     end: words[words.length - 1]?.end ?? 0,
     words,
+    ...(speaker ? { speaker } : {}),
   };
 }
 function wordsToText(words: AsrWord[]): string {
   return words.map((w) => w.word).join(" ").replace(/\s+([.,!?;:])/g, "$1").trim();
+}
+
+// High-contrast, accessible palette for tinting each speaker's captions (matches the speaker-diarization edge
+// fn's palette). Distinct speakers are assigned by first-appearance order; a single-speaker doc stays neutral.
+const SPEAKER_PALETTE = ["#E5E517", "#17E5E5", "#E51717", "#E58017", "#17E517", "#E517E5", "#47C2EB", "#EBC247"];
+
+// Friendly display label for a raw ASR speaker code: a bare letter "A" becomes "Speaker A"; anything already
+// descriptive (a name, "Speaker 1") is kept verbatim.
+function prettySpeaker(label: string): string {
+  return /^[A-Za-z]$/.test(label) ? `Speaker ${label.toUpperCase()}` : label;
 }
 
 // --- the transcript -> captions.json CWI builder. Without the PCM (the edge ASR returns timing, not the wav)
@@ -233,9 +253,25 @@ export function buildCaptionsDoc(transcript: AsrTranscript, diarization?: Diariz
     return { intensity, energy };
   };
 
+  // Resolve each segment's speaker label: prefer the per-word ASR speaker carried on the segment (same pass
+  // as the transcript, correct language + timing); else fall back to a separate diarization overlap match;
+  // else the neutral default. Then color distinct speakers from the palette by first-appearance order, but
+  // keep a single-speaker doc neutral (no point tinting one voice).
+  const labelOf = (s: AsrSegment): string =>
+    s.speaker ? prettySpeaker(s.speaker) : speakerFor(s.start, s.end, diarization, speaker).speaker;
+  const orderedLabels: string[] = [];
+  for (const s of transcript.segments) {
+    const l = labelOf(s);
+    if (!orderedLabels.includes(l)) orderedLabels.push(l);
+  }
+  const multiSpeaker = orderedLabels.length > 1;
+  const colorMap = new Map<string, string>();
+  orderedLabels.forEach((l, i) => colorMap.set(l, multiSpeaker ? SPEAKER_PALETTE[i % SPEAKER_PALETTE.length] : NEUTRAL));
+
   const segments = transcript.segments.map((s) => {
-    // Real speaker + color from diarization (overlap match); neutral fallback when unavailable.
-    const spk = speakerFor(s.start, s.end, diarization, speaker);
+    // Speaker from the ASR pass (preferred) or the diarization overlap; palette color when multi-speaker.
+    const spkLabel = labelOf(s);
+    const spk = { speaker: spkLabel, color: colorMap.get(spkLabel) ?? NEUTRAL };
     const words = s.words.map((w) => {
       const { intensity, energy } = classify(w);
       return {
@@ -360,10 +396,16 @@ export async function runStage(stage: JobStage, deps: ProduceDeps): Promise<Stag
       if (stage.name === "cwi" && state.captionDocUrl) return { assetId: state.captionDocUrl };
       if (!state.transcript) throw new Error(`${stage.name}: transcript not produced yet`);
       if (stage.name === "captions" && state.captionDocUrl) return { assetId: state.captionDocUrl };
-      // Real speaker diarization (AssemblyAI/etc.) -> per-speaker labels + colors in the CWI captions, the
-      // demo's differentiated look. Best-effort: a diarization failure degrades to a single neutral speaker.
+      // Per-speaker labels + colors are the demo's differentiated look. PREFERRED source: the speaker labels
+      // the ASR pass already carried on each word (same pass as the transcript, so correct language + timing).
+      // Only when the transcript has NO native speaker labels do we fall back to a separate diarization call
+      // (best-effort; a failure degrades to a single neutral speaker).
+      const hasNativeSpeakers = state.transcript.segments.some((s) => s.speaker);
+      const speakerCount = new Set(state.transcript.segments.map((s) => s.speaker).filter(Boolean)).size;
       let diar: DiarizationSegment[] | undefined;
-      if (edge.diarize) {
+      if (hasNativeSpeakers) {
+        log(`speakers from ASR pass: ${speakerCount}`);
+      } else if (edge.diarize) {
         try {
           diar = await edge.diarize(variant.videoUrl);
           log(`diarized ${diar.length} speaker turns`);

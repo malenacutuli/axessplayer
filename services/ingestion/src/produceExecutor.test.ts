@@ -130,6 +130,33 @@ describe("buildCaptionsDoc / buildAdDoc", () => {
     assert.equal(doc.segments.length, 1);
     assert.equal(doc.segments[0].text, "x");
   });
+  it("carries per-word ASR speaker labels through to distinct caption speakers + colors", () => {
+    // A narrator (A) then a character (B) with no silence gap between them: the segment must still split on
+    // the speaker change, and the two speakers must get DISTINCT colors (the demo's differentiated look).
+    const raw = {
+      words: [
+        { word: "Narrator", start: 0.0, end: 0.5, speaker: "A" },
+        { word: "speaks", start: 0.5, end: 1.0, speaker: "A" },
+        { word: "Character", start: 1.0, end: 1.5, speaker: "B" },
+        { word: "replies", start: 1.5, end: 2.0, speaker: "B" },
+      ],
+    };
+    const t = normalizeTranscript(raw);
+    assert.equal(t.segments.length, 2, "splits on speaker change despite no silence gap");
+    assert.equal(t.segments[0].speaker, "A");
+    assert.equal(t.segments[1].speaker, "B");
+    const doc = buildCaptionsDoc(t) as any;
+    assert.equal(doc.segments[0].speaker, "Speaker A");
+    assert.equal(doc.segments[1].speaker, "Speaker B");
+    assert.notEqual(doc.segments[0].speakerColor, doc.segments[1].speakerColor, "distinct speakers get distinct colors");
+    assert.equal(doc.segments[0].words[0].character_id, "Speaker A");
+  });
+  it("keeps a single-speaker doc neutral (no palette tint when there is one voice)", () => {
+    const t = normalizeTranscript({ words: [{ word: "solo", start: 0, end: 1, speaker: "A" }] });
+    const doc = buildCaptionsDoc(t) as any;
+    assert.equal(doc.segments[0].speaker, "Speaker A");
+    assert.equal(doc.segments[0].speakerColor, "#22E3D0");
+  });
 });
 
 describe("runProduceJob over fake edge functions + content PATCH", () => {
