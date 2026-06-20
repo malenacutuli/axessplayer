@@ -203,3 +203,13 @@ services:
     region: oregon
     envVars:
       - fromGroup: axessplayer-shared
+
+  - type: web
+    name: axessplayer-generation
+    runtime: docker
+    dockerfilePath: ./services/generation/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    envVars:
+      - fromGroup: axessplayer-shared
