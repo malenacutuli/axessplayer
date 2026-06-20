@@ -158,6 +158,10 @@ export async function produceConsistentShot(input: ProduceConsistentInput): Prom
   const attempts: GenerationAttempt[] = [];
   let spentUsd = 0;
   let anchorUrl: string | undefined = typeof input.params.anchorUrl === "string" ? input.params.anchorUrl : undefined;
+  // Consistency QA needs a reference to hold against. With no enrolled face/scene (a fresh text-to-video with
+  // no character lock), there is nothing to reject on, so the first produced shot is accepted. The QA loop
+  // still meters cost + retries on provider errors. Enroll a reference to turn the consistency gate on.
+  const noRefs = !(input.refs.face && input.refs.face.length > 0) && !(input.refs.scene && input.refs.scene.length > 0);
 
   for (let i = 0; i < policy.maxAttempts; i++) {
     const providerHint = providerOrder.length > 0 ? providerOrder[i % providerOrder.length] : input.brief.providerHint;
@@ -188,8 +192,14 @@ export async function produceConsistentShot(input: ProduceConsistentInput): Prom
     const cost = out.cached ? 0 : estimate;
     spentUsd += cost;
 
-    const score = await input.scorer.scoreShot(out.outputUrl, input.refs);
-    const verdict = evaluateShot(score, thresholds);
+    let score: ShotScore | null = null;
+    let verdict: ShotVerdict;
+    if (noRefs) {
+      verdict = { pass: true, reasons: [] };
+    } else {
+      score = await input.scorer.scoreShot(out.outputUrl, input.refs);
+      verdict = evaluateShot(score, thresholds);
+    }
     attempts.push({
       attempt: i + 1,
       provider: out.provider,
@@ -198,7 +208,7 @@ export async function produceConsistentShot(input: ProduceConsistentInput): Prom
       outputUrl: out.outputUrl,
       score,
       pass: verdict.pass,
-      reason: verdict.pass ? "ok" : verdict.reasons.join(","),
+      reason: verdict.pass ? (noRefs ? "no_reference_lock" : "ok") : verdict.reasons.join(","),
       costUsd: cost,
       cached: out.cached,
     });

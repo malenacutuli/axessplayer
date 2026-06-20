@@ -123,11 +123,14 @@ test("CONSENT GATE: B_likeness with a current consent entry runs", async () => {
 
 test("COST GATE: a tiny budget pauses the run including its retries", async () => {
   // Each attempt estimates 0.05*5 = 0.25 on the cheapest final model; budget 0.3 affords one attempt only.
+  // A face ref is enrolled so the (failing) scorer actually rejects and forces a retry the budget cannot fund.
   const { app } = makeApp({ score: { faceCosine: 0.1, sceneScore: 0.1 }, maxBudgetUsd: 0.3 });
+  await req(app, "POST", "/references", { seriesId: SERIES, ownerType: "character", ownerRef: "hero", kind: "face", embedding: [1, 0, 0, 0], model: "arcface" });
   const res = await req(app, "POST", "/generate", {
     specId: "spec-budget",
     seriesId: SERIES,
     tier: "C_ai",
+    characterRef: "hero",
     brief: videoBrief(),
     params: {},
     policy: { maxAttempts: 5 },

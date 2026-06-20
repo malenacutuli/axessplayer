@@ -10,16 +10,17 @@ import type { ConsentGate, ConsentState } from "./consentGate.js";
 
 export interface EdgeConfig {
   supabaseUrl: string;
-  serviceRoleKey: string;
+  apiKey: string; // service-role key if available, else the anon key (both pass verify_jwt + the scoped RLS)
 }
 
-// Read the edge config (the Supabase project + service-role key the edge functions need). Null when either
-// is missing, which keeps the real backend off.
+// Read the edge config. Prefers the service-role key, falls back to the anon key (the axessplayer-runway-video
+// fn is verify_jwt and the storage RLS allows anon writes under videos/axessplayer/**, so anon suffices).
+// Null when no key is available, which keeps the real backend off.
 export function readEdgeConfig(env: NodeJS.ProcessEnv = process.env): EdgeConfig | null {
   const supabaseUrl = (env.SUPABASE_URL ?? "").replace(/\/$/, "");
-  const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-  if (!supabaseUrl || !serviceRoleKey) return null;
-  return { supabaseUrl, serviceRoleKey };
+  const apiKey = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_ANON_KEY || "";
+  if (!supabaseUrl || !apiKey) return null;
+  return { supabaseUrl, apiKey };
 }
 
 class ProviderNotWiredError extends Error {
@@ -29,52 +30,77 @@ class ProviderNotWiredError extends Error {
   }
 }
 
-// The REAL provider client. Today it wires the one live video-generation edge function (Runway
-// prompt-to-video, action start/status = submit-poll); other providers throw a clear not-wired error so a
-// misrouted real run fails loud rather than silently degrading. Adding a provider is one case here plus a
-// registry entry, never a change to the router.
+function uuid(): string {
+  const g = globalThis as unknown as { crypto?: { randomUUID?: () => string } };
+  if (g.crypto?.randomUUID) return g.crypto.randomUUID();
+  return "xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx".replace(/[xy]/g, (c) => ((Math.random() * 16) | 0).toString(16));
+}
+
+// The REAL provider client. Wires the live Runway text-to-video path (axessplayer-runway-video, the corrected
+// api.dev.runwayml.com two-step) as submit-poll. On success it RE-HOSTS the video into the public
+// videos/axessplayer/generated bucket (Runway output URLs are signed and expire), so the returned playback URL
+// is durable. Other providers throw a clear not-wired error so a misroute fails loud.
 export function makeEdgeProviderClient(cfg: EdgeConfig, fetchFn: typeof fetch = fetch): ProviderClient {
-  const headers = {
-    authorization: `Bearer ${cfg.serviceRoleKey}`,
-    apikey: cfg.serviceRoleKey,
-    "content-type": "application/json",
-  };
+  const headers = { authorization: `Bearer ${cfg.apiKey}`, apikey: cfg.apiKey, "content-type": "application/json" };
   const fn = (name: string) => `${cfg.supabaseUrl}/functions/v1/${name}`;
   const post = async (name: string, body: unknown): Promise<Record<string, unknown>> => {
     const res = await fetchFn(fn(name), { method: "POST", headers, body: JSON.stringify(body) });
-    if (!res.ok) throw new Error(`${name} -> ${res.status}: ${(await res.text()).slice(0, 160)}`);
+    if (!res.ok) throw new Error(`${name} -> ${res.status}: ${(await res.text()).slice(0, 200)}`);
     return (await res.json()) as Record<string, unknown>;
+  };
+
+  // Download the ephemeral Runway mp4 and upload it to the public videos/axessplayer/generated bucket, returning
+  // a durable public URL. Best-effort: if the re-host fails, fall back to the ephemeral URL so the run still
+  // returns a (short-lived) playable asset rather than failing.
+  const rehost = async (videoUrl: string): Promise<string> => {
+    try {
+      const vid = await fetchFn(videoUrl);
+      if (!vid.ok) return videoUrl;
+      const bytes = new Uint8Array(await vid.arrayBuffer());
+      const path = `axessplayer/generated/${uuid()}.mp4`;
+      const up = await fetchFn(`${cfg.supabaseUrl}/storage/v1/object/videos/${path}`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${cfg.apiKey}`, apikey: cfg.apiKey, "content-type": "video/mp4", "x-upsert": "true" },
+        body: bytes,
+      });
+      if (!up.ok && up.status !== 200) return videoUrl;
+      return `${cfg.supabaseUrl}/storage/v1/object/public/videos/${path}`;
+    } catch {
+      return videoUrl;
+    }
   };
 
   return {
     async submit(req: ProviderRequest): Promise<Submission> {
       if (req.model.provider === "runway") {
-        const out = await post("prompt-to-video", {
+        const out = await post("axessplayer-runway-video", {
           action: "start",
-          promptText: req.params.prompt ?? "",
-          model: req.model.model_id,
+          prompt: req.params.prompt ?? "",
           duration: req.params.durationS ?? req.model.maxDurationS ?? 5,
-          // First-last-frame continuation: pass the anchor frame when chaining.
-          ...(typeof req.params.anchorUrl === "string" ? { initImage: req.params.anchorUrl } : {}),
+          ratio: "720:1280", // vertical 9:16
+          // First-last-frame continuation: seed the next segment on the anchor frame when chaining.
+          ...(typeof req.params.anchorUrl === "string" ? { promptImage: req.params.anchorUrl } : {}),
         });
-        const taskId = (out.taskId ?? out.id ?? out.task_id) as string | undefined;
-        if (!taskId) throw new Error("prompt-to-video: no task id returned");
-        return { status: "pending", handle: `runway:${taskId}` };
+        const id = out.id as string | undefined;
+        if (!id) throw new Error(`runway start returned no id: ${JSON.stringify(out).slice(0, 160)}`);
+        return { status: "pending", handle: `runway:${id}` };
       }
       throw new ProviderNotWiredError(req.model.provider);
     },
     async poll(handle: string): Promise<Submission> {
-      const [provider, taskId] = handle.split(":");
+      const [provider, id] = handle.split(":");
       if (provider !== "runway") throw new ProviderNotWiredError(provider);
-      const out = await post("prompt-to-video", { action: "status", taskId });
+      const out = await post("axessplayer-runway-video", { action: "status", id });
       const status = String(out.status ?? "").toUpperCase();
-      if (status === "SUCCEEDED" || status === "DONE" || status === "COMPLETED") {
-        const url = (out.outputUrl ?? out.output ?? (Array.isArray(out.output) ? out.output[0] : undefined)) as string | undefined;
-        if (!url) throw new Error("prompt-to-video: succeeded with no output url");
-        const result: RawProviderOutput = { outputUrl: url, raw: out };
-        return { status: "done", output: result };
+      if (status === "SUCCEEDED") {
+        const ephemeral = out.videoUrl as string | undefined;
+        if (!ephemeral) throw new Error("runway succeeded with no video url");
+        const durable = await rehost(ephemeral);
+        return { status: "done", output: { outputUrl: durable, raw: out } as RawProviderOutput };
       }
-      if (status === "FAILED" || status === "ERROR") throw new Error(`prompt-to-video failed: ${JSON.stringify(out).slice(0, 160)}`);
+      if (status === "FAILED" || status === "CANCELLED" || status === "ERROR") {
+        throw new Error(`runway failed: ${JSON.stringify(out).slice(0, 160)}`);
+      }
       return { status: "pending", handle };
     },
   };
