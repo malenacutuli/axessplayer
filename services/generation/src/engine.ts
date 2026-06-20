@@ -99,7 +99,8 @@ export async function runGeneration(req: GenerateRequest, deps: GenerateDeps): P
   // The consistency QA + auto-retry loop (cost gate is metered inside it).
   const result = await produceConsistentShot({
     brief: req.brief,
-    params: req.params,
+    // Thread the brief duration into params so the provider client receives it (the brief is not passed down).
+    params: { ...req.params, durationS: req.brief.durationS },
     refs,
     registry: deps.registry,
     client: deps.client,

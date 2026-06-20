@@ -73,10 +73,13 @@ export function makeEdgeProviderClient(cfg: EdgeConfig, fetchFn: typeof fetch = 
   return {
     async submit(req: ProviderRequest): Promise<Submission> {
       if (req.model.provider === "runway") {
+        // Runway gen4_turbo accepts only duration 5 or 10. Clamp (the brief duration is threaded via params).
+        const reqDur = typeof req.params.durationS === "number" ? req.params.durationS : 5;
+        const duration = reqDur >= 8 ? 10 : 5;
         const out = await post("axessplayer-runway-video", {
           action: "start",
           prompt: req.params.prompt ?? "",
-          duration: req.params.durationS ?? req.model.maxDurationS ?? 5,
+          duration,
           ratio: "720:1280", // vertical 9:16
           // First-last-frame continuation: seed the next segment on the anchor frame when chaining.
           ...(typeof req.params.anchorUrl === "string" ? { promptImage: req.params.anchorUrl } : {}),
