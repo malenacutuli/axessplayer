@@ -56,6 +56,18 @@ export function makeEdgeClient(cfg: RuntimeConfig, fetchFn: FetchFn = fetch): Ed
     dub: async (text, targetLanguage) =>
       (await postJson("generate-dubbing", { text, targetLanguage })) as { translatedText?: string; audioBase64?: string },
     audioDescriptions: (videoUrl) => postJson("twelve-labs-audio-descriptions", { videoUrl, url: videoUrl }),
+    // Speaker diarization (AssemblyAI primary) -> speaker-tagged time turns with colors, for CWI captions.
+    diarize: async (videoUrl) => {
+      const j = (await postJson("speaker-diarization-unified", { videoUrl, url: videoUrl, targetLanguage: "en" })) as {
+        segments?: Array<{ startTime?: number; endTime?: number; start?: number; end?: number; speaker?: string; speakerColor?: string }>;
+      };
+      return (j.segments ?? []).map((s) => ({
+        start: s.startTime ?? s.start ?? 0,
+        end: s.endTime ?? s.end ?? 0,
+        speaker: s.speaker ?? "Speaker",
+        color: s.speakerColor ?? "#22E3D0",
+      }));
+    },
     poster: async (prompt) => {
       const res = await fetchFn(fn("stability-ai"), { method: "POST", headers, body: JSON.stringify({ prompt }) });
       if (!res.ok) throw new Error(`stability-ai -> ${res.status}: ${(await res.text()).slice(0, 160)}`);

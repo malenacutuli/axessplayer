@@ -45,6 +45,17 @@ export interface EdgeClient {
   audioDescriptions(videoUrl: string): Promise<unknown>;
   // POST .../stability-ai { prompt } -> raw poster image bytes.
   poster(prompt: string): Promise<Uint8Array>;
+  // POST .../speaker-diarization-unified { videoUrl } -> speaker-tagged time segments (with colors). Optional
+  // so test fakes need not implement it; when present, the captions builder uses it for real speaker labels.
+  diarize?(videoUrl: string): Promise<DiarizationSegment[]>;
+}
+
+// One diarized speaker turn: who spoke from start..end seconds, and the color the player tints their captions.
+export interface DiarizationSegment {
+  start: number;
+  end: number;
+  speaker: string;
+  color: string;
 }
 
 export interface StoragePort {
@@ -181,7 +192,28 @@ function wordsToText(words: AsrWord[]): string {
 const NEUTRAL = "#22E3D0";
 export type Intensity = "whisper" | "quiet" | "normal" | "loud" | "yelling" | "screaming";
 
-export function buildCaptionsDoc(transcript: AsrTranscript, speaker = "Speaker"): unknown {
+// Pick the diarized speaker whose turn overlaps a caption segment the most (by time). Returns the neutral
+// default when there is no diarization or no overlap, so captions never lose a speaker.
+function speakerFor(
+  segStart: number,
+  segEnd: number,
+  diarization: DiarizationSegment[] | undefined,
+  fallback: string,
+): { speaker: string; color: string } {
+  if (!diarization || diarization.length === 0) return { speaker: fallback, color: NEUTRAL };
+  let best: DiarizationSegment | null = null;
+  let bestOverlap = 0;
+  for (const d of diarization) {
+    const overlap = Math.min(segEnd, d.end) - Math.max(segStart, d.start);
+    if (overlap > bestOverlap) {
+      bestOverlap = overlap;
+      best = d;
+    }
+  }
+  return best ? { speaker: best.speaker, color: best.color } : { speaker: fallback, color: NEUTRAL };
+}
+
+export function buildCaptionsDoc(transcript: AsrTranscript, diarization?: DiarizationSegment[], speaker = "Speaker"): unknown {
   const allDur = transcript.words.map((w) => Math.max(0.01, w.end - w.start)).sort((a, b) => a - b);
   const medianDur = allDur.length ? allDur[Math.floor(allDur.length / 2)] : 0.3;
 
@@ -202,6 +234,8 @@ export function buildCaptionsDoc(transcript: AsrTranscript, speaker = "Speaker")
   };
 
   const segments = transcript.segments.map((s) => {
+    // Real speaker + color from diarization (overlap match); neutral fallback when unavailable.
+    const spk = speakerFor(s.start, s.end, diarization, speaker);
     const words = s.words.map((w) => {
       const { intensity, energy } = classify(w);
       return {
@@ -210,7 +244,7 @@ export function buildCaptionsDoc(transcript: AsrTranscript, speaker = "Speaker")
         end_ms: Math.round(w.end * 1000),
         startTime: +w.start.toFixed(3),
         endTime: +w.end.toFixed(3),
-        character_id: speaker,
+        character_id: spk.speaker,
         f0_hz: 0, // pitch is unavailable from the ASR word stream; left 0 (open), not fabricated
         energy_rms: energy,
         harmonic_ratio: 0.5,
@@ -219,9 +253,9 @@ export function buildCaptionsDoc(transcript: AsrTranscript, speaker = "Speaker")
     });
     return {
       text: s.text,
-      speaker,
-      speakerColor: NEUTRAL,
-      character_id: speaker,
+      speaker: spk.speaker,
+      speakerColor: spk.color,
+      character_id: spk.speaker,
       startTime: +s.start.toFixed(3),
       endTime: +s.end.toFixed(3),
       words,
@@ -326,7 +360,18 @@ export async function runStage(stage: JobStage, deps: ProduceDeps): Promise<Stag
       if (stage.name === "cwi" && state.captionDocUrl) return { assetId: state.captionDocUrl };
       if (!state.transcript) throw new Error(`${stage.name}: transcript not produced yet`);
       if (stage.name === "captions" && state.captionDocUrl) return { assetId: state.captionDocUrl };
-      const doc = buildCaptionsDoc(state.transcript);
+      // Real speaker diarization (AssemblyAI/etc.) -> per-speaker labels + colors in the CWI captions, the
+      // demo's differentiated look. Best-effort: a diarization failure degrades to a single neutral speaker.
+      let diar: DiarizationSegment[] | undefined;
+      if (edge.diarize) {
+        try {
+          diar = await edge.diarize(variant.videoUrl);
+          log(`diarized ${diar.length} speaker turns`);
+        } catch (e) {
+          log(`diarization skipped: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+      const doc = buildCaptionsDoc(state.transcript, diar);
       const url = await storage.upload("captions.json", utf8(JSON.stringify(doc)), "application/json");
       state.captionDocUrl = url;
       if (stage.name === "captions") state.spentUsd += cost;
