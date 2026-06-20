@@ -11,3 +11,7 @@ export * from "./cdn.js";
 export * from "./pipeline.js";
 export * from "./finops.js";
 export * from "./variantSource.js";
+// Prompt 26 / GOLD_STANDARD_16: the model-agnostic router + consistency QA + auto-retry + consent gate.
+export * from "./router.js";
+export * from "./consistency.js";
+export * from "./consentGate.js";
