@@ -14,7 +14,8 @@ import { useMemo, useRef, useState, type DragEvent } from "react";
 import { useContentClient } from "../../api/useContentClient.js";
 import { useIngestionClient } from "../../api/useIngestionClient.js";
 import { useFlatGraph } from "../../api/useFlatGraph.js";
-import { uploadMaster, isStorageConfigured, StorageUploadError } from "../../api/storageUpload.js";
+import { isStorageConfigured, StorageUploadError } from "../../api/storageUpload.js";
+import { uploadMasterRouted, type UploadBackend } from "../../api/uploadRouter.js";
 import { ContentApiError } from "../../api/client.js";
 import { IngestionApiError, type ProduceTargets } from "../../api/ingestion.js";
 import { SeriesPicker } from "./SeriesPicker.js";
@@ -45,6 +46,8 @@ interface RowItem {
   episodeId?: string;
   // Upload progress in [0,1] while state is "uploading" (resumable chunks complete), for the progress bar.
   progress?: number;
+  // Which backend stored the master: "supabase" (default) or "r2" (overflow for very large files).
+  backend?: UploadBackend;
   // Accessibility produce state for the per-row CTA.
   produce: ProduceState;
   produceJobId?: string;
@@ -150,9 +153,10 @@ export function UploadPanel({ proMode, onNavigate }: UploadPanelProps): JSX.Elem
       }
       try {
         patchRow(id, { state: "uploading", progress: 0 });
-        const { publicUrl } = await uploadMaster(file, workingGraph.seriesId, {
+        const { publicUrl, backend } = await uploadMasterRouted(file, workingGraph.seriesId, {
           onProgress: (fraction) => patchRow(id, { progress: fraction }),
         });
+        patchRow(id, { backend });
         patchRow(id, { state: "registering" });
         await client.createVariant({
           beat_id: beat.id,
@@ -314,7 +318,7 @@ export function UploadPanel({ proMode, onNavigate }: UploadPanelProps): JSX.Elem
                         ? `Uploading... ${Math.round(r.progress * 100)}%`
                         : "Uploading...")}
                     {r.state === "registering" && "Registering variant..."}
-                    {r.state === "done" && "Registered"}
+                    {r.state === "done" && (r.backend === "r2" ? "Registered (R2)" : "Registered")}
                     {r.state === "error" && <span role="alert">Failed: {r.message}</span>}
                   </span>
 
