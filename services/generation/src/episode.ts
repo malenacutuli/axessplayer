@@ -18,6 +18,9 @@ export interface EpisodeRequest {
   count?: number; // target shot count when expanding (default 12; ~60s at 5s/shot)
   durationS?: number; // per shot, default 5
   budgetUsd: number; // total episode budget
+  // Provider rotation per shot (the fallback ladder). Default is LTX-primary (REELM animated), then Seedance,
+  // then Runway: each shot tries ltx first and only falls to the next on a provider error.
+  providerOrder?: string[];
 }
 
 export interface EpisodeDeps {
@@ -80,8 +83,8 @@ export async function runEpisode(req: EpisodeRequest, deps: EpisodeDeps): Promis
       client: deps.client,
       scorer: deps.scorer,
       budget: { capUsd: req.budgetUsd, spentUsd },
-      // Prefer Seedance (cheaper, 15s, returns last frame); fall back to Runway if it errors (e.g. no credits).
-      policy: { maxAttempts: 3, providerOrder: ["seedance", "runway"] },
+      // LTX-2.3 is the primary animated renderer; fall back to Seedance then Runway only on a provider error.
+      policy: { maxAttempts: 3, providerOrder: req.providerOrder ?? ["ltx", "seedance", "runway"] },
       cache: deps.cache,
     });
     spentUsd += res.spentUsd;

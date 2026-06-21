@@ -8,13 +8,16 @@ import { InMemoryEngineDb } from "../src/engineDb.js";
 import { FakeProviderClient, defaultRegistry, InMemorySubGenerationCache } from "../src/router.js";
 import { ScriptedScorer, type ShotScore } from "../src/consistency.js";
 import { InMemoryConsentGate } from "../src/consentGate.js";
+import { makeLlmWritersRoom, type LlmCaller } from "../src/agents.js";
 
 const TOKEN = "session:2a000000-0000-0000-0000-0000000000c0";
 const SERIES = "11111111-1111-1111-1111-111111111111";
 
-function makeApp(opts: { score?: ShotScore; consent?: InMemoryConsentGate; maxBudgetUsd?: number } = {}) {
+function makeApp(opts: { score?: ShotScore; consent?: InMemoryConsentGate; maxBudgetUsd?: number; agents?: boolean } = {}) {
   const db = new InMemoryEngineDb();
   const consent = opts.consent ?? new InMemoryConsentGate();
+  // A silent LLM => the planning agents take their deterministic fallbacks (valid graph + evenly split shots).
+  const silentLlm: LlmCaller = { async complete() { return ""; } };
   const deps: GenerationAppDeps = {
     db,
     registry: defaultRegistry(),
@@ -27,6 +30,7 @@ function makeApp(opts: { score?: ShotScore; consent?: InMemoryConsentGate; maxBu
     maxBudgetUsd: opts.maxBudgetUsd ?? 25,
     source: "unwired",
     cache: new InMemorySubGenerationCache(),
+    ...(opts.agents ? { llm: silentLlm, room: makeLlmWritersRoom(silentLlm, { beats: 6 }) } : {}),
   };
   return { app: createGenerationApp(deps), db, consent };
 }
@@ -161,4 +165,21 @@ test("validation: bad tier / brief / spec are 400", async () => {
   assert.equal((await req(app, "POST", "/generate", { specId: "s", seriesId: SERIES, tier: "NOPE", brief: videoBrief() })).status, 400);
   assert.equal((await req(app, "POST", "/generate", { specId: "s", seriesId: SERIES, tier: "C_ai", brief: { modality: "video" } })).status, 400);
   assert.equal((await req(app, "POST", "/generate", { seriesId: SERIES, tier: "C_ai", brief: videoBrief() })).status, 400);
+});
+
+test("POST /script runs the showrunner planning agents into a valid script_json (no GPU)", async () => {
+  const { app } = makeApp({ agents: true });
+  const res = await req(app, "POST", "/script", { premise: "a heist in a sky city", targetS: 90 });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as Record<string, unknown>;
+  assert.equal((body.graph as { beats: unknown[] }).beats.length, 6);
+  assert.equal((body.graphValid as { ok: boolean }).ok, true);
+  assert.ok(Array.isArray(body.shots) && (body.shots as unknown[]).length >= 6);
+  assert.ok((body.review as { runtimeS: number }).runtimeS > 0);
+});
+
+test("POST /script is 501 when the agents are not configured and 400 on an empty premise", async () => {
+  assert.equal((await req(makeApp().app, "POST", "/script", { premise: "x" })).status, 501);
+  assert.equal((await req(makeApp({ agents: true }).app, "POST", "/script", { premise: "  " })).status, 400);
+  assert.equal((await req(makeApp({ agents: true }).app, "POST", "/script", {}, "")).status, 401);
 });

@@ -246,8 +246,12 @@ export function defaultRegistry(): ModelRegistry {
     // it; Runway stays as the fallback when Seedance errors (e.g. out of credits). FLAGGED placeholder pricing.
     { id: "seedance-fast", provider: "seedance", model_id: "seedance-2-0-fast", modality: "video", invocation: "poll", capabilities: ["first_last_frame", "animated"], costPerSecondUsd: 0.02, costPerCallUsd: 0.0, maxDurationS: 15, renderTier: "both" },
     { id: "seedance-pro", provider: "seedance", model_id: "seedance-2-0", modality: "video", invocation: "poll", capabilities: ["first_last_frame", "animated", "reference"], costPerSecondUsd: 0.04, costPerCallUsd: 0.0, maxDurationS: 15, renderTier: "final" },
-    // Video: a cheap preview model and two finals (one multi-shot, one best-physics).
-    { id: "preview-video", provider: "fal", model_id: "ltx-video-preview", modality: "video", invocation: "poll", capabilities: ["first_last_frame", "animated"], costPerSecondUsd: 0.01, costPerCallUsd: 0.0, maxDurationS: 15, renderTier: "preview" },
+    // Video: LTX-2.3 is the PRIMARY animated renderer (REELM). Native joint audio+video in one pass, image-to-
+    // video first-frame conditioning for chaining, LipDub on the pro tier. Up to ~20s/call (we keep shots <=7s
+    // for stability and assemble). Seedance/Runway stay as router fallbacks. The episode path pins ltx first via
+    // providerOrder. FLAGGED 2026 placeholder pricing (ltx-fast distilled cheap, ltx-pro full quality).
+    { id: "ltx-fast", provider: "ltx", model_id: "ltx-2-3-fast", modality: "video", invocation: "poll", capabilities: ["animated", "native_audio", "image_to_video"], costPerSecondUsd: 0.04, costPerCallUsd: 0.0, maxDurationS: 20, renderTier: "both" },
+    { id: "ltx-pro", provider: "ltx", model_id: "ltx-2-3-pro", modality: "video", invocation: "poll", capabilities: ["animated", "native_audio", "image_to_video", "lipdub"], costPerSecondUsd: 0.08, costPerCallUsd: 0.0, maxDurationS: 20, renderTier: "final" },
     { id: "runway-multishot", provider: "runway", model_id: "gen4-multishot", modality: "video", invocation: "poll", capabilities: ["multi_shot", "first_last_frame"], costPerSecondUsd: 0.12, costPerCallUsd: 0.0, maxDurationS: 15, renderTier: "final" },
     { id: "kling-physics", provider: "fal", model_id: "kling-2-physics", modality: "video", invocation: "poll", capabilities: ["physics", "first_last_frame"], costPerSecondUsd: 0.2, costPerCallUsd: 0.0, maxDurationS: 10, renderTier: "final" },
     // Image (keyframes/posters): cheap and premium.

@@ -20,6 +20,8 @@ import type { ConsistencyScorer, ConsistencyThresholds, RetryPolicy } from "../c
 import { guardLikenessConsent, ConsentBlockedError, type ConsentGate } from "../consentGate.js";
 import type { GenerationBrief, ModelRegistry, ProviderClient, SubGenerationCache } from "../router.js";
 import type { StitchClient, SceneExpander } from "../providerClient.js";
+import { buildEpisodeScript, type LlmCaller } from "../agents.js";
+import type { WritersRoom } from "../showrunner.js";
 import { VARIANT_TIERS, type VariantTier } from "../spec.js";
 
 // Real video generation takes 60-120s, too long for one synchronous HTTP request through a proxy. POST
@@ -51,6 +53,10 @@ export interface GenerationAppDeps {
   // Episode pipeline: stitch N shots into one continuous video; expand a premise into scene prompts.
   stitch?: StitchClient;
   expand?: SceneExpander;
+  // Showrunner-parity planning agents (cheap, no GPU): the writers room (premise -> beat graph) and the
+  // model-agnostic LLM caller the Cinematographer/Story-Editor use. When absent, POST /script is unavailable.
+  room?: WritersRoom;
+  llm?: LlmCaller;
 }
 
 function isObject(v: unknown): v is Record<string, unknown> {
@@ -211,6 +217,9 @@ export function createGenerationApp(deps: GenerationAppDeps): Hono {
         count: typeof body.count === "number" ? body.count : undefined,
         durationS: typeof body.durationS === "number" ? body.durationS : undefined,
         budgetUsd: capUsd,
+        providerOrder: Array.isArray(body.providerOrder)
+          ? body.providerOrder.filter((s): s is string => typeof s === "string")
+          : undefined,
       },
       { db: deps.db, registry: deps.registry, client: deps.client, scorer: deps.scorer, consent: deps.consent, stitch: deps.stitch, expand: deps.expand, cache: deps.cache },
     )
@@ -229,6 +238,25 @@ export function createGenerationApp(deps: GenerationAppDeps): Hono {
     if (job.status === "done") return c.json({ ...job.result, status: "done" }, 200);
     if (job.status === "failed") return c.json({ specId, status: "failed", error: job.error }, 200);
     return c.json({ specId, status: "running" }, 200);
+  });
+
+  // POST /script : the showrunner-parity PLANNING pipeline (no GPU spend). Premise -> beat graph (Writer) ->
+  // canon validation (Story Editor) -> shot plan per beat (Cinematographer) -> runtime review. Returns the
+  // structured script_json the renderer consumes. Cheap LLM-only; not gated by the real-spend cost gate.
+  app.post("/script", async (c) => {
+    if ((await auth(c.req.header("authorization"))) == null) return c.json({ error: "unauthorized" }, 401);
+    if (!deps.room || !deps.llm) return c.json({ error: "agents_not_configured" }, 501);
+    const body = await c.req.json().catch(() => null);
+    if (!isObject(body)) return c.json({ error: "invalid_body" }, 400);
+    if (typeof body.premise !== "string" || body.premise.trim().length === 0) return c.json({ error: "invalid_premise" }, 400);
+    const targetS = typeof body.targetS === "number" && body.targetS > 0 ? body.targetS : 90;
+    const maxShotS = typeof body.maxShotS === "number" && body.maxShotS > 0 ? body.maxShotS : 7;
+    try {
+      const script = await buildEpisodeScript(body.premise, { room: deps.room, llm: deps.llm }, { targetS, maxShotS });
+      return c.json({ ...script, status: "done" }, 200);
+    } catch (err) {
+      return c.json({ error: "script_failed", detail: err instanceof Error ? err.message : String(err) }, 500);
+    }
   });
 
   // GET /attempts/:specId : the attempt log + QA pass-rate for a spec.

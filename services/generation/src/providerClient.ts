@@ -25,7 +25,7 @@ export function readEdgeConfig(env: NodeJS.ProcessEnv = process.env): EdgeConfig
 
 class ProviderNotWiredError extends Error {
   constructor(provider: string) {
-    super(`real provider not wired: ${provider}. Only the Runway video path has a live edge function today; ` + `wire the rest at the BUY->BUILD cutover.`);
+    super(`real provider not wired: ${provider}. Live video edge functions: ltx, seedance, runway; ` + `wire any new provider as its own axessplayer-<provider>-video edge fn.`);
     this.name = "ProviderNotWiredError";
   }
 }
@@ -114,27 +114,59 @@ export function makeEdgeProviderClient(cfg: EdgeConfig, fetchFn: typeof fetch = 
         if (!id) throw new Error(`runway start returned no id: ${JSON.stringify(out).slice(0, 160)}`);
         return { status: "pending", handle: `runway:${id}` };
       }
+      if (req.model.provider === "ltx") {
+        // LTX-2.3 (REELM primary animated): native joint audio+video, image-to-video first-frame conditioning
+        // for chaining (anchor = the previous shot's last frame, or a cross-provider anchor/poster). The edge fn
+        // picks text-to-video vs image-to-video by imageUri presence and returns the poll endpoint.
+        const p = req.params;
+        const out = await post("axessplayer-ltx-video", {
+          action: "start",
+          model: req.model.model_id,
+          prompt: p.prompt ?? "",
+          duration: Math.max(1, Math.min(20, reqDuration(req, 5))),
+          resolution: typeof p.resolution === "string" ? p.resolution : "1080x1920",
+          generateAudio: p.generateAudio !== false, // native audio on unless an ElevenLabs dub will be muxed
+          ...(anchor ? { imageUri: anchor } : {}),
+          ...(typeof p.cameraMotion === "string" ? { cameraMotion: p.cameraMotion } : {}),
+          ...(typeof p.negativePrompt === "string" ? { negativePrompt: p.negativePrompt } : {}),
+        });
+        const id = out.id as string | undefined;
+        if (!id) throw new Error(`ltx start returned no id: ${JSON.stringify(out).slice(0, 160)}`);
+        // The poll path is endpoint-specific (/v2/{endpoint}/{id}); carry the endpoint in the handle.
+        const endpoint = typeof out.endpoint === "string" ? out.endpoint : anchor ? "image-to-video" : "text-to-video";
+        return { status: "pending", handle: `ltx:${endpoint}:${id}` };
+      }
       throw new ProviderNotWiredError(req.model.provider);
     },
     async poll(handle: string): Promise<Submission> {
       const idx = handle.indexOf(":");
       const provider = handle.slice(0, idx);
-      const id = handle.slice(idx + 1);
+      const rest = handle.slice(idx + 1);
+      // Map a status payload to the normalized Submission (shared across providers).
+      const finish = async (out: Record<string, unknown>): Promise<Submission> => {
+        const status = String(out.status ?? "").toUpperCase();
+        if (status === "SUCCEEDED") {
+          const ephemeral = out.videoUrl as string | undefined;
+          if (!ephemeral) throw new Error(`${provider} succeeded with no video url`);
+          const durable = await rehost(ephemeral);
+          // last_frame_url stays ephemeral: it is consumed immediately by the next chained shot.
+          return { status: "done", output: { outputUrl: durable, lastFrameUrl: (out.lastFrameUrl as string) ?? null, raw: out } as RawProviderOutput };
+        }
+        if (status === "FAILED" || status === "CANCELLED" || status === "ERROR") {
+          throw new Error(`${provider} failed: ${JSON.stringify(out).slice(0, 160)}`);
+        }
+        return { status: "pending", handle };
+      };
+      if (provider === "ltx") {
+        // handle is ltx:{endpoint}:{id}; the poll URL is endpoint-specific.
+        const e = rest.indexOf(":");
+        const endpoint = rest.slice(0, e);
+        const id = rest.slice(e + 1);
+        return finish(await post("axessplayer-ltx-video", { action: "status", id, endpoint }));
+      }
       const fnName = provider === "seedance" ? "axessplayer-seedance-video" : provider === "runway" ? "axessplayer-runway-video" : null;
       if (!fnName) throw new ProviderNotWiredError(provider);
-      const out = await post(fnName, { action: "status", id });
-      const status = String(out.status ?? "").toUpperCase();
-      if (status === "SUCCEEDED") {
-        const ephemeral = out.videoUrl as string | undefined;
-        if (!ephemeral) throw new Error(`${provider} succeeded with no video url`);
-        const durable = await rehost(ephemeral);
-        // last_frame_url stays ephemeral: it is consumed immediately by the next chained shot.
-        return { status: "done", output: { outputUrl: durable, lastFrameUrl: (out.lastFrameUrl as string) ?? null, raw: out } as RawProviderOutput };
-      }
-      if (status === "FAILED" || status === "CANCELLED" || status === "ERROR") {
-        throw new Error(`${provider} failed: ${JSON.stringify(out).slice(0, 160)}`);
-      }
-      return { status: "pending", handle };
+      return finish(await post(fnName, { action: "status", id: rest }));
     },
   };
 }

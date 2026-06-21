@@ -26,6 +26,8 @@ import { InMemorySubGenerationCache, FakeProviderClient, defaultRegistry, type P
 import { ScriptedScorer, type ConsistencyScorer } from "./consistency.js";
 import { InMemoryConsentGate, type ConsentGate } from "./consentGate.js";
 import { makeEdgeProviderClient, makeEdgeScorer, makeTrustConsentGate, makeStitchClient, makeSceneExpander, readEdgeConfig, type StitchClient, type SceneExpander } from "./providerClient.js";
+import { makeEdgeLlm, makeLlmWritersRoom, type LlmCaller } from "./agents.js";
+import type { WritersRoom } from "./showrunner.js";
 
 export function buildGenerationApp(env: NodeJS.ProcessEnv = process.env): Hono {
   const databaseUrl = env.DATABASE_URL;
@@ -63,6 +65,15 @@ export function buildGenerationApp(env: NodeJS.ProcessEnv = process.env): Hono {
   }
   consent = env.TRUST_BASE_URL ? makeTrustConsentGate(env.TRUST_BASE_URL) : new InMemoryConsentGate();
 
+  // Showrunner-parity planning agents are LLM-only (no GPU spend), so they wire whenever the edge config is
+  // present, independent of GENERATION_REAL_BACKEND. Without an edge config /script is simply unavailable.
+  let llm: LlmCaller | undefined;
+  let room: WritersRoom | undefined;
+  if (edge) {
+    llm = makeEdgeLlm(edge);
+    room = makeLlmWritersRoom(llm);
+  }
+
   const deps: GenerationAppDeps = {
     db,
     registry: defaultRegistry(),
@@ -77,6 +88,8 @@ export function buildGenerationApp(env: NodeJS.ProcessEnv = process.env): Hono {
     cache: new InMemorySubGenerationCache(),
     stitch,
     expand,
+    room,
+    llm,
   };
   return createGenerationApp(deps);
 }
