@@ -137,9 +137,15 @@ async function adaptiveDecision(
   };
 }
 
+// The propensity of a DETERMINISTIC decision (control, opt-out, timeout, error). A deterministic policy
+// serves its chosen arm with probability 1, so the logged propensity is 1.0. This is the K1/T1 fix:
+// EVERY decision logs a strictly-positive propensity, so IPS/DR never divide by zero and control rows are
+// valid in the off-policy dataset (weighted at 1). It does not distort the A/B Adaptive Lift, which
+// compares the control and treatment group means directly.
+const DETERMINISTIC_PROPENSITY = 1.0;
+
 // The fail-safe director's cut path: deterministic baseline policy over the canon-filtered candidates,
-// no KV reads, no exploration. Used for control viewers, opt-out, timeout, and any error. propensity is
-// null (control / deterministic decisions are not part of off-policy evaluation, per the 0005 comment).
+// no KV reads, no exploration. Used for control viewers, opt-out, timeout, and any error.
 function directorsCutDecision(
   candidates: CanonCandidate[],
   canonFacts: CanonFacts
@@ -199,7 +205,7 @@ export async function decide(req: DecideRequest, deps: DecideDeps): Promise<Deci
       served_variant_id: dc.variantId,
       is_control: true, // control or opt-out is logged as control for clean lift accounting
       policy_version: pv,
-      propensity: null,
+      propensity: DETERMINISTIC_PROPENSITY,
     });
     return {
       response: {
@@ -248,7 +254,7 @@ export async function decide(req: DecideRequest, deps: DecideDeps): Promise<Deci
       served_variant_id: dc.variantId,
       is_control: true, // a degraded decision is the director's cut, accounted as control
       policy_version: pv,
-      propensity: null,
+      propensity: DETERMINISTIC_PROPENSITY,
     });
     return {
       response: {

@@ -37,7 +37,7 @@ import { testVerifiers, type Verifiers } from "./http/auth.js";
 import type { DecisionDB, DecideDeps } from "./decide.js";
 import type { CanonCandidate, CanonFacts } from "./canon.js";
 import type { Branch } from "./policy.js";
-import { type DecisionLogger, type DecisionLogRow } from "./logger.js";
+import { assertValidPropensity, type DecisionLogger, type DecisionLogRow } from "./logger.js";
 import { InMemoryKV } from "./kv.js";
 import { InMemoryCohortSeeds } from "./features.js";
 
@@ -126,6 +126,7 @@ export class PgDecisionLogger implements DecisionLogger {
   constructor(private readonly db: Pick<pg.Pool, "query">) {}
 
   async log(row: Omit<DecisionLogRow, "id">): Promise<string> {
+    assertValidPropensity(row.propensity); // T1 guard: a null/invalid propensity never reaches decision_log
     const r = await this.db.query(
       `insert into decision_log
          (user_id, beat_id, served_variant_id, is_control, policy_version, propensity)

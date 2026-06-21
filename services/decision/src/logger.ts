@@ -17,8 +17,19 @@ export type DecisionLogRow = {
   served_variant_id: string;
   is_control: boolean;
   policy_version: string;
-  propensity: number | null; // 0005 column; null for control and deterministic-fallback decisions
+  // 0005 column. K1/T1: EVERY decision logs a strictly-positive propensity (adaptive = softmax,
+  // deterministic control/fallback = 1.0). NOT nullable; assertValidPropensity enforces it at the boundary.
+  propensity: number;
 };
+
+// The persistence-boundary guard (T1 regression check, in code rather than a frozen-schema NOT NULL):
+// reject any decision whose propensity is not a real number in (0, 1]. A null/NaN/zero propensity would make
+// the row un-evaluable off-policy (IPS divides by propensity), so we fail loud at log time, before it lands.
+export function assertValidPropensity(p: unknown): asserts p is number {
+  if (typeof p !== "number" || !Number.isFinite(p) || p <= 0 || p > 1) {
+    throw new Error(`invalid propensity ${String(p)}: every decision must log P(served arm | context) in (0, 1]`);
+  }
+}
 
 export interface DecisionLogger {
   // Returns the decision_id. Non-blocking by contract: the real impl enqueues to a stream and returns
@@ -34,6 +45,7 @@ export class InMemoryLogger implements DecisionLogger {
   constructor(private readonly idFactory: () => string = () => randomDecisionId()) {}
 
   async log(row: Omit<DecisionLogRow, "id">): Promise<string> {
+    assertValidPropensity(row.propensity); // T1 guard: never persist a null/invalid propensity
     const id = this.idFactory();
     this.rows.push({ id, ...row });
     this.seq++;

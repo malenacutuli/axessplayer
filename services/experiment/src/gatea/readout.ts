@@ -149,10 +149,54 @@ export function snipsBand(
   return { estimate, lo: pick(alpha / 2), hi: pick(1 - alpha / 2), ess, n: rows.length };
 }
 
+// T4: the headline Adaptive Lift the directive defines, the RELATIVE lift = (adapted - control) / control on
+// the chosen objective (D7 return by default, or continuation), with a confidence interval. The absolute
+// difference and its always-valid band come from the same machinery as d7Sequential; this expresses them as
+// a ratio over the control base rate and propagates the band. controlRate 0 yields a null ratio (reported as
+// undefined), never a divide-by-zero.
+export type AdaptiveLift = {
+  objective: "d7_return" | "continuation";
+  controlRate: number;
+  adaptedRate: number;
+  absoluteDiff: number;
+  relativeLift: number | null; // (adapted - control) / control
+  ciLo: number | null; // relative-lift CI = (absoluteDiff -/+ always-valid radius) / control
+  ciHi: number | null;
+  nControl: number;
+  nAdapted: number;
+};
+
+export function adaptiveLift(
+  rows: ImpressionRecord[],
+  opts: { objective?: "d7_return" | "continuation"; alpha?: number } = {},
+): AdaptiveLift {
+  const objective = opts.objective ?? "d7_return";
+  const alpha = opts.alpha ?? 0.05;
+  const control = rows.filter((r) => r.arm === "control");
+  const treatment = rows.filter((r) => r.arm === "treatment");
+  const rate = (rs: ImpressionRecord[]): number => {
+    const v = [...byViewer(rs).values()];
+    if (v.length === 0) return 0;
+    const hit = objective === "d7_return" ? v.filter((x) => x.d7_return).length : v.filter((x) => x.series_completed).length;
+    return hit / v.length;
+  };
+  const controlRate = rate(control);
+  const adaptedRate = rate(treatment);
+  const absoluteDiff = adaptedRate - controlRate;
+  const nControl = byViewer(control).size;
+  const nAdapted = byViewer(treatment).size;
+  const rad = alwaysValidRadius(nControl, alpha) + alwaysValidRadius(nAdapted, alpha);
+  const rel = controlRate > 0 ? absoluteDiff / controlRate : null;
+  const ciLo = controlRate > 0 ? (absoluteDiff - rad) / controlRate : null;
+  const ciHi = controlRate > 0 ? (absoluteDiff + rad) / controlRate : null;
+  return { objective, controlRate, adaptedRate, absoluteDiff, relativeLift: rel, ciLo, ciHi, nControl, nAdapted };
+}
+
 export type Readout = {
   control: ArmMetrics;
   treatment: ArmMetrics;
   d7: SequentialVerdict;
+  lift: AdaptiveLift; // T4 headline relative Adaptive Lift with CI
   guardrails: { paywallDelta: number; skipRageDelta: number; ok: boolean };
   gateA: "green" | "flat_or_negative" | "inconclusive";
 };
@@ -176,5 +220,6 @@ export function gateAReadout(rows: ImpressionRecord[], alpha = 0.05, threshold =
   // green only when D7 is conclusively up AND guardrails hold; a D7-green with a guardrail breach is
   // inconclusive (keep collecting / investigate), never an automatic green.
   const gateA = d7.verdict !== "green" ? d7.verdict : guardrailsOk ? "green" : "inconclusive";
-  return { control: c, treatment: t, d7, guardrails: { paywallDelta, skipRageDelta, ok: guardrailsOk }, gateA };
+  const lift = adaptiveLift(rows, { alpha });
+  return { control: c, treatment: t, d7, lift, guardrails: { paywallDelta, skipRageDelta, ok: guardrailsOk }, gateA };
 }

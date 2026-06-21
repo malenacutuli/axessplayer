@@ -121,3 +121,23 @@ describe("T4 propensity logging (the data wall)", () => {
     assert.equal(impressionParams(ctl)[3], true);
   });
 });
+
+// T4: the relative Adaptive Lift metric, validated against the simulator's planted lift vs the flat null.
+import { adaptiveLift } from "./readout.js";
+describe("T4 relative Adaptive Lift", () => {
+  it("recovers a positive lift with a CI that excludes zero on the planted-lift scenario", () => {
+    const L = adaptiveLift(simulateExperiment({ viewers: 4000, scenario: "lift" }));
+    assert.ok(L.relativeLift !== null && L.relativeLift > 0, "positive relative lift");
+    assert.ok(L.ciLo !== null && L.ciLo > 0, `CI excludes zero: lo=${L.ciLo}`);
+    assert.equal(L.objective, "d7_return");
+  });
+  it("reports a CI that straddles zero on the flat scenario (no false positive)", () => {
+    const L = adaptiveLift(simulateExperiment({ viewers: 4000, scenario: "flat" }));
+    assert.ok(L.ciLo !== null && L.ciHi !== null && L.ciLo < 0 && L.ciHi > 0, "flat lift CI straddles zero");
+  });
+  it("returns a null ratio rather than dividing by a zero control base rate", () => {
+    const L = adaptiveLift([]);
+    assert.equal(L.relativeLift, null);
+    assert.equal(L.ciLo, null);
+  });
+});

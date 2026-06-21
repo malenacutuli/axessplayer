@@ -197,7 +197,7 @@ test("treatment decision logs propensity and policy_version", async () => {
   );
 });
 
-test("control viewer is served the director's cut and logged with null propensity", async () => {
+test("control viewer is served the director's cut and logged with a deterministic propensity of 1", async () => {
   const logger = new InMemoryLogger();
   const res = await decide(
     { user_id: pickControlId(), current_beat_id: BEAT, signals: {} },
@@ -205,7 +205,8 @@ test("control viewer is served the director's cut and logged with null propensit
   );
   assert.equal(res.response.is_control, true);
   assert.equal(res.response.next_variant_id, CALM); // director's cut (calm)
-  assert.equal(logger.rows[0].propensity, null);
+  // T1: a deterministic control decision logs propensity 1 (not null), so it is valid off-policy.
+  assert.equal(logger.rows[0].propensity, 1);
 });
 
 test("opt-out viewer is served the director's cut even in the treatment bucket", async () => {
@@ -231,7 +232,27 @@ test("timeout returns the director's cut (fail safe)", async () => {
   );
   assert.equal(res.response.is_control, true); // degraded to director's cut
   assert.equal(res.response.next_variant_id, CALM);
-  assert.equal(logger.rows[0].propensity, null);
+  assert.equal(logger.rows[0].propensity, 1); // T1: the fail-safe path still logs a deterministic propensity
+});
+
+// T1 REGRESSION GUARD: no decision path may persist a null/invalid propensity. Drive control, treatment,
+// opt-out, and timeout through the handler and assert every logged row carries a propensity in (0, 1]; and
+// that the logger itself rejects an invalid propensity at the boundary.
+test("every decision path logs a strictly-positive propensity (never null) - T1 regression", async () => {
+  const logger = new InMemoryLogger();
+  await decide({ user_id: pickControlId(), current_beat_id: BEAT, signals: {} }, deps({ logger }));
+  await decide({ user_id: pickTreatmentId(), current_beat_id: BEAT, signals: {} }, deps({ logger }));
+  await decide({ user_id: pickTreatmentId(), current_beat_id: BEAT, signals: {} }, deps({ db: fakeDB({ adaptiveOptIn: async () => false }), logger }));
+  await decide(
+    { user_id: pickTreatmentId(), current_beat_id: BEAT, signals: {} },
+    deps({ logger, cohorts: { meanVectorFor: () => new Promise<never>(() => {}) }, timeoutMs: 5 }),
+  );
+  assert.equal(logger.rows.length, 4);
+  for (const row of logger.rows) {
+    assert.ok(typeof row.propensity === "number" && row.propensity > 0 && row.propensity <= 1, `propensity in (0,1]: ${row.propensity}`);
+  }
+  // the boundary guard rejects an invalid propensity outright
+  await assert.rejects(() => new InMemoryLogger().log({ user_id: "u", beat_id: "b", served_variant_id: "v", is_control: true, policy_version: "p", propensity: null as unknown as number }), /invalid propensity/);
 });
 
 test("end of graph raises the contract 422 no_successors", async () => {
