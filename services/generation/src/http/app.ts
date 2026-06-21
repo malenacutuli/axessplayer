@@ -22,6 +22,8 @@ import type { GenerationBrief, ModelRegistry, ProviderClient, SubGenerationCache
 import type { StitchClient, SceneExpander } from "../providerClient.js";
 import { buildEpisodeScript, type LlmCaller } from "../agents.js";
 import type { WritersRoom } from "../showrunner.js";
+import { galleryPayload } from "../promptGallery.js";
+import { CRAFT_RULES, type VideoProvider } from "../promptcraft.js";
 import { VARIANT_TIERS, type VariantTier } from "../spec.js";
 
 // Real video generation takes 60-120s, too long for one synchronous HTTP request through a proxy. POST
@@ -251,12 +253,21 @@ export function createGenerationApp(deps: GenerationAppDeps): Hono {
     if (typeof body.premise !== "string" || body.premise.trim().length === 0) return c.json({ error: "invalid_premise" }, 400);
     const targetS = typeof body.targetS === "number" && body.targetS > 0 ? body.targetS : 90;
     const maxShotS = typeof body.maxShotS === "number" && body.maxShotS > 0 ? body.maxShotS : 7;
+    const provider = (typeof body.provider === "string" && ["ltx", "seedance", "runway", "veo", "higgsfield"].includes(body.provider) ? body.provider : "ltx") as VideoProvider;
+    const styleId = typeof body.styleId === "string" ? body.styleId : undefined;
     try {
-      const script = await buildEpisodeScript(body.premise, { room: deps.room, llm: deps.llm }, { targetS, maxShotS });
+      const script = await buildEpisodeScript(body.premise, { room: deps.room, llm: deps.llm }, { targetS, maxShotS, provider, styleId });
       return c.json({ ...script, status: "done" }, 200);
     } catch (err) {
       return c.json({ error: "script_failed", detail: err instanceof Error ? err.message : String(err) }, 500);
     }
+  });
+
+  // GET /gallery : the prompt gallery (styled presets + verbatim source-cited examples) and the per-provider
+  // prompting craft rules. Pure reference content (no user data, no spend), so it is open for the Studio UI to
+  // render the style picker and the team to browse best practices.
+  app.get("/gallery", (c) => {
+    return c.json({ ...galleryPayload(), rules: CRAFT_RULES }, 200);
   });
 
   // GET /attempts/:specId : the attempt log + QA pass-rate for a spec.

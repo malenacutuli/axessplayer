@@ -151,3 +151,22 @@ test("buildEpisodeScript runs Writer -> Cinematographer -> Story Editor into one
   assert.ok(script.shots.every((s, i) => s.idx === i), "shots are re-indexed contiguously");
   assert.ok(script.review.runtimeS > 0);
 });
+
+test("buildEpisodeScript attaches a best-practice, style-applied prompt to every shot for the target provider", async () => {
+  const room = makeLlmWritersRoom(silent, { beats: 4 });
+  const script = await buildEpisodeScript("a detective in the rain", { room, llm: silent }, { targetS: 60, maxShotS: 6, provider: "ltx", styleId: "anime-noir" });
+  assert.equal(script.provider, "ltx");
+  assert.equal(script.styleId, "anime-noir");
+  assert.ok(script.shots.every((s) => typeof s.prompt === "string" && s.prompt!.length > 0), "every shot has a formatted prompt");
+  // the anime-noir style line + its look-correct negative flow through
+  assert.ok(script.shots[0].prompt!.includes("cel-shaded"), "style line applied");
+  assert.ok(script.shots[0].negativePrompt!.includes("photorealistic"), "animated negative applied");
+  assert.ok(!script.shots[0].negativePrompt!.includes("cartoon"), "never fights animation");
+});
+
+test("buildEpisodeScript for Higgsfield carries a camera preset and not a separate negative", async () => {
+  const room = makeLlmWritersRoom(silent, { beats: 3 });
+  const script = await buildEpisodeScript("a viral product reveal", { room, llm: silent }, { provider: "higgsfield", styleId: "comic-cel" });
+  assert.equal(script.provider, "higgsfield");
+  assert.ok(script.shots.every((s) => s.negativePrompt === undefined), "higgsfield emits no negative field");
+});

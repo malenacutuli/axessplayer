@@ -16,6 +16,8 @@
 import type { EdgeConfig } from "./providerClient.js";
 import { validateBeatGraph, type BeatGraph, type BeatSpec, type EdgeSpec, type VariantSpec, type WritersRoom } from "./showrunner.js";
 import type { ConsentGate } from "./consentGate.js";
+import { formatPrompt, type FormattedPrompt, type ShotPromptSpec, type VideoProvider } from "./promptcraft.js";
+import { findStyle, type GalleryStyle } from "./promptGallery.js";
 
 // ---------- the model-agnostic LLM port ----------
 // One method: complete a prompt to text. The real impl wraps the google-gemini edge fn (same as the scene
@@ -196,6 +198,11 @@ export interface ShotPlan {
   mood: string;
   characters: string[];
   continuesFromPrev: boolean; // chain this shot on the previous shot's last frame (within a scene)
+  // The best-practice prompt for the chosen renderer, set by formatShot (a gallery style + the provider's
+  // house idiom). Present once a script is built with a provider/style; the renderer sends this verbatim.
+  prompt?: string;
+  negativePrompt?: string;
+  preset?: string; // Higgsfield preset, when that provider is targeted
 }
 
 export interface PlanShotsOptions {
@@ -262,6 +269,27 @@ function evenShots(scene: SceneInput, targetS: number, maxShotS: number): ShotPl
     characters: scene.characters ?? [],
     continuesFromPrev: i > 0,
   }));
+}
+
+// Build the provider-agnostic prompt spec for a shot, applying a gallery style (its style line, look-correct
+// negative, and camera bias when the shot camera is generic).
+export function shotPromptSpec(shot: ShotPlan, style?: GalleryStyle): ShotPromptSpec {
+  const cameraGeneric = !shot.camera || /^static$/i.test(shot.camera);
+  return {
+    action: shot.action,
+    subject: shot.characters.length > 0 ? shot.characters.join(", ") : undefined,
+    shot: shot.shot,
+    camera: cameraGeneric && style?.cameraBias ? style.cameraBias : shot.camera,
+    mood: shot.mood,
+    style: style?.styleLine,
+    negative: style?.negative,
+    aspect: shot.aspect,
+  };
+}
+
+// Format one shot into the chosen renderer's best-practice prompt (LTX by default), applying a gallery style.
+export function formatShot(shot: ShotPlan, opts: { provider?: VideoProvider; style?: GalleryStyle } = {}): FormattedPrompt {
+  return formatPrompt(shotPromptSpec(shot, opts.style), opts.provider ?? "ltx");
 }
 
 // ---------- Agent 5: Dialogue / Voice (shots -> TTS plan) ----------
@@ -388,20 +416,25 @@ export interface EpisodeScript {
   premise: string;
   graph: BeatGraph;
   graphValid: { ok: boolean; errors: string[] };
-  shots: ShotPlan[];
+  shots: ShotPlan[]; // each carries a best-practice prompt for `provider`, styled by `styleId`
   review: ScriptReview;
+  provider: VideoProvider;
+  styleId?: string;
 }
 
 // Run the planning agents in sequence: expand the premise to a beat graph (Writer), validate canon, plan shots
-// per beat to fill the runtime (Cinematographer), then review the runtime budget (Story Editor). No GPU spend:
-// this is the cheap upfront planning the renderer consumes.
+// per beat to fill the runtime (Cinematographer), review the runtime budget (Story Editor), then format every
+// shot into the chosen renderer's best-practice prompt with the chosen gallery style. No GPU spend: this is
+// the cheap upfront planning the renderer consumes.
 export async function buildEpisodeScript(
   premise: string,
   deps: { room: WritersRoom; llm: LlmCaller },
-  opts: { targetS?: number; maxShotS?: number } = {},
+  opts: { targetS?: number; maxShotS?: number; provider?: VideoProvider; styleId?: string } = {},
 ): Promise<EpisodeScript> {
   const targetS = opts.targetS ?? 90;
   const maxShotS = opts.maxShotS ?? 7;
+  const provider = opts.provider ?? "ltx";
+  const style = opts.styleId ? findStyle(opts.styleId) : undefined;
   const graph = await deps.room.expand(premise);
   const graphValid = validateBeatGraph(graph);
   const perBeatS = Math.max(maxShotS, Math.round(targetS / Math.max(1, graph.beats.length)));
@@ -409,8 +442,15 @@ export async function buildEpisodeScript(
   for (const beat of graph.beats) {
     const scene: SceneInput = { id: beat.id, summary: `${beat.role}: ${premise}`, characters: [] };
     const beatShots = await planShots(deps.llm, scene, { targetS: perBeatS, maxShotS });
-    for (const s of beatShots) shots.push({ ...s, idx: shots.length });
+    for (const s of beatShots) {
+      const shot: ShotPlan = { ...s, idx: shots.length };
+      const f = formatShot(shot, { provider, style });
+      shot.prompt = f.prompt;
+      if (f.negativePrompt) shot.negativePrompt = f.negativePrompt;
+      if (f.preset) shot.preset = f.preset;
+      shots.push(shot);
+    }
   }
   const review = reviewScript(shots, { targetS, maxShotS });
-  return { premise, graph, graphValid, shots, review };
+  return { premise, graph, graphValid, shots, review, provider, styleId: opts.styleId };
 }

@@ -183,3 +183,24 @@ test("POST /script is 501 when the agents are not configured and 400 on an empty
   assert.equal((await req(makeApp({ agents: true }).app, "POST", "/script", { premise: "  " })).status, 400);
   assert.equal((await req(makeApp({ agents: true }).app, "POST", "/script", {}, "")).status, 401);
 });
+
+test("POST /script applies a gallery style + provider to every shot prompt", async () => {
+  const { app } = makeApp({ agents: true });
+  const res = await req(app, "POST", "/script", { premise: "a neon heist", provider: "ltx", styleId: "neon-cyberpunk" });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { provider: string; styleId: string; shots: Array<{ prompt?: string; negativePrompt?: string }> };
+  assert.equal(body.provider, "ltx");
+  assert.equal(body.styleId, "neon-cyberpunk");
+  assert.ok(body.shots.every((s) => typeof s.prompt === "string" && s.prompt.length > 0));
+  assert.ok(body.shots[0].prompt!.includes("neon"));
+});
+
+test("GET /gallery serves styles + verbatim examples + per-provider rules (open, no auth)", async () => {
+  const res = await req(makeApp().app, "GET", "/gallery", undefined, "");
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { styles: unknown[]; examples: Array<{ source: string }>; rules: Record<string, unknown> };
+  assert.ok(body.styles.length >= 6);
+  assert.ok(body.examples.length >= 10);
+  assert.ok(body.examples.every((e) => /^https?:\/\//.test(e.source)), "every example is source-cited");
+  assert.ok(body.rules.ltx && body.rules.runway && body.rules.veo);
+});
