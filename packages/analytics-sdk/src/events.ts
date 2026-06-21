@@ -181,6 +181,14 @@ export interface AxpEvent {
   beatId?: string;
   /** Variant (cut) the event is scoped to, when applicable. */
   variantId?: string;
+  /**
+   * The decision this event is an outcome of, echoed verbatim from the /decide response decision_id.
+   * This is the join key the Outcome Joiner uses to attach delayed outcomes (continuation, D1/D7 return,
+   * unlock, revenue) back to the decision and close the matched triple. Set it on every event that follows
+   * a decision for the served beat (impression, beat_completed, branch_selected, unlock_purchased, ...);
+   * leave it unset for events that are not the consequence of a decision (for example search_performed).
+   */
+  decisionId?: string;
   /** Logged decision propensity in [0, 1] for events that are a logged decision. */
   propensity?: number;
   /** Event time as an epoch milliseconds timestamp or ISO 8601 string. */

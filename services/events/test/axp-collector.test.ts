@@ -132,6 +132,15 @@ describe("axpEventToParams", () => {
     const none = axpEventToParams(null, { ...base, ts: undefined });
     assert.equal(none[10], null, "missing ts falls through to now() via SQL coalesce");
   });
+
+  it("promotes decisionId to the decision_id column (the Outcome Joiner join key, T3)", () => {
+    // param index 5 is decision_id in INSERT_AXP_EVENT_SQL
+    const withId = axpEventToParams(null, { ...base, decisionId: "11111111-1111-1111-1111-111111111111" });
+    assert.equal(withId[5], "11111111-1111-1111-1111-111111111111");
+    // an event with no decisionId (e.g. search_performed) leaves the column null, never a fabricated id
+    const without = axpEventToParams(null, { ...base });
+    assert.equal(without[5], null);
+  });
 });
 
 describe("isAxpEventBody routing guard", () => {

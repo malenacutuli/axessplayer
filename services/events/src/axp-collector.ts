@@ -81,6 +81,10 @@ export type RawAxpEvent = {
   episodeId?: unknown;
   beatId?: unknown;
   variantId?: unknown;
+  // The decision this event is an outcome of, echoed from the /decide response. This is the join key the
+  // Outcome Joiner (T3) needs to close the matched triple (decision -> outcome). Optional: events that are
+  // not the consequence of a decision (e.g. a search) carry no decisionId.
+  decisionId?: unknown;
   propensity?: unknown;
   ts?: unknown;
   props?: unknown;
@@ -124,7 +128,7 @@ function tsToParam(ts: unknown): string | null {
 
 // Map a validated AxpEvent to insert params. user_id is the caller session subject (F1), never the body.
 // beat/variant ids exist as columns; episodeId has NO promoted column today, so it is preserved only in
-// payload (see followup). decision_id is not part of the AxpEvent shape, so null.
+// payload (see followup). decision_id is promoted to its column so the Outcome Joiner can close the triple.
 export function axpEventToParams(userId: string | null, e: RawAxpEvent): unknown[] {
   const str = (x: unknown) => (isNonEmptyString(x) ? x : null);
   const completion =
@@ -137,7 +141,7 @@ export function axpEventToParams(userId: string | null, e: RawAxpEvent): unknown
     str(e.seriesId),
     e.sessionId,
     e.name,
-    null,
+    str(e.decisionId), // decision_id: the join key from /decide, null when the event is not decision-driven
     str(e.beatId),
     str(e.variantId),
     completion,
