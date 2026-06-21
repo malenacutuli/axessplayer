@@ -73,7 +73,15 @@ export type AxpEventName =
   // discovery and resume
   | "search_performed"
   | "series_opened"
-  | "continue_resumed";
+  | "continue_resumed"
+  // reading platform (prompt 28): the demand sensor input on the shared engagement stream. work_id +
+  // chapter_index ride in props, so reading behavior aggregates like video with no new table.
+  | "chapter_started"
+  | "chapter_completed"
+  | "work_finished"
+  | "chapter_reread"
+  | "work_shared"
+  | "work_followed";
 
 /**
  * The complete, ordered list of canonical event names. Useful for validation, enumeration in
@@ -127,6 +135,12 @@ export const AXP_EVENT_NAMES = [
   "search_performed",
   "series_opened",
   "continue_resumed",
+  "chapter_started",
+  "chapter_completed",
+  "work_finished",
+  "chapter_reread",
+  "work_shared",
+  "work_followed",
 ] as const satisfies readonly AxpEventName[];
 
 /**
