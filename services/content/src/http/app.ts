@@ -41,6 +41,7 @@ import {
 } from "../content.js";
 import type { PosterGenerator } from "../poster.js";
 import { readerPageHtml } from "../readerPage.js";
+import { watchFeedHtml, watchPlayerHtml } from "../watchPage.js";
 import {
   createWork,
   addChapter,
@@ -98,11 +99,21 @@ export function createContentApp(deps: AppDeps): Hono {
     c.json(
       {
         ...health(),
-        routes: ["/series/:id/graph", "/feed", "/series", "/episodes", "/beats", "/variants", ...(deps.reading ? ["/read/:id (reader)", "/works", "/works/:id", "/works/:id/adapt", "/reading/candidates"] : [])],
+        routes: ["/watch (video feed)", "/watch/:id (player)", "/series/:id/graph", "/feed", "/series", "/episodes", "/beats", "/variants", ...(deps.reading ? ["/read/:id (reader)", "/works", "/works/:id", "/works/:id/adapt", "/reading/candidates"] : [])],
       },
       200,
     ),
   );
+
+  // GET /watch : the video discovery feed (BookTok-style grid). GET /watch/:id : the vertical player that
+  // walks the series graph with the accessibility signature (CWI captions, AD, sign, cut selection). Both are
+  // data-driven from /feed and /series/:id/graph (always available), so they mount unconditionally.
+  app.get("/watch", (c) => c.html(watchFeedHtml()));
+  app.get("/watch/:id", (c) => {
+    const id = c.req.param("id");
+    if (!id) return c.json({ error: "invalid_id" }, 400);
+    return c.html(watchPlayerHtml(id));
+  });
 
   // GET /series/{id}/graph : resolve a series into its playable graph, or 404. The id is validated by the
   // handler (a malformed uuid is a clean 404 without touching the DB), so the route only forwards it.

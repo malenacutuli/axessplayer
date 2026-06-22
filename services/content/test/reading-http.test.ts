@@ -104,6 +104,21 @@ test("the reading routes are absent (404) when no store is wired", async () => {
   assert.equal((await req(app, "POST", "/works", { title: "x" })).status, 404);
 });
 
+test("GET /watch and /watch/:id serve the streaming app UI (always mounted)", async () => {
+  const app = appWith(new MemStore()); // watch pages do not need the reading store
+  const feed = await req(app, "GET", "/watch");
+  assert.equal(feed.status, 200);
+  assert.match(feed.headers.get("content-type") || "", /text\/html/);
+  assert.match(await feed.text(), /\/feed/, "feed page fetches the published series");
+  const player = await req(app, "GET", "/watch/series-xyz");
+  assert.equal(player.status, 200);
+  const html = await player.text();
+  assert.match(html, /\/series\/" \+ encodeURIComponent\(SERIES_ID\)|graph/, "player fetches the series graph");
+  assert.match(html, /caption|cap/i, "CWI captions wired");
+  assert.match(html, /sign|Sign language/i, "sign-language toggle present");
+  assert.ok(html.includes("series-xyz"));
+});
+
 test("GET /read/:id serves an accessibility-first reader HTML page", async () => {
   const app = appWith(new MemStore());
   const res = await req(app, "GET", "/read/work-1");
