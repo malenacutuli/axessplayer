@@ -72,9 +72,11 @@ export function computeDemandScore(s: DemandSignals): DemandVerdict {
 export function buildDemandSignalsQuery(): { text: string; params: (v: string) => unknown[] } {
   const text = `
     with ev as (
-      select user_id, type, payload->>'cohort' as cohort, completion
+      select user_id, type, coalesce(payload->>'cohort', payload->'props'->>'cohort') as cohort,
+             coalesce(completion, (payload->'props'->>'completion')::float) as completion
       from mobile.engagement_events
-      where payload->>'work_id' = $1
+      -- work_id rides top-level (server seeds) OR under props (the reader/AXP emit shape); accept both.
+      where coalesce(payload->>'work_id', payload->'props'->>'work_id') = $1
         and type in ('chapter_started','chapter_completed','work_finished','chapter_reread','work_shared')
     )
     select

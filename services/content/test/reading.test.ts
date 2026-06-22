@@ -52,7 +52,7 @@ test("mapDemandSignals derives rates defensively (no divide-by-zero on a fresh w
 
 test("buildDemandSignalsQuery keys on payload work_id and the reading event types only", () => {
   const q = buildDemandSignalsQuery();
-  assert.match(q.text, /payload->>'work_id' = \$1/);
+  assert.match(q.text, /payload->>'work_id', payload->'props'->>'work_id'/);
   assert.match(q.text, /chapter_started/);
   assert.match(q.text, /work_finished/);
   assert.deepEqual(q.params("w-1"), ["w-1"]);
