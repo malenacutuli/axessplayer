@@ -89,6 +89,20 @@ export function createContentApp(deps: AppDeps): Hono {
   );
   const { db } = deps;
 
+  // GET / and GET /healthz : liveness. The bare service URL should answer 200 (not a confusing 404), and
+  // surface which capability groups are mounted so a browser hit is self-describing.
+  const health = () => ({ ok: true, service: "content", reading: deps.reading != null, posterGen: deps.posterGen != null });
+  app.get("/healthz", (c) => c.json(health(), 200));
+  app.get("/", (c) =>
+    c.json(
+      {
+        ...health(),
+        routes: ["/series/:id/graph", "/feed", "/series", "/episodes", "/beats", "/variants", ...(deps.reading ? ["/works", "/works/:id", "/works/:id/adapt", "/reading/candidates"] : [])],
+      },
+      200,
+    ),
+  );
+
   // GET /series/{id}/graph : resolve a series into its playable graph, or 404. The id is validated by the
   // handler (a malformed uuid is a clean 404 without touching the DB), so the route only forwards it.
   app.get("/series/:id/graph", async (c) => {
