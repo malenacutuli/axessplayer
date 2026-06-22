@@ -65,6 +65,9 @@ export function watchPlayerHtml(seriesId: string): string {
   #cap{position:absolute;left:0;right:0;bottom:14%;text-align:center;padding:0 1rem;z-index:6;pointer-events:none;}
   #cap .seg{display:inline-block;background:#000a;border-radius:10px;padding:.3rem .7rem;font-size:1.4rem;font-weight:700;line-height:1.35;max-width:90%;}
   #cap .w.loud{font-size:1.15em;} #cap .w.screaming{font-size:1.35em;text-transform:uppercase;} #cap .w.quiet{opacity:.75;font-weight:500;}
+  #ad-text{position:absolute;left:0;right:0;top:12%;text-align:center;padding:0 1.2rem;z-index:6;pointer-events:none;}
+  #ad-text:not(:empty){}
+  #ad-text span,#ad-text{color:#ffd27a;font-style:italic;font-size:1rem;text-shadow:0 1px 3px #000;}
   .cuts{position:absolute;bottom:5%;left:0;right:0;display:flex;gap:.4rem;justify-content:center;flex-wrap:wrap;z-index:6;padding:0 1rem;}
   .cuts button.active{background:var(--accent);color:#000;border-color:var(--accent);}
   .sign{position:absolute;right:.7rem;bottom:18%;width:28%;max-width:160px;aspect-ratio:9/16;border:2px solid #fff6;border-radius:10px;background:#111;z-index:6;display:none;}
@@ -91,6 +94,7 @@ export function watchPlayerHtml(seriesId: string): string {
   <video id="v" playsinline preload="metadata"></video>
   <video id="signv" class="sign" muted playsinline loop aria-hidden="true"></video>
   <div id="cap" aria-live="off"></div>
+  <div id="ad-text" aria-live="polite"></div>
   <div class="cuts" id="cuts" role="group" aria-label="Cut selection"></div>
   <div class="nav"><button id="prev">&larr; Prev</button><button id="next">Next &rarr;</button></div>
   <div class="overlay" id="paywall"><div class="box"><h3 id="pw-title">Premium cut</h3><p id="pw-sub" class="">Unlock this installment to continue.</p><button id="pw-btn">Unlock</button></div></div>
@@ -101,6 +105,11 @@ export function watchPlayerHtml(seriesId: string): string {
   const $=(id)=>document.getElementById(id);
   const v=$("v"), signv=$("signv");
   let beats=[], bi=0, sel={}, caps=null, capByBeat={}, ccOn=true;
+  // Audio description: a timed doc {segments:[{startTime,endTime,text,audioUrl}]}. When on, the matching
+  // segment's audio plays and its text shows; the main track ducks while a description speaks.
+  let adOn=false, adDoc=null, adAudio=new Audio(), adActive=-1;
+  // Dub language: null = base track; otherwise play the dub audio synced to the (muted) video.
+  let dubLang=null, dubAudio=new Audio(), dubAvail={};
 
   function flatten(graph){
     const eps=(graph.episodes||[]).slice().sort((a,b)=>(a.episode_number||0)-(b.episode_number||0));
@@ -138,7 +147,7 @@ export function watchPlayerHtml(seriesId: string): string {
       $("paywall").classList.add("on");
     }
     v.src=chosen.playback_url; v.play().catch(()=>{});
-    setupSign(chosen); await setupCaptions(b, chosen);
+    setupSign(chosen); await setupCaptions(b, chosen); await setupAd(chosen); setupDub(chosen);
   }
 
   function renderCuts(b, chosen){
@@ -161,29 +170,58 @@ export function watchPlayerHtml(seriesId: string): string {
     try{ const r=await fetch(url); if(r.ok) capByBeat[b.id]=await r.json(); }catch(e){}
   }
   function tick(){
-    const b=beats[bi]; const doc=b&&capByBeat[b.id];
-    if(!doc||!ccOn){ $("cap").innerHTML=""; return; }
-    const t=v.currentTime, segs=doc.segments||[];
-    const seg=segs.find(s=>t>=(s.startTime||0)&&t<=(s.endTime||0));
-    if(!seg){ $("cap").innerHTML=""; return; }
-    const color=seg.speakerColor||"#fff";
-    const words=(seg.words||[]).map(w=>'<span class="w '+(w.intensity||"")+'">'+(w.text||"")+'</span>').join(" ")|| (seg.text||"");
-    $("cap").innerHTML='<span class="seg" style="color:'+color+'">'+words+'</span>';
+    const b=beats[bi];
+    // CWI captions
+    const doc=b&&capByBeat[b.id];
+    if(doc&&ccOn){
+      const t=v.currentTime, segs=doc.segments||[];
+      const seg=segs.find(s=>t>=(s.startTime||0)&&t<=(s.endTime||0));
+      if(seg){ const color=seg.speakerColor||"#fff";
+        const words=(seg.words||[]).map(w=>'<span class="w '+(w.intensity||"")+'">'+(w.text||"")+'</span>').join(" ")||(seg.text||"");
+        $("cap").innerHTML='<span class="seg" style="color:'+color+'">'+words+'</span>'; }
+      else $("cap").innerHTML="";
+    } else if(!ccOn) $("cap").innerHTML="";
+    // Audio description: play the timed description audio + show its text, ducking the main track.
+    if(adOn&&adDoc){
+      const t=v.currentTime, segs=adDoc.segments||[];
+      const i=segs.findIndex(s=>t>=(s.startTime||0)&&t<=(s.endTime||0));
+      if(i>=0&&i!==adActive){ adActive=i; const s=segs[i];
+        if(s.audioUrl){ adAudio.src=s.audioUrl; adAudio.play().catch(()=>{}); v.volume=0.25; }
+        $("ad-text")&&($("ad-text").textContent=s.text||""); }
+      else if(i<0&&adActive!==-1){ adActive=-1; v.volume=1; if($("ad-text"))$("ad-text").textContent=""; }
+    }
+    // Dub: keep the dub audio aligned with the (muted) video.
+    if(dubLang){ if(Math.abs(dubAudio.currentTime-v.currentTime)>0.35) dubAudio.currentTime=v.currentTime; }
   }
   function setupSign(chosen){
-    if(chosen.sign_video_url && signOn){ signv.src=chosen.sign_video_url; signv.classList.add("on"); signv.play().catch(()=>{}); }
+    if(chosen.sign_video_url && signOn){ signv.src=chosen.sign_video_url; signv.classList.add("on"); signv.currentTime=0; signv.play().catch(()=>{}); }
     else { signv.classList.remove("on"); signv.removeAttribute("src"); }
+  }
+  async function setupAd(chosen){
+    adDoc=null; adActive=-1;
+    if(!chosen.audio_description_url) return;
+    try{ const r=await fetch(chosen.audio_description_url); if(r.ok) adDoc=await r.json(); }catch(e){}
+  }
+  function setupDub(chosen){
+    dubAvail=chosen.dub_audio_urls||{};
+    if(dubLang && dubAvail[dubLang]){ dubAudio.src=dubAvail[dubLang]; v.muted=true; dubAudio.currentTime=v.currentTime; dubAudio.play().catch(()=>{}); }
+    else { dubLang=null; v.muted=adOn?false:v.muted; dubAudio.pause(); dubAudio.removeAttribute("src"); }
   }
 
   let signOn=false;
   $("cc").onclick=(e)=>{ ccOn=!ccOn; e.currentTarget.setAttribute("aria-pressed",String(ccOn)); if(!ccOn)$("cap").innerHTML=""; };
   $("more").onclick=()=>$("menu").classList.toggle("on");
-  $("ad").onclick=(e)=>{ const on=$("ad").getAttribute("aria-pressed")!=="true"; $("ad").setAttribute("aria-pressed",String(on)); const b=beats[bi],ch=b&&pick(b); v.muted=on; if(on&&ch&&ch.audio_description_url){ /* AD audio track plays alongside; browser mux omitted in MVP */ } };
-  $("sign-btn").onclick=(e)=>{ signOn=!signOn; $("sign-btn").setAttribute("aria-pressed",String(signOn)); const b=beats[bi],ch=b&&pick(b); if(ch)setupSign(ch); };
+  $("ad").onclick=()=>{ adOn=!adOn; $("ad").setAttribute("aria-pressed",String(adOn)); v.volume=1; adActive=-1; if(!adOn){ adAudio.pause(); if($("ad-text"))$("ad-text").textContent=""; } };
+  $("sign-btn").onclick=()=>{ signOn=!signOn; $("sign-btn").setAttribute("aria-pressed",String(signOn)); const b=beats[bi],ch=b&&pick(b); if(ch)setupSign(ch); };
+  // Language: cycle base -> each available dub. Mutes the video and plays the dub track in sync.
+  $("lang").onclick=()=>{ const b=beats[bi],ch=b&&pick(b); const langs=[null].concat(Object.keys(ch&&ch.dub_audio_urls||{})); const cur=langs.indexOf(dubLang); dubLang=langs[(cur+1)%langs.length]; $("lang-v").textContent=dubLang||"base"; if(ch)setupDub(ch); };
+  // keep the dub track playing/pausing with the video
+  v.addEventListener("play",()=>{ if(dubLang) dubAudio.play().catch(()=>{}); });
+  v.addEventListener("pause",()=>{ dubAudio.pause(); });
   $("prev").onclick=()=>{ if(bi>0){bi--; renderBeat();} };
   $("next").onclick=()=>{ if(bi<beats.length-1){bi++; renderBeat();} };
   v.addEventListener("timeupdate",tick);
-  v.addEventListener("ended",()=>{ if(bi<beats.length-1){bi++; renderBeat();} });
+  v.addEventListener("ended",()=>{ adAudio.pause(); dubAudio.pause(); if(bi<beats.length-1){bi++; renderBeat();} });
   load();
 </script></body></html>`;
 }
