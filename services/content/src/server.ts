@@ -21,6 +21,7 @@ import type { Hono } from "hono";
 
 import { createContentApp } from "./http/app.js";
 import { PgContentDb } from "./pgContentDb.js";
+import { PgReadingDb } from "./pgReadingDb.js";
 import { makePosterGenerator } from "./poster.js";
 
 export interface ContentServerConfig {
@@ -54,7 +55,7 @@ export function buildContentApp(pool: pg.Pool, env: NodeJS.ProcessEnv = process.
     supabaseUrl && serviceKey
       ? makePosterGenerator({ supabaseUrl, serviceKey, bucket: env.POSTER_BUCKET ?? "thumbnails" })
       : undefined;
-  return createContentApp({ db: new PgContentDb(pool), ...(posterGen ? { posterGen } : {}) });
+  return createContentApp({ db: new PgContentDb(pool), reading: new PgReadingDb(pool), ...(posterGen ? { posterGen } : {}) });
 }
 
 // --- node:http bridge: map a Node request to a Web Request, run the Hono app, write the Web Response back.

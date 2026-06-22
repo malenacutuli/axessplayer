@@ -40,6 +40,17 @@ import {
   type CreateEdgeBody,
 } from "../content.js";
 import type { PosterGenerator } from "../poster.js";
+import {
+  createWork,
+  addChapter,
+  upsertReadingState,
+  recomputeDemand,
+  adaptWork,
+  ReadingError,
+  type ReadingStore,
+  type CreateWorkInput,
+  type CreateChapterInput,
+} from "../reading-service.js";
 
 // Path param pinned to the contract (content.yaml 0.3.1) via the generated operations type, so the route
 // cannot drift from the spec without a type error. The contract documents no request body schemas for the
@@ -52,6 +63,13 @@ export interface AppDeps {
   // Optional server-side poster generator (stability-ai -> storage). When absent the generate route
   // answers 501, so the test harness and any deploy without image keys stays clean.
   posterGen?: PosterGenerator;
+  // Optional reading platform store (prompt 28). When wired, the /works, /reading, and adapt routes mount;
+  // when absent they are simply not registered. Production wires PgReadingDb; tests wire a fake.
+  reading?: ReadingStore;
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
 // Build the content HTTP app. The DB is injected so production wires the node-postgres PgContentDb while
@@ -225,6 +243,72 @@ export function createContentApp(deps: AppDeps): Hono {
     const result = await handleCreateEdge(raw as CreateEdgeBody, db);
     return c.json(result.body, result.status as 201 | 400);
   });
+
+  // ================= reading platform (prompt 28): demand sensor + IP origination =================
+  // Mounted only when a ReadingStore is wired (production PgReadingDb / the test fake); else not registered.
+  const reading = deps.reading;
+  const readingStatus = (code: string): 400 | 404 | 409 | 422 =>
+    code === "work_not_found" ? 404 : code === "not_ready" ? 409 : code === "no_chapters" ? 422 : 400;
+  const runReading = async (
+    c: { json: (b: unknown, s?: number) => Response },
+    fn: () => Promise<unknown>,
+    okStatus = 200,
+  ): Promise<Response> => {
+    try {
+      return c.json((await fn()) as object, okStatus);
+    } catch (e) {
+      if (e instanceof ReadingError) return c.json({ error: e.code, message: e.message }, readingStatus(e.code));
+      return c.json({ error: "reading_error", message: e instanceof Error ? e.message : String(e) }, 500);
+    }
+  };
+  // The reader identity for reading_state comes from the session bearer (session:<uuid>), never the body.
+  const sessionUser = (c: { req: { header: (k: string) => string | undefined } }): string | null => {
+    const m = /^Bearer\s+session:([0-9a-fA-F-]{36})$/.exec(c.req.header("authorization") ?? "");
+    return m ? m[1] : null;
+  };
+
+  if (reading) {
+    app.post("/works", async (c) => {
+      const raw = await readJson(c);
+      if (!isRecord(raw)) return c.json({ error: "invalid_json" }, 400);
+      return runReading(c, () => createWork(raw as unknown as CreateWorkInput, reading), 201);
+    });
+    app.post("/works/:id/chapters", async (c) => {
+      const raw = await readJson(c);
+      if (!isRecord(raw)) return c.json({ error: "invalid_json" }, 400);
+      return runReading(c, () => addChapter(c.req.param("id"), raw as unknown as CreateChapterInput, reading), 201);
+    });
+    app.post("/works/:id/publish", (c) =>
+      runReading(c, async () => {
+        await reading.publishWork(c.req.param("id"));
+        return { ok: true };
+      }),
+    );
+    app.get("/works/:id", async (c) => {
+      const detail = await reading.getWorkDetail(c.req.param("id"));
+      return detail ? c.json(detail, 200) : c.json({ error: "work_not_found" }, 404);
+    });
+    // run the demand sensor for a work and persist the verdict (the Studio demand dashboard reads this).
+    app.post("/works/:id/recompute-demand", (c) => runReading(c, () => recomputeDemand(c.req.param("id"), reading)));
+    // one-click "adapt to series": graduate a ready_to_adapt work into a video series + beats.
+    app.post("/works/:id/adapt", async (c) => {
+      const raw = (await readJson(c)) as { force?: boolean } | null;
+      return runReading(c, () => adaptWork(c.req.param("id"), reading, { force: raw?.force === true }));
+    });
+    // the ready_to_adapt demand dashboard list.
+    app.get("/reading/candidates", (c) => runReading(c, () => reading.listCandidates(c.req.query("status") || undefined)));
+    // per-reader progress, the reading_state sibling of viewer_state. Identity from the session bearer.
+    app.put("/works/:id/reading-state", async (c) => {
+      const uid = sessionUser(c);
+      if (!uid) return c.json({ error: "unauthorized" }, 401);
+      const raw = await readJson(c);
+      if (!isRecord(raw)) return c.json({ error: "invalid_json" }, 400);
+      return runReading(c, async () => {
+        await upsertReadingState(uid, c.req.param("id"), Number(raw.chapterIndex), Number(raw.percent), reading);
+        return { ok: true };
+      });
+    });
+  }
 
   return app;
 }
