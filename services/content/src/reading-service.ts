@@ -49,6 +49,15 @@ export interface CandidateRow {
   signals: Record<string, unknown>;
   linked_series_id: string | null;
 }
+export interface WorkCard {
+  id: string;
+  title: string;
+  synopsis: string | null;
+  genre: string | null;
+  cover_url: string | null;
+  chapters: number;
+  free_chapters: number;
+}
 
 // The data access the orchestration needs. The real impl runs reading.ts SQL builders + the series/episode/
 // beat inserts (the same ContentDB the video path uses); fakes drive tests.
@@ -73,6 +82,7 @@ export interface ReadingStore extends ReadingDb {
   getWorkDetail(workId: string): Promise<WorkDetail | null>;
   upsertReadingState(userId: string, workId: string, chapterIndex: number, percent: number): Promise<void>;
   listCandidates(status?: string): Promise<CandidateRow[]>;
+  listPublishedWorks(): Promise<WorkCard[]>;
 }
 
 function nonEmptyString(v: unknown): v is string {

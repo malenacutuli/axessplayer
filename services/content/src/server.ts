@@ -55,7 +55,10 @@ export function buildContentApp(pool: pg.Pool, env: NodeJS.ProcessEnv = process.
     supabaseUrl && serviceKey
       ? makePosterGenerator({ supabaseUrl, serviceKey, bucket: env.POSTER_BUCKET ?? "thumbnails" })
       : undefined;
-  return createContentApp({ db: new PgContentDb(pool), reading: new PgReadingDb(pool), ...(posterGen ? { posterGen } : {}) });
+  // Events service base URL so the reader/watch pages emit engagement events into the demand sensor. Defaults
+  // to the live events service; override with EVENTS_BASE_URL (empty string disables emission).
+  const eventsBaseUrl = env.EVENTS_BASE_URL ?? "https://axessplayer-events.onrender.com";
+  return createContentApp({ db: new PgContentDb(pool), reading: new PgReadingDb(pool), eventsBaseUrl, ...(posterGen ? { posterGen } : {}) });
 }
 
 // --- node:http bridge: map a Node request to a Web Request, run the Hono app, write the Web Response back.

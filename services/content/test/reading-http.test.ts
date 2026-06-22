@@ -40,6 +40,9 @@ class MemStore implements ReadingStore {
     for (const [id, w] of this.works) if (w.candidate && (!status || w.candidate.status === status)) out.push({ work_id: id, title: w.row.title, demand_score: w.candidate.demand_score, status: w.candidate.status, signals: w.candidate.signals, linked_series_id: w.candidate.linked_series_id });
     return out;
   }
+  async listPublishedWorks() {
+    return [...this.works.entries()].filter(([, w]) => w.row.status === "published").map(([id, w]) => ({ id, title: w.row.title, synopsis: w.row.synopsis ?? null, genre: w.row.genre, cover_url: w.row.cover_url, chapters: w.chapters.size, free_chapters: 0 }));
+  }
   async seedSeriesFromPlan(_plan: GraduationPlan) { return { seriesId: `series-${++this.seq}` }; }
   async linkGraduated(workId: string, seriesId: string) { const w = this.works.get(workId)!; w.candidate = { ...(w.candidate ?? { demand_score: 0, signals: {} }), status: "adapting", linked_series_id: seriesId } as never; }
 }
@@ -102,6 +105,22 @@ test("validation + auth: empty title 400, unknown work 404, adapt-unready 409, r
 test("the reading routes are absent (404) when no store is wired", async () => {
   const app = createContentApp({ db: {} as unknown as ContentDB }); // no reading store
   assert.equal((await req(app, "POST", "/works", { title: "x" })).status, 404);
+});
+
+test("GET /read feed + /reading/works list published works; reader emits to the events base", async () => {
+  const store = new MemStore();
+  const app = createContentApp({ db: {} as unknown as ContentDB, reading: store, eventsBaseUrl: "https://events.test" });
+  const { id } = (await (await req(app, "POST", "/works", { title: "Published One" })).json()) as { id: string };
+  await req(app, "POST", `/works/${id}/chapters`, { index: 1, is_free: true });
+  await req(app, "POST", `/works/${id}/publish`);
+  const works = (await (await req(app, "GET", "/reading/works")).json()) as Array<{ id: string; chapters: number }>;
+  assert.ok(works.some((w) => w.id === id && w.chapters === 1));
+  const feed = await req(app, "GET", "/read");
+  assert.equal(feed.status, 200);
+  assert.match(feed.headers.get("content-type") || "", /text\/html/);
+  const reader = await (await req(app, "GET", `/read/${id}`)).text();
+  assert.ok(reader.includes("https://events.test"), "events base injected");
+  assert.match(reader, /chapter_started|work_finished/, "emits reading events");
 });
 
 test("GET /watch and /watch/:id serve the streaming app UI (always mounted)", async () => {

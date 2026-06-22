@@ -14,7 +14,7 @@ import {
   type GraduationPlan,
   type WorkRow,
 } from "./reading.js";
-import type { CandidateRow, CreateChapterInput, CreateWorkInput, ReadingStore, WorkDetail } from "./reading-service.js";
+import type { CandidateRow, CreateChapterInput, CreateWorkInput, ReadingStore, WorkCard, WorkDetail } from "./reading-service.js";
 
 type Q = Pick<pg.Pool, "query">;
 
@@ -106,6 +106,29 @@ export class PgReadingDb implements ReadingStore {
   async candidateStatus(workId: string): Promise<string | null> {
     const r = await this.db.query(`select status from mobile.adaptation_candidates where work_id = $1`, [workId]);
     return (r.rows[0] as { status?: string } | undefined)?.status ?? null;
+  }
+
+  async listPublishedWorks(): Promise<WorkCard[]> {
+    const r = await this.db.query(
+      `select w.id, w.title, w.synopsis, w.genre, w.cover_url,
+              (select count(*) from mobile.chapters c where c.work_id = w.id) as chapters,
+              (select count(*) from mobile.chapters c where c.work_id = w.id and c.is_free) as free_chapters
+         from mobile.works w
+        where w.status = 'published'
+        order by w.published_at desc nulls last`,
+    );
+    return r.rows.map((x) => {
+      const o = x as Record<string, unknown>;
+      return {
+        id: o.id as string,
+        title: o.title as string,
+        synopsis: (o.synopsis as string) ?? null,
+        genre: (o.genre as string) ?? null,
+        cover_url: (o.cover_url as string) ?? null,
+        chapters: Number(o.chapters ?? 0),
+        free_chapters: Number(o.free_chapters ?? 0),
+      };
+    });
   }
 
   async listCandidates(status?: string): Promise<CandidateRow[]> {

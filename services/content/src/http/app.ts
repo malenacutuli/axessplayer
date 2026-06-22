@@ -40,7 +40,7 @@ import {
   type CreateEdgeBody,
 } from "../content.js";
 import type { PosterGenerator } from "../poster.js";
-import { readerPageHtml } from "../readerPage.js";
+import { readerPageHtml, readFeedHtml } from "../readerPage.js";
 import { watchFeedHtml, watchPlayerHtml } from "../watchPage.js";
 import {
   createWork,
@@ -68,6 +68,9 @@ export interface AppDeps {
   // Optional reading platform store (prompt 28). When wired, the /works, /reading, and adapt routes mount;
   // when absent they are simply not registered. Production wires PgReadingDb; tests wire a fake.
   reading?: ReadingStore;
+  // Public base URL of the events service (EVENTS_BASE_URL). Injected into the reader/watch pages so reading
+  // and viewing behavior flow into the engagement pipeline (the demand sensor). Empty disables emission.
+  eventsBaseUrl?: string;
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -99,7 +102,7 @@ export function createContentApp(deps: AppDeps): Hono {
     c.json(
       {
         ...health(),
-        routes: ["/watch (video feed)", "/watch/:id (player)", "/series/:id/graph", "/feed", "/series", "/episodes", "/beats", "/variants", ...(deps.reading ? ["/read/:id (reader)", "/works", "/works/:id", "/works/:id/adapt", "/reading/candidates"] : [])],
+        routes: ["/watch (video feed)", "/watch/:id (player)", "/series/:id/graph", "/feed", "/series", "/episodes", "/beats", "/variants", ...(deps.reading ? ["/read (book feed)", "/read/:id (reader)", "/works", "/works/:id", "/works/:id/adapt", "/reading/candidates"] : [])],
       },
       200,
     ),
@@ -314,12 +317,15 @@ export function createContentApp(deps: AppDeps): Hono {
       const detail = await reading.getWorkDetail(c.req.param("id"));
       return detail ? c.json(detail, 200) : c.json({ error: "work_not_found" }, 404);
     });
+    // GET /read : the reading discovery feed (grid of published works). GET /reading/works : its JSON.
+    app.get("/read", (c) => c.html(readFeedHtml()));
+    app.get("/reading/works", (c) => runReading(c, () => reading.listPublishedWorks()));
     // GET /read/:id : the accessibility-first reader page (HTML). Clickable chapters, dyslexia font, size
-    // controls, screen-reader landmarks; fetches the work + chapter text client-side from this service.
+    // controls, screen-reader landmarks; emits reading events to the demand sensor.
     app.get("/read/:id", (c) => {
       const id = c.req.param("id");
       if (!id) return c.json({ error: "invalid_id" }, 400);
-      return c.html(readerPageHtml(id));
+      return c.html(readerPageHtml(id, deps.eventsBaseUrl ?? ""));
     });
     // run the demand sensor for a work and persist the verdict (the Studio demand dashboard reads this).
     app.post("/works/:id/recompute-demand", (c) => runReading(c, () => recomputeDemand(c.req.param("id"), reading)));
