@@ -103,3 +103,16 @@ test("the reading routes are absent (404) when no store is wired", async () => {
   const app = createContentApp({ db: {} as unknown as ContentDB }); // no reading store
   assert.equal((await req(app, "POST", "/works", { title: "x" })).status, 404);
 });
+
+test("GET /read/:id serves an accessibility-first reader HTML page", async () => {
+  const app = appWith(new MemStore());
+  const res = await req(app, "GET", "/read/work-1");
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("content-type") || "", /text\/html/);
+  const html = await res.text();
+  assert.match(html, /<!doctype html>/i);
+  assert.match(html, /dyslexia/i, "dyslexia-friendly font control present");
+  assert.match(html, /aria-live/, "screen-reader live region present");
+  assert.match(html, /\/works\/" \+ encodeURIComponent\(WORK_ID\)|works\//, "fetches the work data client-side");
+  assert.ok(html.includes("work-1"), "the work id is injected");
+});

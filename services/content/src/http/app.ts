@@ -40,6 +40,7 @@ import {
   type CreateEdgeBody,
 } from "../content.js";
 import type { PosterGenerator } from "../poster.js";
+import { readerPageHtml } from "../readerPage.js";
 import {
   createWork,
   addChapter,
@@ -97,7 +98,7 @@ export function createContentApp(deps: AppDeps): Hono {
     c.json(
       {
         ...health(),
-        routes: ["/series/:id/graph", "/feed", "/series", "/episodes", "/beats", "/variants", ...(deps.reading ? ["/works", "/works/:id", "/works/:id/adapt", "/reading/candidates"] : [])],
+        routes: ["/series/:id/graph", "/feed", "/series", "/episodes", "/beats", "/variants", ...(deps.reading ? ["/read/:id (reader)", "/works", "/works/:id", "/works/:id/adapt", "/reading/candidates"] : [])],
       },
       200,
     ),
@@ -301,6 +302,13 @@ export function createContentApp(deps: AppDeps): Hono {
     app.get("/works/:id", async (c) => {
       const detail = await reading.getWorkDetail(c.req.param("id"));
       return detail ? c.json(detail, 200) : c.json({ error: "work_not_found" }, 404);
+    });
+    // GET /read/:id : the accessibility-first reader page (HTML). Clickable chapters, dyslexia font, size
+    // controls, screen-reader landmarks; fetches the work + chapter text client-side from this service.
+    app.get("/read/:id", (c) => {
+      const id = c.req.param("id");
+      if (!id) return c.json({ error: "invalid_id" }, 400);
+      return c.html(readerPageHtml(id));
     });
     // run the demand sensor for a work and persist the verdict (the Studio demand dashboard reads this).
     app.post("/works/:id/recompute-demand", (c) => runReading(c, () => recomputeDemand(c.req.param("id"), reading)));
