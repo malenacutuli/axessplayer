@@ -1,10 +1,10 @@
-// The light bottom nav from the prototype: Home / Search / Wallet / You. The active tab paints ink,
+// The light bottom nav from the prototype: Home / Shorts / Search / Wallet / You. The active tab paints ink,
 // its icon paints rose (the single focal accent on these light screens). Search now routes to the
 // 20-V3 search surface (/search) instead of being inert. No em dashes.
 
-import { HomeIcon, SearchIcon, WalletIcon, YouIcon } from "./icons.js";
+import { HomeIcon, SearchIcon, ShortsIcon, WalletIcon, YouIcon } from "./icons.js";
 
-export type Tab = "home" | "search" | "wallet" | "you";
+export type Tab = "home" | "shorts" | "search" | "wallet" | "you";
 
 export interface BottomNavProps {
   active: Tab;
@@ -22,6 +22,15 @@ export function BottomNav({ active, onNavigate }: BottomNavProps) {
       >
         <HomeIcon />
         Home
+      </button>
+      <button
+        type="button"
+        className={active === "shorts" ? "on" : undefined}
+        aria-current={active === "shorts" ? "page" : undefined}
+        onClick={() => onNavigate("shorts")}
+      >
+        <ShortsIcon />
+        Shorts
       </button>
       <button
         type="button"

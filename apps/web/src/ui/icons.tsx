@@ -109,3 +109,13 @@ export function MapIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+// Shorts: a vertical frame with a play mark.
+export function ShortsIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true" {...props}>
+      <rect x="6" y="2.5" width="12" height="19" rx="3" />
+      <path d="M10.5 9.5v5l4-2.5z" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}

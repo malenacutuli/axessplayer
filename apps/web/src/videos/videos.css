@@ -1,0 +1,43 @@
+/* Platform v2 video surfaces: shorts feed, watch page, home rows. Uses the --axp-* tokens. No em dashes. */
+.vsurface { position: relative; width: 100%; background: #000; overflow: hidden; border-radius: 12px; }
+.vsurface--fill { height: 100%; border-radius: 0; }
+.vsurface__video { width: 100%; height: 100%; object-fit: contain; display: block; background: #000; }
+.vsurface__poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.vsurface__error { position: absolute; inset: auto 0 40% 0; text-align: center; color: #fff; }
+.shorts { height: 100%; overflow-y: auto; scroll-snap-type: y mandatory; background: #000; outline: none; }
+.shorts__page { position: relative; height: 100%; scroll-snap-align: start; scroll-snap-stop: always; }
+.shorts__meta { position: absolute; left: 12px; right: 72px; bottom: 76px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+.shorts__title { all: unset; cursor: pointer; display: block; font-weight: 700; font-size: 16px; }
+.shorts__channel { font-size: 13px; opacity: .9; }
+.shorts__rail { position: absolute; right: 10px; bottom: 90px; display: flex; flex-direction: column; gap: 12px; }
+.shorts__btn { min-width: 48px; min-height: 48px; border-radius: 24px; border: 0; background: rgba(0,0,0,.55); color: #fff; font-weight: 700; }
+.shorts__btn[aria-pressed="true"] { background: rgba(255,255,255,.9); color: #000; }
+.shorts__msg { display: grid; place-items: center; height: 100%; color: var(--axp-text, #222); padding: 24px; text-align: center; }
+.watch { padding: 12px 14px 90px; overflow-y: auto; height: 100%; }
+.watch__back { min-height: 44px; border: 0; background: none; font-weight: 700; }
+.watch__stage { width: 100%; max-height: 70vh; display: flex; justify-content: center; }
+.watch__stage .vsurface { max-height: 70vh; width: auto; max-width: 100%; }
+.watch__title { font-size: 18px; margin: 12px 0 6px; }
+.watch__byline { display: flex; gap: 12px; align-items: center; font-size: 13px; color: var(--axp-muted, #555); }
+.watch__channel { min-height: 44px; border: 0; background: none; font-weight: 700; padding: 0; }
+.watch__a11y { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.watch__desc { white-space: pre-wrap; font-size: 14px; }
+.sponsor { margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: #fff7e0; color: #3a2a00; font-size: 13px; }
+.sponsor--compact { background: rgba(255,247,224,.92); }
+.sponsor__label { font-weight: 800; text-transform: uppercase; letter-spacing: .04em; margin-right: 4px; }
+.vrows { display: flex; flex-direction: column; gap: 16px; margin: 8px 0 16px; }
+.vrow__head { display: flex; justify-content: space-between; align-items: baseline; padding: 0 14px; }
+.vrow__head h2 { font-size: 16px; margin: 0; }
+.vrow__more { border: 0; background: none; font-weight: 700; min-height: 44px; }
+.vrow__items { display: flex; gap: 10px; overflow-x: auto; padding: 0 14px 4px; scroll-snap-type: x proximity; }
+.vtile { flex: 0 0 auto; width: 180px; text-align: left; border: 0; background: none; padding: 0; scroll-snap-align: start; }
+.vtile--tall { width: 112px; }
+.vtile__thumb { position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; background: #111 center / cover no-repeat; border-radius: 10px; }
+.vtile--tall .vtile__thumb { aspect-ratio: 9 / 16; }
+.vtile__dur, .vtile__a11y { position: absolute; bottom: 6px; padding: 2px 5px; border-radius: 4px; background: rgba(0,0,0,.75); color: #fff; font-size: 11px; font-weight: 700; }
+.vtile__dur { right: 6px; }
+.vtile__a11y { left: 6px; }
+.vtile__title { display: block; font-weight: 700; font-size: 13px; margin-top: 6px; }
+.vtile__channel { display: block; font-size: 12px; color: var(--axp-muted, #555); }
+@media (prefers-reduced-motion: reduce) { .shorts { scroll-behavior: auto; } }
+.scr--dark { background: #000; }

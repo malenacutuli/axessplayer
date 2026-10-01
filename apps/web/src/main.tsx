@@ -18,6 +18,7 @@ import "./styles/brand-tokens.css";
 import "./styles.css";
 import "./styles/discover.css";
 import "./auth/auth.css";
+import "./videos/videos.css";
 
 const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {};
 // Series id and viewing identity are per-deployment. They default to the local walking-skeleton seed

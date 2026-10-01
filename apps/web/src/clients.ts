@@ -13,6 +13,7 @@ import { createRewardsClient, type RewardsClient } from "./api/rewards.js";
 import { createWebTransport } from "./player/webTransport.js";
 import type { SessionProvider } from "./api/session.js";
 import type { Transport } from "@axessplayer/player-sdk";
+import { createVideosClient, type VideosClient } from "./videos/api.js";
 
 export interface Clients {
   config: AppConfig;
@@ -30,6 +31,8 @@ export interface Clients {
   rewards: RewardsClient;
   // Builds a fresh player transport for one viewing session.
   playerTransport(onStripUserId?: (id: string) => void): Transport;
+  // Platform v2 standalone videos: home rows, shorts feed, watch, signed playback.
+  videos: VideosClient;
 }
 
 export interface BuildClientsOptions {
@@ -80,6 +83,7 @@ export function buildClients(opts: BuildClientsOptions): Clients {
       session: opts.session,
       fetch: opts.fetch,
     }),
+    videos: createVideosClient({ baseUrl: config.contentBaseUrl, session: opts.session, ...(opts.fetch ? { fetch: opts.fetch } : {}) }),
     playerTransport: (onStripUserId) =>
       createWebTransport({
         decisionBaseUrl: config.decisionBaseUrl,

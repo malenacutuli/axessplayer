@@ -28,6 +28,9 @@ import { Search } from "./discover/Search.js";
 import { Channel } from "./discover/Channel.js";
 import { Channels } from "./discover/Channels.js";
 import { Library, type LibraryTab } from "./library/Library.js";
+import { Shorts } from "./videos/Shorts.js";
+import { Watch } from "./videos/Watch.js";
+import { VideoRows } from "./videos/VideoRows.js";
 
 export interface AppProps {
   clients: Clients;
@@ -121,6 +124,19 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
   // Phase 0 capture is consent-gated: only when the viewer granted analytics_personalization do we measure
   // real signals for /decide and emit beat-level events. Otherwise a noop capture and personalize=false.
   const personalize = consent?.record?.purposes.analytics_personalization ?? false;
+  // Viewership events for standalone videos, sent only with analytics consent (taxonomy names from the SDK).
+  const trackVideo = useCallback(
+    (name: string, video: { id: string; channel: { id: string }; format: string | null; orientation: string | null }) => {
+      if (!personalize) return;
+      analytics.track(name as Parameters<typeof analytics.track>[0], {
+        videoId: video.id,
+        channelId: video.channel.id,
+        format: video.format,
+        orientation: video.orientation,
+      });
+    },
+    [personalize, analytics],
+  );
   const capture = useMemo(
     () => (personalize ? createCaptureClient({ seriesId, enabled: () => true }) : noopCapture),
     [personalize, seriesId],
@@ -138,6 +154,10 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
         if (router.path !== "/") router.navigate("/");
         setScreen("feed");
         router.navigate("/search");
+        return;
+      }
+      if (tab === "shorts") {
+        router.navigate("/shorts");
         return;
       }
       if (tab === "home") {
@@ -263,6 +283,7 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
     return (
       <div className="scr" data-testid="screen-feed">
         <StatusBar />
+        <VideoRows client={clients.videos} onOpenVideo={(id) => router.navigate(`/v/${encodeURIComponent(id)}`)} onOpenShorts={() => router.navigate("/shorts")} />
         <Feed
           feed={feed}
           coins={coins}
@@ -280,6 +301,26 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
   // to the existing feed/player/wallet/profile screen machine, so the live experience is untouched.
   const routed = (): JSX.Element | null => {
     const path = router.path;
+
+    if (path === "/shorts") {
+      return (
+        <div className="scr scr--dark" data-testid="route-shorts">
+          <Shorts client={clients.videos} onOpenVideo={(id) => router.navigate(`/v/${encodeURIComponent(id)}`)} onEvent={trackVideo} />
+          <BottomNav active="shorts" onNavigate={onNavigate} />
+        </div>
+      );
+    }
+
+    const videoMatch = matchPath("/v/:id", path);
+    if (videoMatch) {
+      return (
+        <div className="scr" data-testid="route-watch">
+          <StatusBar />
+          <Watch videoId={videoMatch.id} client={clients.videos} onBack={() => router.back()} onEvent={trackVideo} />
+          <BottomNav active="home" onNavigate={onNavigate} />
+        </div>
+      );
+    }
 
     if (path === "/onboarding") {
       return (
