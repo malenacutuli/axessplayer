@@ -120,3 +120,36 @@ describe("events node:http surface persists when the DB is reachable", () => {
     assert.equal(calls.length, 1);
   });
 });
+
+describe("events attribution comes only from a verified session", () => {
+  let server: Server;
+  let base: string;
+  const calls: { text: string; params: unknown[] }[] = [];
+  before(async () => {
+    const fake: SqlClient = {
+      async query(text: string, params?: unknown[]) {
+        calls.push({ text, params: params ?? [] });
+        return { rows: [] };
+      },
+    };
+    const session = { verifySession: async (t: string | null) => (t === "real-jwt" ? { userId: "aaaaaaaa-0000-0000-0000-000000000001" } : null) };
+    server = createEventsServer(fake, { session });
+    base = await listen(server);
+  });
+  after(() => {
+    server.close();
+  });
+  const post = (authorization?: string) =>
+    fetch(`${base}/events`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(authorization ? { authorization } : {}) },
+      body: JSON.stringify({ events: [{ event_id: `e-${Math.random()}`, session_id: "s1", type: "beat_started" }] }),
+    });
+  it("a verified viewer is attributed; a forged session:<uuid> is recorded as anonymous", async () => {
+    await post("Bearer real-jwt");
+    await post("Bearer session:aaaaaaaa-0000-0000-0000-000000000002");
+    await post();
+    const users = calls.map((c) => c.params[1]);
+    assert.deepEqual(users, ["aaaaaaaa-0000-0000-0000-000000000001", null, null]);
+  });
+});

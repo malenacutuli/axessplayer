@@ -10,6 +10,7 @@
 
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
 import { persistEvents, userFromAuthorization, type RawEvent, type SqlClient } from "./collector.js";
+import { testSessionsAllowed, type SessionVerifier } from "@axessplayer/session-auth";
 import { persistAxpEvent, isAxpEventBody } from "./axp-collector.js";
 
 // A lazy provider of the SQL client. Resolving it may build/borrow a pg pool on first use, or throw if the
@@ -42,8 +43,20 @@ async function readBody(req: IncomingMessage): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-export function createEventsServer(sqlOrProvider: SqlClient | SqlProvider): Server {
+export interface EventsServerOptions {
+  // Resolves the bearer to the viewer (users.id). Production wires the Supabase verifier; without it only the
+  // explicit test opt-in path (session:<uuid>) attributes events, otherwise events are anonymous.
+  session?: SessionVerifier;
+}
+
+export function createEventsServer(sqlOrProvider: SqlClient | SqlProvider, opts: EventsServerOptions = {}): Server {
   const provideSql = asProvider(sqlOrProvider);
+  const identify = async (authorization: string | undefined): Promise<string | null> => {
+    const m = /^Bearer\s+(.+)$/i.exec((authorization ?? "").trim());
+    if (!m) return null;
+    if (opts.session) return (await opts.session.verifySession(m[1]))?.userId ?? null;
+    return testSessionsAllowed() ? userFromAuthorization(authorization) : null;
+  };
   return createServer((req, res) => {
     void (async () => {
       try {
@@ -74,7 +87,8 @@ export function createEventsServer(sqlOrProvider: SqlClient | SqlProvider): Serv
               detail: e instanceof Error ? e.message : String(e),
             });
           }
-          const userId = userFromAuthorization(req.headers["authorization"]);
+          // Attribution is the VERIFIED session subject; an unverifiable token is recorded as anonymous.
+          const userId = await identify(req.headers["authorization"]);
           // Canonical AxpEvent single-event ingest (analytics-sdk emit client wire shape). Validated
           // against the closed taxonomy, idempotent on (session_id, event_id).
           if (isAxpEventBody(parsed)) {

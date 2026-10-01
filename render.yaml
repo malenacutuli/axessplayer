@@ -278,6 +278,10 @@ services:
     plan: starter
     region: oregon
     envVars:
+      - key: SUPABASE_URL
+        value: https://faeyekynudyzeotbjfsj.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - fromGroup: axessplayer-shared
 
   - type: web

@@ -14,6 +14,7 @@
 
 import pg from "pg";
 import { createEventsServer, type SqlProvider } from "./server.js";
+import { selectSessionVerifier } from "@axessplayer/session-auth";
 import type { SqlClient } from "./collector.js";
 
 // Lazily build (once) the pg pool and return it as the SqlClient. Throws ONLY when resolved, never at
@@ -41,7 +42,22 @@ const port = Number(process.env.PORT ?? 8098);
 // inside the container, which is what made Render report the service unhealthy.
 const host = process.env.HOST ?? "0.0.0.0";
 
-const server = createEventsServer(makeLazyPool());
+const provide = makeLazyPool();
+// Viewer attribution from the verified Supabase session (auth_id -> mobile.users.id). Missing Supabase config
+// means events are recorded anonymously, never attributed from an unsigned token.
+const session = selectSessionVerifier(
+  { SUPABASE_URL: process.env.SUPABASE_URL, SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY, NODE_ENV: process.env.NODE_ENV },
+  () => ({ verifySession: async (t) => { const m = /^session:([0-9a-f-]{36})$/i.exec(t ?? ""); return m ? { userId: m[1] } : null; } }),
+  "events collector",
+  async (authId) => {
+    const { rows } = await (provide() as unknown as { query: (s: string, p: unknown[]) => Promise<{ rows: Array<{ id: string }> }> }).query(
+      "select id from mobile.users where auth_id = $1 limit 1",
+      [authId],
+    );
+    return rows[0]?.id ?? null;
+  },
+);
+const server = createEventsServer(provide, { session });
 server.listen(port, host, () => {
   // eslint-disable-next-line no-console
   console.log(`events collector listening on ${host}:${port}`);

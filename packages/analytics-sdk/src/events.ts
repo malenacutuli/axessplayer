@@ -81,7 +81,19 @@ export type AxpEventName =
   | "work_finished"
   | "chapter_reread"
   | "work_shared"
-  | "work_followed";
+  | "work_followed"
+  // platform v2 video, sponsorship, ads, tips
+  | "completion_25"
+  | "completion_75"
+  | "completion_100"
+  | "seek"
+  | "sponsor_shown"
+  | "sponsor_clicked"
+  | "ad_impression"
+  | "ad_completed"
+  | "ad_skipped"
+  | "tip_sent"
+  | "video_opened";
 
 /**
  * The complete, ordered list of canonical event names. Useful for validation, enumeration in
@@ -141,6 +153,17 @@ export const AXP_EVENT_NAMES = [
   "chapter_reread",
   "work_shared",
   "work_followed",
+  "completion_25",
+  "completion_75",
+  "completion_100",
+  "seek",
+  "sponsor_shown",
+  "sponsor_clicked",
+  "ad_impression",
+  "ad_completed",
+  "ad_skipped",
+  "tip_sent",
+  "video_opened",
 ] as const satisfies readonly AxpEventName[];
 
 /**

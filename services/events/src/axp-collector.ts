@@ -73,6 +73,17 @@ export const AXP_EVENT_NAMES = [
   "chapter_reread",
   "work_shared",
   "work_followed",
+  "completion_25",
+  "completion_75",
+  "completion_100",
+  "seek",
+  "sponsor_shown",
+  "sponsor_clicked",
+  "ad_impression",
+  "ad_completed",
+  "ad_skipped",
+  "tip_sent",
+  "video_opened",
 ] as const;
 
 // Local membership set derived from the mirrored taxonomy constant.
