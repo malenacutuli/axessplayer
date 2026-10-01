@@ -10,15 +10,15 @@ import type { ConsentGate, ConsentState } from "./consentGate.js";
 
 export interface EdgeConfig {
   supabaseUrl: string;
-  apiKey: string; // service-role key if available, else the anon key (both pass verify_jwt + the scoped RLS)
+  apiKey: string; // the service-role key
 }
 
-// Read the edge config. Prefers the service-role key, falls back to the anon key (the axessplayer-runway-video
-// fn is verify_jwt and the storage RLS allows anon writes under videos/axessplayer/**, so anon suffices).
-// Null when no key is available, which keeps the real backend off.
+// Read the edge config. The paid generation and stitch edge functions accept ONLY the service-role key, and
+// the storage re-host under videos/axessplayer/** no longer allows anon writes, so the anon key is not a
+// fallback. Null when the service-role key is missing, which keeps the real backend off.
 export function readEdgeConfig(env: NodeJS.ProcessEnv = process.env): EdgeConfig | null {
   const supabaseUrl = (env.SUPABASE_URL ?? "").replace(/\/$/, "");
-  const apiKey = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_ANON_KEY || "";
+  const apiKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
   if (!supabaseUrl || !apiKey) return null;
   return { supabaseUrl, apiKey };
 }
