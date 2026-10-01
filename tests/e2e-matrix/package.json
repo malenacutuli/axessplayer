@@ -7,7 +7,8 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo lint ok",
-    "test": "node --import tsx --test src/matrix.test.ts"
+    "test": "echo \"e2e-matrix targets the live deployed services; run it as a release gate: pnpm --filter @axessplayer/e2e-matrix test:live\"",
+    "test:live": "node --import tsx --test src/matrix.test.ts"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
