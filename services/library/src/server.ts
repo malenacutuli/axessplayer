@@ -27,7 +27,8 @@ import pg from "pg";
 import type { Hono } from "hono";
 
 import { createLibraryApp } from "./http/app.js";
-import { testVerifiers, type Verifiers } from "./http/auth.js";
+import { testSessionVerifier, type Verifiers } from "./http/auth.js";
+import { selectSessionVerifier, pgUserIdResolver } from "@axessplayer/session-auth";
 import { PgLibraryDb } from "./pgLibraryDb.js";
 
 export interface LibraryServerConfig {
@@ -53,20 +54,16 @@ export function readConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Library
 
 // Choose the verifiers. In production a real JWKS-backed Verifiers MUST be injected; the test verifier is
 // refused there (CUTOVER GATE). Outside production the test verifier is wired for local/dev use.
-export function selectVerifiers(cfg: LibraryServerConfig): Verifiers {
-  if (cfg.nodeEnv === "production") {
-    throw new Error(
-      "library server: real session verifier wiring is a cutover gate and is not implemented; " +
-        "inject a real Verifiers before running with NODE_ENV=production"
-    );
-  }
-  return testVerifiers();
+// Real Supabase session verification whenever SUPABASE_URL + SUPABASE_ANON_KEY are set (any NODE_ENV); the
+// test verifier only outside production without them; a hard stop in production without them.
+export function selectVerifiers(cfg: LibraryServerConfig, pool?: pg.Pool, env: NodeJS.ProcessEnv = process.env): Verifiers {
+  return { session: selectSessionVerifier({ SUPABASE_URL: env.SUPABASE_URL, SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY, NODE_ENV: cfg.nodeEnv }, testSessionVerifier, "library server", pool ? pgUserIdResolver((sql, params) => pool.query(sql, params)) : undefined) };
 }
 
 // Build the production library app: a node-postgres-backed PgLibraryDb plus the chosen verifiers, handed
 // to the existing factory unchanged.
 export function buildLibraryApp(pool: pg.Pool, cfg: LibraryServerConfig): Hono {
-  return createLibraryApp({ db: new PgLibraryDb(pool), verifiers: selectVerifiers(cfg) });
+  return createLibraryApp({ db: new PgLibraryDb(pool), verifiers: selectVerifiers(cfg, pool) });
 }
 
 // --- node:http bridge: map a Node request to a Web Request, run the Hono app, write the Web Response back.

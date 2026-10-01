@@ -19,7 +19,9 @@ const sink: GrantSink = {
 
 let base: string;
 const WHSEC = "whsec_test_secret";
-const server = createSettlementServer(sink, { stripeWebhookSecret: WHSEC });
+// Fake session verifier: "tok-<user>" is a valid session for <user>; anything else is unauthenticated.
+const sessionVerifier = { verifySession: async (t: string | null) => (t && t.startsWith("tok-") ? { userId: t.slice(4) } : null) };
+const server = createSettlementServer(sink, { stripeWebhookSecret: WHSEC, sessionVerifier });
 const unconfigured = createSettlementServer(sink);
 let unconfiguredBase: string;
 before(async () => {
@@ -33,7 +35,8 @@ after(() => {
   unconfigured.close();
 });
 
-const post = (path: string, body: unknown) => fetch(`${base}${path}`, { method: "POST", body: JSON.stringify(body) });
+const post = (path: string, body: unknown, token: string | null = "tok-u1", at = base) =>
+  fetch(`${at}${path}`, { method: "POST", body: JSON.stringify(body), headers: token ? { authorization: `Bearer ${token}` } : {} });
 
 // A Stripe-shaped signed webhook delivery: Event wrapper + Stripe-Signature over "<t>.<raw body>".
 const sign = (raw: string, secret = WHSEC, t = Math.floor(Date.now() / 1000)) =>
@@ -59,6 +62,23 @@ describe("grant settlement surface", () => {
     assert.equal(r.granted, true);
     assert.equal(r.type, "checkin");
     assert.match(r.client_txn_id, /^checkin:u1:\d{4}-\d{2}-\d{2}$/);
+  });
+  it("refuses reward routes without a valid session", async () => {
+    const before = grants.length;
+    for (const path of ["/reward/ad", "/reward/checkin", "/reward/follow"]) {
+      assert.equal((await post(path, { userId: "u1", impressionId: "imp-x", verified: true }, null)).status, 401);
+      assert.equal((await post(path, { userId: "u1", impressionId: "imp-y", verified: true }, "forged")).status, 401);
+    }
+    assert.equal(grants.length, before);
+  });
+  it("credits the session user, never a userId from the body", async () => {
+    const r = await (await post("/reward/follow", { userId: "victim" }, "tok-attacker")).json();
+    assert.equal(r.granted, true);
+    assert.equal(grants.at(-1)?.userId, "attacker");
+    assert.equal(r.client_txn_id, "follow:attacker");
+  });
+  it("closes the reward routes with 503 when no session verifier is configured", async () => {
+    assert.equal((await post("/reward/checkin", {}, "tok-u1", unconfiguredBase)).status, 503);
   });
   it("settles a paid TEST-mode Stripe checkout to an IAP grant", async () => {
     const session = { id: "cs_test_9", payment_status: "paid", livemode: false, metadata: { userId: "u1", offerId: "pack_medium" } };

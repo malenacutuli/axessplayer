@@ -281,6 +281,18 @@ importers:
         specifier: ^5.5.0
         version: 5.9.3
 
+  packages/session-auth:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      tsx:
+        specifier: ^4.19.0
+        version: 4.22.4
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+
   packages/ui:
     devDependencies:
       '@types/jsdom':
@@ -386,6 +398,9 @@ importers:
 
   services/catalog:
     dependencies:
+      '@axessplayer/session-auth':
+        specifier: workspace:*
+        version: link:../../packages/session-auth
       pg:
         specifier: ^8.12.0
         version: 8.21.0
@@ -448,6 +463,9 @@ importers:
 
   services/decision:
     dependencies:
+      '@axessplayer/session-auth':
+        specifier: workspace:*
+        version: link:../../packages/session-auth
       hono:
         specifier: ^4.12.25
         version: 4.12.25
@@ -481,6 +499,10 @@ importers:
         version: 5.9.3
 
   services/economy:
+    dependencies:
+      '@axessplayer/session-auth':
+        specifier: workspace:*
+        version: link:../../packages/session-auth
     devDependencies:
       '@electric-sql/pglite':
         specifier: ^0.5.0
@@ -526,6 +548,10 @@ importers:
         version: 5.9.3
 
   services/experiment:
+    dependencies:
+      '@axessplayer/session-auth':
+        specifier: workspace:*
+        version: link:../../packages/session-auth
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -575,6 +601,10 @@ importers:
         version: 5.9.3
 
   services/identity:
+    dependencies:
+      '@axessplayer/session-auth':
+        specifier: workspace:*
+        version: link:../../packages/session-auth
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -627,6 +657,10 @@ importers:
         version: 5.9.3
 
   services/library:
+    dependencies:
+      '@axessplayer/session-auth':
+        specifier: workspace:*
+        version: link:../../packages/session-auth
     devDependencies:
       '@electric-sql/pglite':
         specifier: ^0.5.0
@@ -675,10 +709,20 @@ importers:
         version: 5.9.3
 
   services/monetization:
+    dependencies:
+      '@axessplayer/session-auth':
+        specifier: workspace:*
+        version: link:../../packages/session-auth
+      pg:
+        specifier: ^8.12.0
+        version: 8.21.0
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.43
+      '@types/pg':
+        specifier: ^8.11.0
+        version: 8.20.0
       tsx:
         specifier: ^4.19.0
         version: 4.22.4
@@ -699,6 +743,10 @@ importers:
         version: 5.9.3
 
   services/recap:
+    dependencies:
+      '@axessplayer/session-auth':
+        specifier: workspace:*
+        version: link:../../packages/session-auth
     devDependencies:
       '@types/node':
         specifier: ^20.0.0

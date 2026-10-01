@@ -57,9 +57,9 @@ test("economy served entry: real GET /wallet with no auth returns the documented
   });
 });
 
-test("economy served entry: NODE_ENV=production refuses the test verifier (JWKS cutover gate)", () => {
+test("economy served entry: NODE_ENV=production without Supabase config refuses to start (no test verifier in prod)", () => {
   assert.throws(
     () => buildEconomyApp(throwingPool, { ...devCfg, nodeEnv: "production" }),
-    /cutover gate/
+    /required in production/
   );
 });

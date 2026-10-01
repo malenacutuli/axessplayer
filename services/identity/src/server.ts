@@ -26,7 +26,8 @@ import pg from "pg";
 import type { Hono } from "hono";
 
 import { createIdentityApp } from "./http/app.js";
-import { testVerifiers, type Verifiers } from "./http/auth.js";
+import { testSessionVerifier, testAuthTokenVerifier, type AuthTokenVerifier, type Verifiers } from "./http/auth.js";
+import { selectSessionVerifier, pgUserIdResolver, supabaseAuthUserVerifier } from "@axessplayer/session-auth";
 import { PgIdentityDb } from "./identityDb.js";
 import { InMemoryConsentSink, type ConsentSink } from "./consent.js";
 
@@ -56,14 +57,25 @@ export function readConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Identit
 // Choose the verifiers. In production a real Supabase-JWT-backed AuthTokenVerifier and a real
 // SessionVerifier MUST be injected; the test verifiers are refused there (CUTOVER GATE 1). Outside
 // production the test verifiers are wired for local/dev use.
-export function selectVerifiers(cfg: IdentityServerConfig): Verifiers {
-  if (cfg.nodeEnv === "production") {
-    throw new Error(
-      "identity server: real Supabase JWT verifier wiring is a cutover gate and is not implemented; " +
-        "inject real Verifiers before running with NODE_ENV=production",
-    );
-  }
-  return testVerifiers();
+// Profiles are keyed by email, so a Supabase login without one (phone-only) cannot be linked: reject it.
+function emailRequired(v: ReturnType<typeof supabaseAuthUserVerifier>): AuthTokenVerifier {
+  return {
+    async verifyAccessToken(token) {
+      const u = await v.verifyAccessToken(token);
+      return u && u.email ? { authId: u.authId, email: u.email } : null;
+    },
+  };
+}
+
+// Real Supabase session verification whenever SUPABASE_URL + SUPABASE_ANON_KEY are set (any NODE_ENV); the
+// test verifier only outside production without them; a hard stop in production without them.
+export function selectVerifiers(cfg: IdentityServerConfig, pool?: pg.Pool, env: NodeJS.ProcessEnv = process.env): Verifiers {
+  const real = Boolean(env.SUPABASE_URL && env.SUPABASE_ANON_KEY);
+  return {
+    session: selectSessionVerifier({ SUPABASE_URL: env.SUPABASE_URL, SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY, NODE_ENV: cfg.nodeEnv }, testSessionVerifier, "identity server", pool ? pgUserIdResolver((sql, params) => pool.query(sql, params)) : undefined),
+    // /auth/verify links a Supabase login to a profile, so it needs the verified Supabase subject itself.
+    auth: real ? emailRequired(supabaseAuthUserVerifier({ supabaseUrl: env.SUPABASE_URL as string, anonKey: env.SUPABASE_ANON_KEY as string })) : testAuthTokenVerifier(),
+  };
 }
 
 // The consent sink. CUTOVER GATE 2: the real wiring routes to services/trust's consent chain. This cut
@@ -78,7 +90,7 @@ export function buildIdentityApp(pool: pg.Pool, cfg: IdentityServerConfig): Hono
   return createIdentityApp({
     db: new PgIdentityDb(pool),
     consent: selectConsentSink(),
-    verifiers: selectVerifiers(cfg),
+    verifiers: selectVerifiers(cfg, pool),
   }) as unknown as Hono;
 }
 

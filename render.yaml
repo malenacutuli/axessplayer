@@ -51,6 +51,11 @@ services:
     plan: starter
     region: oregon
     envVars:
+      # Real session verification (packages/session-auth). Public values: the project URL and anon key.
+      - key: SUPABASE_URL
+        value: https://faeyekynudyzeotbjfsj.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - key: NODE_ENV
         value: staging
       - key: DB_OPTIONS
@@ -66,6 +71,11 @@ services:
     plan: starter
     region: oregon
     envVars:
+      # Real session verification (packages/session-auth). Public values: the project URL and anon key.
+      - key: SUPABASE_URL
+        value: https://faeyekynudyzeotbjfsj.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - key: NODE_ENV
         value: staging
       - key: DB_OPTIONS
@@ -98,6 +108,14 @@ services:
     plan: starter
     region: oregon
     envVars:
+      # Session -> profile mapping for the reward routes (same database as economy).
+      - key: DATABASE_URL
+        sync: false
+      # Real session verification (packages/session-auth). Public values: the project URL and anon key.
+      - key: SUPABASE_URL
+        value: https://faeyekynudyzeotbjfsj.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - key: NODE_ENV
         value: production
       - key: ECONOMY_SERVICE_SECRET
@@ -122,6 +140,11 @@ services:
     plan: starter
     region: oregon
     envVars:
+      # Real session verification (packages/session-auth). Public values: the project URL and anon key.
+      - key: SUPABASE_URL
+        value: https://faeyekynudyzeotbjfsj.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - fromGroup: axessplayer-shared
 
   - type: web
@@ -132,6 +155,11 @@ services:
     plan: starter
     region: oregon
     envVars:
+      # Real session verification (packages/session-auth). Public values: the project URL and anon key.
+      - key: SUPABASE_URL
+        value: https://faeyekynudyzeotbjfsj.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - fromGroup: axessplayer-shared
 
   - type: web
@@ -142,6 +170,11 @@ services:
     plan: starter
     region: oregon
     envVars:
+      # Real session verification (packages/session-auth). Public values: the project URL and anon key.
+      - key: SUPABASE_URL
+        value: https://faeyekynudyzeotbjfsj.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - fromGroup: axessplayer-shared
 
   - type: web
@@ -152,6 +185,11 @@ services:
     plan: starter
     region: oregon
     envVars:
+      # Real session verification (packages/session-auth). Public values: the project URL and anon key.
+      - key: SUPABASE_URL
+        value: https://faeyekynudyzeotbjfsj.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - fromGroup: axessplayer-shared
 
   - type: web
@@ -192,6 +230,11 @@ services:
     plan: starter
     region: oregon
     envVars:
+      # Real session verification (packages/session-auth). Public values: the project URL and anon key.
+      - key: SUPABASE_URL
+        value: https://faeyekynudyzeotbjfsj.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - fromGroup: axessplayer-shared
 
   - type: web

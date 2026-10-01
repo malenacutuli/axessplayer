@@ -9,6 +9,9 @@
     "serve": "node --import tsx src/serve.ts",
     "test": "node --import tsx --test $(find test -name '*.test.ts' 2>/dev/null)"
   },
+  "dependencies": {
+    "@axessplayer/session-auth": "workspace:*"
+  },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.0",
     "@types/node": "^20.0.0",

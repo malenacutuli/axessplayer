@@ -23,6 +23,7 @@ import { route, readJsonBody, parseUrl, type AppDeps } from "./http/app.js";
 import { InMemoryExperimentStore } from "./store.js";
 import { UnwiredPosterCandidateStore } from "./poster-candidates.js";
 import { testSessionVerifier } from "./http/auth.js";
+import { selectSessionVerifier, pgUserIdResolver } from "@axessplayer/session-auth";
 
 export interface ExperimentServerConfig {
   databaseUrl: string | undefined;
@@ -39,14 +40,20 @@ export function readConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Experim
 // Build the app deps. Production injects a real session verifier; this default wires the TEST verifier
 // and the in-memory store. The pool is accepted so a pg-backed store can replace the in-memory one
 // without touching the bridge.
-export function buildDeps(_pool?: pg.Pool): AppDeps {
+export function buildDeps(pool?: pg.Pool): AppDeps {
   // The poster candidate store is the UNWIRED store until 09_poster_candidates.sql is applied: the candidate
   // read returns an empty set (source "unwired") and /poster/select falls back to the single series poster.
   // A pg-backed store reading mobile.poster_candidates replaces this once the table is applied, without
   // touching the router or the bandit core.
   return {
     store: new InMemoryExperimentStore(),
-    session: testSessionVerifier(),
+    // Real Supabase verification when configured; the test verifier only outside production.
+    session: selectSessionVerifier(
+      { SUPABASE_URL: process.env.SUPABASE_URL, SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY, NODE_ENV: process.env.NODE_ENV },
+      testSessionVerifier,
+      "experiment server",
+      pool ? pgUserIdResolver((sql, params) => pool.query(sql, params)) : undefined,
+    ),
     posterCandidates: new UnwiredPosterCandidateStore(),
   };
 }

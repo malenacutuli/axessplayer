@@ -38,10 +38,20 @@ const verifiers: Verifiers = testVerifiers();
 
 // --- cutover gate ----------------------------------------------------------------------------------
 
-test("selectVerifiers throws under NODE_ENV=production (cutover gate)", () => {
+test("selectVerifiers uses real Supabase verification in production when configured", async () => {
+  const v = selectVerifiers({ databaseUrl: "x", nodeEnv: "production" }, undefined, {
+    SUPABASE_URL: "https://example.supabase.co",
+    SUPABASE_ANON_KEY: "anon-key",
+  });
+  // No network needed: an absent token and the bare anon key are rejected before any Supabase call.
+  assert.equal(await v.session.verifySession(null), null);
+  assert.equal(await v.session.verifySession("anon-key"), null);
+});
+
+test("selectVerifiers throws under NODE_ENV=production without Supabase config", () => {
   assert.throws(
     () => selectVerifiers({ databaseUrl: "x", nodeEnv: "production" }),
-    /cutover gate/
+    /required in production/
   );
 });
 

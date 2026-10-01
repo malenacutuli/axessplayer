@@ -8,6 +8,7 @@ import { createServer, type IncomingMessage, type ServerResponse, type Server } 
 import { isGrant, type GrantRequest } from "./grant.js";
 import { settleCheckin, settleRewardedAd, settleFollow, DAILY_AD_CAP, type AdReward } from "./rewards.js";
 import { grantFromCheckout, verifyStripeSignature, type StripeEvent } from "./stripe.js";
+import type { SessionVerifier } from "@axessplayer/session-auth";
 import {
   DEFAULT_OFFERS,
   selectPaywallPath,
@@ -81,6 +82,14 @@ export interface SettlementOptions {
   // Stripe endpoint signing secret (whsec_...). Without it the webhook refuses every request (fail closed):
   // an unsigned body must never mint coins.
   stripeWebhookSecret?: string;
+  // Verifies the viewer's Supabase session for the reward routes. The rewarded user is ALWAYS the session
+  // subject, never a userId from the body. Without a verifier the reward routes answer 503 (fail closed).
+  sessionVerifier?: SessionVerifier;
+}
+
+function bearerOf(req: IncomingMessage): string | null {
+  const m = /^Bearer\s+(.+)$/i.exec(String(req.headers.authorization ?? ""));
+  return m ? m[1].trim() : null;
 }
 
 export function createSettlementServer(sink: GrantSink, opts: SettlementOptions = {}): Server {
@@ -102,8 +111,14 @@ export function createSettlementServer(sink: GrantSink, opts: SettlementOptions 
           return res.end();
         }
         if (path === "/healthz") return send(res, 200, { ok: true });
-        if (method === "POST" && path === "/reward/ad") {
-          const r = await readJson<AdReward>(req);
+        if (method === "POST" && (path === "/reward/ad" || path === "/reward/checkin" || path === "/reward/follow")) {
+          if (!opts.sessionVerifier) return send(res, 503, { error: "reward verification not configured" });
+          const identity = await opts.sessionVerifier.verifySession(bearerOf(req));
+          if (!identity) return send(res, 401, { error: "sign_in_required" });
+          const sessionUserId = identity.userId;
+          if (path === "/reward/checkin") return await settle(res, settleCheckin(sessionUserId, utcDay()));
+          if (path === "/reward/follow") return await settle(res, settleFollow(sessionUserId));
+          const r: AdReward = { ...(await readJson<AdReward>(req)), userId: sessionUserId };
           // Server-side daily cap: count today's rewarded_ad grants from the ledger and refuse over the cap
           // BEFORE minting. The client cannot bypass it (it never holds the grant secret). A capped request
           // is a clean 429, not a silent no-op, so the UI can show the cap.
@@ -114,16 +129,6 @@ export function createSettlementServer(sink: GrantSink, opts: SettlementOptions 
             }
           }
           return await settle(res,settleRewardedAd(r));
-        }
-        if (method === "POST" && path === "/reward/checkin") {
-          const { userId } = await readJson<{ userId: string }>(req);
-          if (!userId) return send(res, 400, { error: "userId required" });
-          return await settle(res,settleCheckin(userId, utcDay()));
-        }
-        if (method === "POST" && path === "/reward/follow") {
-          const { userId } = await readJson<{ userId: string }>(req);
-          if (!userId) return send(res, 400, { error: "userId required" });
-          return await settle(res,settleFollow(userId));
         }
         if (method === "POST" && path === "/paywall/present") {
           const body = await readJson<{ userId?: string; seriesId?: string; beatVariantId?: string; sessionId?: string }>(req);

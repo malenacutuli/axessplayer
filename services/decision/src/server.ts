@@ -33,7 +33,8 @@ import pg from "pg";
 import type { Hono } from "hono";
 
 import { createDecisionApp } from "./http/app.js";
-import { testVerifiers, type Verifiers } from "./http/auth.js";
+import { testSessionVerifier, type Verifiers } from "./http/auth.js";
+import { selectSessionVerifier, pgUserIdResolver } from "@axessplayer/session-auth";
 import type { DecisionDB, DecideDeps } from "./decide.js";
 import type { CanonCandidate, CanonFacts } from "./canon.js";
 import type { Branch } from "./policy.js";
@@ -63,14 +64,10 @@ export function readConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Decisio
 
 // Choose the verifiers. In production a real JWKS-backed Verifiers MUST be injected; the test verifier is
 // refused there (CUTOVER GATE 1). Outside production the test verifier is wired for local/dev use.
-export function selectVerifiers(cfg: DecisionServerConfig): Verifiers {
-  if (cfg.nodeEnv === "production") {
-    throw new Error(
-      "decision server: real JWKS verifier wiring is a cutover gate and is not implemented; " +
-        "inject a real Verifiers before running with NODE_ENV=production"
-    );
-  }
-  return testVerifiers();
+// Real Supabase session verification whenever SUPABASE_URL + SUPABASE_ANON_KEY are set (any NODE_ENV); the
+// test verifier only outside production without them; a hard stop in production without them.
+export function selectVerifiers(cfg: DecisionServerConfig, pool?: pg.Pool, env: NodeJS.ProcessEnv = process.env): Verifiers {
+  return { session: selectSessionVerifier({ SUPABASE_URL: env.SUPABASE_URL, SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY, NODE_ENV: cfg.nodeEnv }, testSessionVerifier, "decision server", pool ? pgUserIdResolver((sql, params) => pool.query(sql, params)) : undefined) };
 }
 
 // The engine's DecisionDB port over real Postgres. Reads the content graph and per-viewer state. Read-only;
@@ -152,7 +149,7 @@ export function buildDecisionDeps(pool: pg.Pool): DecideDeps {
 // Build the production decision app: the engine deps above plus the chosen verifiers, handed to the
 // existing factory unchanged.
 export function buildDecisionApp(pool: pg.Pool, cfg: DecisionServerConfig): Hono {
-  return createDecisionApp({ decisionDeps: buildDecisionDeps(pool), verifiers: selectVerifiers(cfg) });
+  return createDecisionApp({ decisionDeps: buildDecisionDeps(pool), verifiers: selectVerifiers(cfg, pool) });
 }
 
 // --- node:http bridge: map a Node request to a Web Request, run the Hono app, write the Web Response back.

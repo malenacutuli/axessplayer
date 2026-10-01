@@ -17,7 +17,8 @@ import pg from "pg";
 import type { Hono } from "hono";
 
 import { createRecapApp } from "./http/app.js";
-import { testVerifiers } from "./http/auth.js";
+import { testSessionVerifier } from "./http/auth.js";
+import { selectSessionVerifier, pgUserIdResolver } from "@axessplayer/session-auth";
 import { PgRecapStore } from "./store.js";
 import { ConsoleEventSink } from "./events.js";
 
@@ -47,7 +48,14 @@ export function buildRecapApp(pool: pg.Pool): Hono {
   return createRecapApp({
     store: new PgRecapStore(pool),
     events: new ConsoleEventSink(),
-    verifiers: testVerifiers(),
+    verifiers: {
+      session: selectSessionVerifier(
+        { SUPABASE_URL: process.env.SUPABASE_URL, SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY, NODE_ENV: process.env.NODE_ENV },
+        testSessionVerifier,
+        "recap server",
+        pgUserIdResolver((sql, params) => pool.query(sql, params)),
+      ),
+    },
   });
 }
 

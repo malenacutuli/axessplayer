@@ -28,7 +28,8 @@ import { createServer, type IncomingMessage, type ServerResponse, type Server } 
 import type { AddressInfo } from "node:net";
 import pg from "pg";
 
-import { parseBearer, testVerifiers, type Verifiers } from "./http/auth.js";
+import { parseBearer, testSessionVerifier, type Verifiers } from "./http/auth.js";
+import { selectSessionVerifier, pgUserIdResolver } from "@axessplayer/session-auth";
 import {
   buildCalibrateUpsert,
   buildChannelHeaderQuery,
@@ -113,14 +114,10 @@ export function readConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Catalog
 // Choose the verifiers. CUTOVER GATE (consistent with services/decision): in production a real JWKS-backed
 // Verifiers MUST be injected; the test verifier is refused there. Outside production the test verifier is
 // wired for local/dev use.
-export function selectVerifiers(cfg: CatalogServerConfig): Verifiers {
-  if (cfg.nodeEnv === "production") {
-    throw new Error(
-      "catalog server: real JWKS verifier wiring is a cutover gate and is not implemented; " +
-        "inject a real Verifiers before running with NODE_ENV=production"
-    );
-  }
-  return testVerifiers();
+// Real Supabase session verification whenever SUPABASE_URL + SUPABASE_ANON_KEY are set (any NODE_ENV); the
+// test verifier only outside production without them; a hard stop in production without them.
+export function selectVerifiers(cfg: CatalogServerConfig, pool?: pg.Pool, env: NodeJS.ProcessEnv = process.env): Verifiers {
+  return { session: selectSessionVerifier({ SUPABASE_URL: env.SUPABASE_URL, SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY, NODE_ENV: cfg.nodeEnv }, testSessionVerifier, "catalog server", pool ? pgUserIdResolver((sql, params) => pool.query(sql, params)) : undefined) };
 }
 
 // Below the events count threshold, /trending falls back to recently published series so a fresh deployment
@@ -534,13 +531,13 @@ export function startServer(
 export async function runServer(): Promise<void> {
   try {
     const cfg = readConfigFromEnv();
-    const verifiers = selectVerifiers(cfg);
     const port = Number(process.env.PORT ?? 8099);
     const host = process.env.HOST ?? "0.0.0.0";
     const pool = new pg.Pool({
       connectionString: cfg.databaseUrl,
       ...(cfg.dbOptions ? { options: cfg.dbOptions } : {}),
     });
+    const verifiers = selectVerifiers(cfg, pool);
     const { port: bound } = await startServer(pool, verifiers, port, host);
     // eslint-disable-next-line no-console
     console.log(`catalog service listening on ${host}:${bound}`);

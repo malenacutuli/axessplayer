@@ -56,9 +56,9 @@ test("decision served entry: real POST /decide with no auth returns the document
   });
 });
 
-test("decision served entry: NODE_ENV=production refuses the test verifier (JWKS cutover gate)", () => {
+test("decision served entry: NODE_ENV=production without Supabase config refuses to start (no test verifier in prod)", () => {
   assert.throws(
     () => buildDecisionApp(throwingPool, { ...devCfg, nodeEnv: "production" }),
-    /cutover gate/
+    /required in production/
   );
 });

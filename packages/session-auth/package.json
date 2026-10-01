@@ -1,21 +1,19 @@
 {
-  "name": "@axessplayer/catalog",
+  "name": "@axessplayer/session-auth",
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo lint ok",
-    "serve": "node --import tsx src/serve.ts",
     "test": "node --import tsx --test $(find test -name '*.test.ts' 2>/dev/null)"
-  },
-  "dependencies": {
-    "pg": "^8.12.0",
-    "@axessplayer/session-auth": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "@types/pg": "^8.11.0",
     "tsx": "^4.19.0",
     "typescript": "^5.5.0"
   }

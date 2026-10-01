@@ -28,7 +28,8 @@ import pg from "pg";
 import type { Hono } from "hono";
 
 import { createEconomyApp } from "./http/app.js";
-import { testVerifiers, type Verifiers } from "./http/auth.js";
+import { testSessionVerifier, testServiceVerifier, type Verifiers } from "./http/auth.js";
+import { selectSessionVerifier, pgUserIdResolver } from "@axessplayer/session-auth";
 import { PgEconomyDb } from "./pgEconomyDb.js";
 
 export interface EconomyServerConfig {
@@ -61,21 +62,23 @@ export function readConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Economy
 // refused there so an unverified token scheme can never reach the ledger (the CUTOVER GATE above).
 // Outside production the test verifiers are wired for local/dev use, keyed by ECONOMY_SERVICE_SECRET (a
 // dev default is used if unset, since the test service verifier requires a non-empty secret).
-export function selectVerifiers(cfg: EconomyServerConfig): Verifiers {
-  if (cfg.nodeEnv === "production") {
-    throw new Error(
-      "economy server: real JWKS verifier wiring is a cutover gate and is not implemented; " +
-        "inject a real Verifiers before running with NODE_ENV=production"
-    );
+// Real Supabase session verification whenever SUPABASE_URL + SUPABASE_ANON_KEY are set (any NODE_ENV); the
+// test verifier only outside production without them; a hard stop in production without them.
+export function selectVerifiers(cfg: EconomyServerConfig, pool?: pg.Pool, env: NodeJS.ProcessEnv = process.env): Verifiers {
+  if (cfg.nodeEnv === "production" && !(cfg.serviceSecret && cfg.serviceSecret.length > 0)) {
+    throw new Error("economy server: ECONOMY_SERVICE_SECRET is required in production (service-to-service /grant auth)");
   }
   const secret = cfg.serviceSecret && cfg.serviceSecret.length > 0 ? cfg.serviceSecret : "dev-service-secret";
-  return testVerifiers(secret);
+  return {
+    session: selectSessionVerifier({ SUPABASE_URL: env.SUPABASE_URL, SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY, NODE_ENV: cfg.nodeEnv }, testSessionVerifier, "economy server", pool ? pgUserIdResolver((sql, params) => pool.query(sql, params)) : undefined),
+    service: testServiceVerifier(secret),
+  };
 }
 
 // Build the production economy app: a service-role PgEconomyDb over a node-postgres Pool, plus the chosen
 // verifiers, handed to the existing factory unchanged.
 export function buildEconomyApp(pool: pg.Pool, cfg: EconomyServerConfig): Hono {
-  return createEconomyApp({ db: new PgEconomyDb(pool), verifiers: selectVerifiers(cfg) });
+  return createEconomyApp({ db: new PgEconomyDb(pool), verifiers: selectVerifiers(cfg, pool) });
 }
 
 // --- node:http bridge: map a Node request to a Web Request, run the Hono app, write the Web Response back.

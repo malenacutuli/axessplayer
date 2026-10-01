@@ -11,9 +11,14 @@
     "serve": "node --import tsx src/serve.ts",
     "test": "node --import tsx --test $(find src -name '*.test.ts' 2>/dev/null)"
   },
+  "dependencies": {
+    "@axessplayer/session-auth": "workspace:*",
+    "pg": "^8.12.0"
+  },
   "devDependencies": {
     "typescript": "^5.5.0",
     "tsx": "^4.19.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.11.0"
   }
 }

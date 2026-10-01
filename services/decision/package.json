@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "hono": "^4.12.25",
-    "pg": "^8.12.0"
+    "pg": "^8.12.0",
+    "@axessplayer/session-auth": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.5.0",
