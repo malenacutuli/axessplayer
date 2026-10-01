@@ -73,22 +73,30 @@ are, but they are unversioned.
 
 0 edge functions, no `supabase_migrations` schema, 1 secret. **Not a usable staging environment.**
 
-## 3. Cloudflare (A3): NOT VERIFIED LIVE
+## 3. Cloudflare (A3): verified live 2026-10-01
 
-wrangler is not logged in (`wrangler whoami`: Not logged in), so the account could not be inventoried. Inferred from
-code and secrets only:
+Account "Malena@axessible.ai's Account" (`910e9ed4…`), read via wrangler OAuth.
 
-- R2 is in use. Secrets are present.
-- Buckets referenced in code:
-  - `axessplayer-masters` (hardcoded default in axessplayer-r2-presign / r2-upload)
-  - the shared Axessible bucket (`CLOUDFLARE_R2_BUCKET_NAME`)
-- Public delivery is via **`pub-….r2.dev`** URLs, hardcoded in 2 functions and `_shared/r2-config.ts`. Cloudflare
-  docs: r2.dev "is rate-limited and should only be used for development purposes."
-- No custom R2 domain, CDN cache rules or Cloudflare Stream usage was found in code.
-- axessible.ai and axessplayer.com sit behind Cloudflare (`server: cloudflare`, Lovable edge).
+| Bucket | Region | Objects / size | Public access | Custom domain | CORS origins | Lifecycle | Event notifications |
+|---|---|---|---|---|---|---|---|
+| **axessplayer-masters** (created 2026-06-20) | WEUR | **2 / 12.6 MB** | **r2.dev enabled** (`pub-3b4a…`, matches the hardcoded fallback) | none | axessplayer-studio.vercel.app, localhost:5173 | abort incomplete MPU after 7d | none |
+| axessvideo | EEUR | 0 / 0 B | r2.dev disabled | none | a Lovable preview origin, localhost | abort MPU 7d | none |
+| **axessvideo-uploads** | EEUR | 1 / 6.3 MB | **r2.dev enabled** (`pub-39b7…`, matches `_shared/r2-config.ts`) | none | a Lovable preview origin, localhost | abort MPU 7d | none |
+| helios-k8s-audit, moltbot-data | | | disabled | | | | other projects, not part of this platform |
 
-To verify: run `wrangler login`, then `wrangler r2 bucket list` and `wrangler r2 bucket domain list <bucket>`, and
-check Stream in the dashboard.
+What this shows:
+- **R2 is effectively unused for the catalogue.** 3 objects totalling about 19 MB. Frutinovela and the other media
+  live in Supabase Storage (the public `videos`, `audio-descriptions`, `dubbed-audio` and sign-language buckets).
+- **No zones for the platform's domains.** The only zone on the account is `swissbrain.ai` (Pro, pending; a
+  different project). axessplayer.com, humanaxess.com and axessible.ai are not on this account; their DNS is at
+  IONOS/GoDaddy, and the Cloudflare edge on axessplayer.com belongs to Lovable. **An R2 custom domain or Cloudflare
+  cache in front of R2 therefore requires adding a zone first.**
+- No R2 event notifications and no Queues, so nothing is triggered on upload.
+- Workers: `helios-k8s-audit`, `moltbot-sandbox` (other projects). No Pages projects.
+- **Stream: unknown.** The wrangler OAuth token has no Stream scope (API returned "Authentication error"). Check in
+  the dashboard under Stream, or use an API token with Stream:Read.
+
+Cloudflare docs: r2.dev "is rate-limited and should only be used for development purposes."
 
 ## 4. Frontend hosting (A4)
 
@@ -110,8 +118,16 @@ Also in the same Vercel team, and unrelated to this project: swissbrain-ai, swis
 
 **Backend services: Render (`render.yaml`, region oregon, plan starter).** All 14 hosts return
 `503 Service Suspended` (`x-render-routing: suspend`): content, manifest, decision, economy, events, settlement,
-recap, library, ingestion, identity, experiment, catalog, brand, admin-api. **The streaming product currently has no
-working backend.** Why they were suspended (billing or manual) is unknown; only the Render dashboard can say.
+recap, library, ingestion, identity, experiment, catalog, brand, admin-api. Why they were suspended (billing or manual) is unknown; only the Render dashboard can say.
+
+**Update 2026-10-01 15:11 UTC: Render re-activated.** All 14 respond:
+- 200: content, events, settlement, experiment, brand
+- 404 (no `/healthz` route): manifest, decision, economy, recap, library, ingestion, catalog, admin-api
+- 401: identity
+
+`render.yaml` sets `NODE_ENV=staging` for **decision and economy**. That bypasses the production auth gate, so the
+live services accept unsigned `session:<uuid>` tokens. With Render live, the G0 exposures (settlement webhook,
+experiment, decision/economy test verifier) are **reachable now**.
 
 ## 5. CI/CD (A5)
 

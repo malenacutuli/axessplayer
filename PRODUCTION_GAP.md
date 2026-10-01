@@ -12,7 +12,7 @@ Effort: S = days, M = 1–3 weeks, L = 3+ weeks.
 |---|---|---|---|---|---|---|---|
 | **G0** | **Open money and credit endpoints** | Unauthenticated live functions (`axessplayer-ltx/runway/seedance-video`, `axessplayer-stitch`) spend paid credits for anyone holding the public anon key. The settlement webhook mints coins without a Stripe signature. `experiment` accepts forged sessions. Anon can upload to public prod storage. | Require a real user JWT plus an ownership check in every `axessplayer-*` function, or disable them. Add `stripe.webhooks.constructEvent` to settlement. Gate `experiment` like the other services. Drop the anon storage write policies (additive migration that replaces them with owner-scoped ones). Recover all 22 unversioned functions into the repo first | build | S–M | **high**: active financial exposure on live functions | none, do first |
 | **G1** | **Real auth** | Services accept unsigned `session:<uuid>`. Web uses `demo-session-token` and studio auth is local. Gated services refuse to start in production, so the backend cannot run in prod at all | Implement a JWKS verifier (jose against Supabase `SUPABASE_JWKS`) in the shared auth module. Wire web, studio and mobile Supabase sessions into the service clients | build | M | high | G0 |
-| **G2** | **Production host for backend services and the encode worker** (decision **D1**) | All 14 Render services are suspended, so there is no working backend. `render.yaml` uses **Oregon** while the database is in **Zurich**, adding a transatlantic round trip to every query | See D1 below | buy | S to resume, M to re-region | medium | Malena decision; G1 before prod traffic |
+| **G2** | **Production host for backend services and the encode worker** (decision **D1**) | Render was re-activated 2026-10-01 and all 14 respond, but decision/economy run `NODE_ENV=staging` (test verifier) and 8 services have no health route. `render.yaml` uses **Oregon** while the database is in **Zurich**, adding a transatlantic round trip to every query | See D1 below | buy | S to resume, M to re-region | medium | Malena decision; G1 before prod traffic |
 | **G3** | **Transcode-to-HLS + delivery** (decision **D2**) | No production transcode or ABR. Raw masters play progressively from rate-limited `*.r2.dev` and public Supabase URLs. No signed playback for paid episodes | See D2 below | buy (B) or build (A) | B: S–M. A: L | medium | D1 (Path A only), G1 (signed tokens) |
 | **G4** | **Media security** | All media is public, there's no CSP or security headers, and ACAO is `*` everywhere. Paid episodes can be hot-linked | Signed playback tokens (Stream signed URLs or R2 behind a Worker/HMAC). Allowed-origins list. CSP and security headers in `vercel.json`. Restrict CORS to the app domains. DRM later, if a studio contract requires it | build | M | medium | G3 |
 | **G5** | **CI green and a promotion path** | CI on feat is red because the `e2e-matrix` suite calls live Render, and every Vercel git build of feat fails. Production deploys are manual CLI pushes plus Lovable's implicit `main` sync. Staging Supabase is empty | Move `e2e-matrix` out of the default `turbo test` into a post-deploy job. Diagnose the Vercel build error. Fix the shared `VERCEL_PROJECT_ID`. Seed staging (functions, schema via `db pull`). Define a promotion path: PR → preview against staging → manual promote to prod. Merge feat into `main` only after CI is green | build | M | low | D1 |
@@ -66,6 +66,14 @@ encoder or the manifest.
 | Time to live | L | S–M |
 | Fit with adaptive per-beat cuts | full control: can stitch chosen and prefetched variants into one playlist (the 01_ARCHITECTURE design) | each variant is its own Stream video. The player switches sources per beat (as `Player.tsx` already does). Server-side multi-variant playlist stitching is harder |
 | Ops burden | encoder fleet, queue, ladders, failures | near zero |
+
+**Verified Cloudflare state (2026-10-01) that affects this choice:**
+- R2 holds only 3 objects (about 19 MB); the catalogue media is in Supabase Storage.
+- The account has **no zone** for any platform domain, so Path A also needs a domain moved or added to Cloudflare
+  before R2 can sit behind a custom domain and the CDN.
+- Path B delivers from Cloudflare's own Stream hostnames and needs no zone.
+- So the "reuse R2" argument for Path A is weak: almost nothing is in R2 yet, and either path starts with a media
+  migration out of Supabase Storage.
 
 **Recommendation: Path B for launch, with Path A kept as the cost-down path at scale.**
 - The "reuse" in Path A is mostly R2 plus the player, and Path B keeps both. The parts Path A would rebuild (encoder,
