@@ -16,6 +16,7 @@ import assert from "node:assert/strict";
 import { freshDb, emptyDb, pgliteContentDb, FIX, TEST_CREATOR } from "./harness.js";
 import { sqlOwnership } from "../src/ownership.js";
 import { sqlMediaStore } from "../src/mediaStore.js";
+import { creatorOverview } from "../src/creatorStats.js";
 import { verifyStreamSignature, type StreamApi } from "../src/stream.js";
 import { createHmac } from "node:crypto";
 import { createContentApp } from "../src/http/app.js";
@@ -63,6 +64,7 @@ function appFor(db: Awaited<ReturnType<typeof freshDb>>, opts: { serviceSecret?:
   const app = createContentApp({
     db: pgliteContentDb(db),
     media: sqlMediaStore((sql, params) => db.query(sql, params) as never),
+    creatorOverview: creatorOverview((sql, params) => db.query(sql, params) as never),
     ...(opts.stream ? { stream: opts.stream } : {}),
     auth: {
       session: testSessions,
@@ -542,4 +544,15 @@ test("premium cuts: no URL in the graph for non-owners; playback needs the entit
   const unlocked = await app.request(`/variants/${premium}/playback`, { headers: { authorization: asUser(OTHER_CREATOR) } });
   assert.equal(unlocked.status, 200);
   assert.ok(((await unlocked.json()) as { playback_url: string }).playback_url);
+});
+
+test("creator overview counts only the signed-in creator's series; signed out is 401", async () => {
+  const db = await freshDb();
+  const app = appFor(db);
+  const mine = (await (await app.request("/creator/overview")).json()) as { series: { total: number }; variants: { total: number } };
+  assert.ok(mine.series.total >= 1);
+  assert.ok(mine.variants.total >= 1);
+  const theirs = (await (await app.request("/creator/overview", { headers: { authorization: asUser(OTHER_CREATOR) } })).json()) as { series: { total: number }; variants: { total: number } };
+  assert.deepEqual([theirs.series.total, theirs.variants.total], [0, 0]);
+  assert.equal((await app.request("/creator/overview", { headers: { authorization: "" } })).status, 401);
 });

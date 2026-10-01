@@ -24,7 +24,7 @@ export function useDashboard(reloadToken = 0): DashboardState {
   useEffect(() => {
     let alive = true;
     setState({ status: "loading" });
-    Promise.all([client.getAdminOverview(), client.getFeed()])
+    Promise.all([client.getCreatorOverview(), client.getFeed()])
       .then(([overview, feed]) => {
         if (alive) setState({ status: "loaded", data: { overview, feed } });
       })

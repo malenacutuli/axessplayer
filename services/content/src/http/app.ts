@@ -83,6 +83,8 @@ export interface AppDeps {
   media?: MediaStore;
   // Cloudflare Stream API (uploads, webhook verification, signed playback). Absent: upload routes answer 501.
   stream?: StreamApi;
+  // Creator-scoped dashboard numbers (same shape as the operator overview, own series only).
+  creatorOverview?: (ownerId: string) => Promise<unknown>;
 }
 
 type Ctx = { req: { header: (k: string) => string | undefined }; json: (b: unknown, s?: number) => Response };
@@ -413,6 +415,14 @@ export function createContentApp(deps: AppDeps): Hono {
     }
     const result = await handleUpdateSeries(c.req.param("id"), raw, db);
     return c.json(result.body, result.status as 200 | 400 | 404);
+  });
+
+  // GET /creator/overview : the signed-in creator's own dashboard numbers (their series only).
+  app.get("/creator/overview", async (c) => {
+    const uid = await signedIn(c);
+    if (uid instanceof Response) return uid;
+    if (!deps.creatorOverview) return c.json({ error: "creator_overview_unavailable" }, 501);
+    return c.json((await deps.creatorOverview(uid)) as object, 200);
   });
 
   // GET /admin/overview : read-only operator dashboard aggregates (content + ledger + decisions).

@@ -20,7 +20,7 @@ export function OperatorPanel(): JSX.Element {
   const load = useCallback(() => {
     setState({ status: "loading" });
     client
-      .getAdminOverview()
+      .getCreatorOverview()
       .then((data) => setState({ status: "loaded", data }))
       .catch((err: unknown) => setState({ status: "error", message: err instanceof Error ? err.message : String(err) }));
   }, [client]);

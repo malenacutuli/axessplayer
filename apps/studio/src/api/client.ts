@@ -168,6 +168,13 @@ export class ContentClient {
       headers: { accept: "application/json" },
     });
     return this.parse<AdminOverview>(res);
+  }  // GET /creator/overview : the signed-in creator's own dashboard numbers (same shape, own series only).
+  async getCreatorOverview(): Promise<AdminOverview> {
+    const res = await this.fetchImpl(joinUrl(this.baseUrl, "/creator/overview"), {
+      method: "GET",
+      headers: { accept: "application/json" },
+    });
+    return this.parse<AdminOverview>(res);
   }
 
   createSeries(body: CreateSeriesBody): Promise<SeriesRow> {

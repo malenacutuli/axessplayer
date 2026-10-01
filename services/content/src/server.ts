@@ -26,6 +26,7 @@ import { PgReadingDb } from "./pgReadingDb.js";
 import { makePosterGenerator } from "./poster.js";
 import { sqlOwnership } from "./ownership.js";
 import { sqlMediaStore } from "./mediaStore.js";
+import { creatorOverview } from "./creatorStats.js";
 import { createStreamApi, streamConfigFromEnv } from "./stream.js";
 import { selectSessionVerifier, pgUserIdResolver, type SessionVerifier } from "@axessplayer/session-auth";
 
@@ -101,6 +102,7 @@ export function buildContentApp(pool: pg.Pool, env: NodeJS.ProcessEnv = process.
     eventsBaseUrl,
     auth,
     media,
+    creatorOverview: creatorOverview((sql, params) => pool.query(sql, params)),
     ...(stream ? { stream } : {}),
     ...(posterGen ? { posterGen } : {}),
   });

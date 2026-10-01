@@ -45,7 +45,7 @@ function makeFetch(opts?: { failOverview?: boolean; emptyOverview?: boolean; emp
     const url = new URL(typeof input === "string" ? input : input.toString());
     const json = (status: number, body: unknown) =>
       new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-    if (url.pathname === "/admin/overview") {
+    if (url.pathname === "/creator/overview") {
       if (opts?.failOverview) return json(500, { error: "boom" });
       if (opts?.emptyOverview) {
         return json(200, {
