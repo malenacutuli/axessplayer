@@ -1,21 +1,29 @@
 // Creator Studio auth shell (prompt 22, section 1). When no creator is signed in, this is the only surface:
-// pick a tier (solo / agency / production) and enter the studio. There is no creator-auth backend yet, so
-// "sign in" is a local session that unlocks the studio. Agency/production reveal a coming-soon note for
-// their advanced multi-X capability but still let the creator in (the tier shapes which sections appear).
+// sign in with Supabase (email + password, create account, or Google) and pick a tier (solo / agency /
+// production). Agency/production reveal a coming-soon note for their advanced multi-X capability but still
+// let the creator in (the tier shapes which sections appear). Dev builds without Supabase config keep a
+// local name-only sign-in for local stacks; a production build without config says so instead.
 // Built on the @axessplayer/ui STUDIO skin. WCAG AA: a real form, labelled controls, one focal action.
 // No em dashes.
 import { useState } from "react";
 import { Button, SkinScope } from "@axessplayer/ui";
 import { CREATOR_TIERS, type CreatorTier, useCreatorAuth } from "../auth/creatorAuth.js";
+import { isDevBuild } from "../auth/supabase.js";
 
 export function AuthShell(): JSX.Element {
-  const { signIn } = useCreatorAuth();
+  const auth = useCreatorAuth();
+  const { signIn } = auth;
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [tier, setTier] = useState<CreatorTier>("solo");
+  const real = auth.supabaseAuth;
+  const localAllowed = !real && isDevBuild();
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    signIn({ name: name.trim() || "Axessible Studio", tier });
+    if (real) void auth.signInWithPassword(email.trim(), password, tier);
+    else if (localAllowed) signIn({ name: name.trim() || "Axessible Studio", tier });
   };
 
   return (
@@ -34,18 +42,35 @@ export function AuthShell(): JSX.Element {
           </p>
 
           <form onSubmit={onSubmit} data-testid="auth-form" aria-describedby="auth-help">
+            {real ? (
+              <>
+                <div className="fld">
+                  <label htmlFor="creator-email">Email</label>
+                  <input id="creator-email" name="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                </div>
+                <div className="fld">
+                  <label htmlFor="creator-password">Password</label>
+                  <input id="creator-password" name="password" type="password" autoComplete="current-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
+                </div>
+              </>
+            ) : localAllowed ? (
             <div className="fld">
-              <label htmlFor="creator-name">Creator or studio name</label>
-              <input
-                id="creator-name"
-                name="creator-name"
-                type="text"
-                autoComplete="organization"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Axessible Studio"
-              />
-            </div>
+                <label htmlFor="creator-name">Creator or studio name</label>
+                <input
+                  id="creator-name"
+                  name="creator-name"
+                  type="text"
+                  autoComplete="organization"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Axessible Studio"
+                />
+              </div>
+            ) : (
+              <p className="muted" data-testid="auth-unconfigured" role="alert">
+                Studio sign-in is not configured for this deployment.
+              </p>
+            )}
 
             <fieldset className="tiers" data-testid="tier-picker">
               <legend className="fld-legend">Choose a tier</legend>
@@ -76,9 +101,29 @@ export function AuthShell(): JSX.Element {
               ))}
             </fieldset>
 
-            <Button type="submit" variant="primary" size="lg" data-testid="auth-submit" style={{ width: "100%", marginTop: 6 }}>
-              Enter studio
+            {auth.error && (
+              <p className="err" role="alert" data-testid="auth-error">
+                {auth.error}
+              </p>
+            )}
+            {auth.notice && (
+              <p className="muted" role="status" data-testid="auth-notice">
+                {auth.notice}
+              </p>
+            )}
+            <Button type="submit" variant="primary" size="lg" data-testid="auth-submit" disabled={auth.busy || (!real && !localAllowed)} style={{ width: "100%", marginTop: 6 }}>
+              {real ? "Sign in" : "Enter studio"}
             </Button>
+            {real && (
+              <>
+                <Button type="button" variant="secondary" size="lg" data-testid="auth-signup" disabled={auth.busy} style={{ width: "100%", marginTop: 8 }} onClick={() => void auth.signUpWithPassword(email.trim(), password, tier)}>
+                  Create account
+                </Button>
+                <Button type="button" variant="secondary" size="lg" data-testid="auth-google" disabled={auth.busy} style={{ width: "100%", marginTop: 8 }} onClick={() => void auth.signInWithGoogle(tier)}>
+                  Continue with Google
+                </Button>
+              </>
+            )}
             <p id="auth-help" className="muted" style={{ fontSize: 12, marginTop: 12 }}>
               This is a creator workspace. Your identity is never sent in content requests.
             </p>

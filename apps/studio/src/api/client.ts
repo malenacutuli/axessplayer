@@ -23,6 +23,7 @@ import type {
   ApiError,
 } from "./contractGap.js";
 import { flattenGraph, type FlatGraph } from "./flattenGraph.js";
+import { withStudioAuth } from "./sessionToken.js";
 
 // CONTRACT BINDING (reads): assert the documented graph route and its path-param type exist in the
 // codegen. These types are compile-time only; if content.yaml drops or renames the route or the {id}
@@ -98,7 +99,8 @@ export class ContentClient {
     // Bind the global fetch to its receiver. A bare `fetch` reference is detached, and the browser's
     // fetch is unforgeable: an unbound call throws "Failed to execute 'fetch' on 'Window': Illegal
     // invocation". Tests inject fetchImpl, so this branch only runs in the browser.
-    this.fetchImpl = opts.fetchImpl ?? globalThis.fetch.bind(globalThis);
+    // Every request carries the signed-in creator's bearer (api/sessionToken.ts).
+    this.fetchImpl = withStudioAuth(opts.fetchImpl ?? globalThis.fetch.bind(globalThis));
   }
 
   // GET /series/{id}/graph : the raw NESTED graph as the service returns it.

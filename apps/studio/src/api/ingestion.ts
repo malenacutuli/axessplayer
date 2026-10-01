@@ -10,6 +10,8 @@
 //
 // The base URL is a PUBLIC origin only (no secrets here). Same-origin default so the dev proxy can route
 // the /jobs and /produce prefixes to the live ingestion service, mirroring the content client. No em dashes.
+import { withStudioAuth } from "./sessionToken.js";
+import { isDevBuild } from "../auth/supabase.js";
 
 export type StageStatus = "queued" | "running" | "ready" | "failed" | "needs_review";
 export type JobState = "queued" | "running" | "partial" | "done" | "failed";
@@ -101,7 +103,8 @@ export class IngestionClient {
     this.baseUrl = opts.baseUrl;
     this.token = opts.token;
     // Bind global fetch to its receiver: a detached browser fetch throws "Illegal invocation". Tests inject.
-    this.fetchImpl = opts.fetchImpl ?? globalThis.fetch.bind(globalThis);
+    // Every request carries the signed-in creator's bearer (api/sessionToken.ts).
+    this.fetchImpl = withStudioAuth(opts.fetchImpl ?? globalThis.fetch.bind(globalThis));
   }
 
   // Request headers, including the session bearer token when configured.
@@ -165,7 +168,9 @@ export function resolveIngestionBaseUrl(env?: Record<string, string | undefined>
 
 // Resolve the session-authed creator token (session:<uuid>) the ingestion service requires. Same token the
 // catalog/content clients use (VITE_CREATOR_SESSION_TOKEN), with VITE_SESSION_TOKEN as a fallback.
+// A fixed env token is a dev-build convenience only; production uses the creator's Supabase session.
 export function resolveIngestionToken(env?: Record<string, string | undefined>): string | undefined {
+  if (!env && !isDevBuild()) return undefined;
   const source = env ?? readImportMetaEnv();
   const t = source?.VITE_CREATOR_SESSION_TOKEN ?? source?.VITE_SESSION_TOKEN;
   return t && t.length > 0 ? t : undefined;

@@ -293,7 +293,9 @@ test("HOP 6 both arms: treatment (intensity 5) gets the tense cut; control gets 
   const row = await pgh.pool.query("select propensity from public.decision_log where id = $1", [
     cBody.decision_id,
   ]);
-  assert.equal(row.rows[0].propensity, null, "control/deterministic decision logs null propensity");
+  // Deterministic decisions log propensity 1.0 (decide.ts DETERMINISTIC_PROPENSITY, the K1/T1 fix since
+  // 96effe7): every logged row has a strictly positive propensity so off-policy estimators never divide by 0.
+  assert.equal(Number(row.rows[0].propensity), 1, "control/deterministic decision logs propensity 1.0");
 });
 
 test("HOP 7 premium own-once: /spend unlocks the premium ending, deducts 5, and a replay + a distinct-txn buy are both no-ops", async () => {

@@ -14,6 +14,7 @@ import type {
   ChannelDetail,
   ChannelAnalytics,
 } from "./catalogTypes.js";
+import { withStudioAuth } from "./sessionToken.js";
 
 export class CatalogApiError extends Error {
   readonly status: number;
@@ -51,7 +52,8 @@ export class CatalogClient {
     this.token = opts.token ?? null;
     // Bind the global fetch to its receiver (the browser fetch is unforgeable and throws on a detached call).
     // Tests inject fetchImpl, so this branch only runs in the browser.
-    this.fetchImpl = opts.fetchImpl ?? globalThis.fetch.bind(globalThis);
+    // Every request carries the signed-in creator's bearer (api/sessionToken.ts).
+    this.fetchImpl = withStudioAuth(opts.fetchImpl ?? globalThis.fetch.bind(globalThis));
   }
 
   // GET /series/:id/graph : the authored branch graph (nodes/edges/memoryVars/canon/pricing).

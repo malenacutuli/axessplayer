@@ -2,6 +2,7 @@
 // model-agnostic router + consistency QA + the consent + cost gates and returns the accepted shot, the
 // attempt log, and the QA pass-rate. Reads VITE_GENERATION_BASE_URL + the creator session token. The default
 // deployed backend is the deterministic fake (no real spend); real model spend is gated server-side. No em dashes.
+import { studioAuthHeader } from "./sessionToken.js";
 
 type EnvBag = Record<string, string | undefined>;
 
@@ -15,14 +16,14 @@ function readEnv(): EnvBag {
 
 export interface GenerationConfig {
   baseUrl: string;
-  token: string;
 }
 
+// The bearer is the signed-in creator's session (api/sessionToken.ts), attached per request, so only the base
+// URL is configuration.
 export function generationConfig(env: EnvBag = readEnv()): GenerationConfig | null {
   const baseUrl = env.VITE_GENERATION_BASE_URL?.trim();
-  const token = env.VITE_CREATOR_SESSION_TOKEN?.trim() ?? env.VITE_SESSION_TOKEN?.trim();
-  if (!baseUrl || !token) return null;
-  return { baseUrl: baseUrl.replace(/\/$/, ""), token };
+  if (!baseUrl) return null;
+  return { baseUrl: baseUrl.replace(/\/$/, "") };
 }
 
 export function isGenerationConfigured(): boolean {
@@ -118,7 +119,7 @@ export async function generateEpisode(
   const fetchImpl = opts.fetchImpl ?? fetch;
   const cfg = generationConfig();
   if (!cfg) throw new GenerationError(0, "Generation is not configured for this build (set VITE_GENERATION_BASE_URL).");
-  const headers = { "content-type": "application/json", authorization: `Bearer ${cfg.token}`, accept: "application/json" };
+  const headers = { "content-type": "application/json", accept: "application/json", ...(await studioAuthHeader()) };
   const start = await fetchImpl(`${cfg.baseUrl}/episode`, { method: "POST", headers, body: JSON.stringify(input) });
   const startBody = (await start.json().catch(() => ({}))) as Record<string, unknown>;
   if (start.status !== 202 && !start.ok) throw new GenerationError(start.status, String(startBody.error ?? `error_${start.status}`));
@@ -143,7 +144,7 @@ export async function generateShot(
   const fetchImpl = opts.fetchImpl ?? fetch;
   const cfg = generationConfig();
   if (!cfg) throw new GenerationError(0, "Generation is not configured for this build (set VITE_GENERATION_BASE_URL).");
-  const headers = { "content-type": "application/json", authorization: `Bearer ${cfg.token}`, accept: "application/json" };
+  const headers = { "content-type": "application/json", accept: "application/json", ...(await studioAuthHeader()) };
 
   const start = await fetchImpl(`${cfg.baseUrl}/generate`, {
     method: "POST",
