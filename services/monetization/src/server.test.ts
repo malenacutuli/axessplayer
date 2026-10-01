@@ -5,6 +5,7 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
+import { createHmac } from "node:crypto";
 import { createSettlementServer, type GrantSink } from "./server.js";
 import type { GrantRequest } from "./grant.js";
 
@@ -17,14 +18,29 @@ const sink: GrantSink = {
 };
 
 let base: string;
-const server = createSettlementServer(sink);
+const WHSEC = "whsec_test_secret";
+const server = createSettlementServer(sink, { stripeWebhookSecret: WHSEC });
+const unconfigured = createSettlementServer(sink);
+let unconfiguredBase: string;
 before(async () => {
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  await new Promise<void>((r) => unconfigured.listen(0, "127.0.0.1", r));
+  unconfiguredBase = `http://127.0.0.1:${(unconfigured.address() as AddressInfo).port}`;
 });
-after(() => server.close());
+after(() => {
+  server.close();
+  unconfigured.close();
+});
 
 const post = (path: string, body: unknown) => fetch(`${base}${path}`, { method: "POST", body: JSON.stringify(body) });
+
+// A Stripe-shaped signed webhook delivery: Event wrapper + Stripe-Signature over "<t>.<raw body>".
+const sign = (raw: string, secret = WHSEC, t = Math.floor(Date.now() / 1000)) =>
+  `t=${t},v1=${createHmac("sha256", secret).update(`${t}.${raw}`).digest("hex")}`;
+const event = (session: unknown, type = "checkout.session.completed") => JSON.stringify({ id: "evt_1", type, data: { object: session } });
+const webhook = (raw: string, signature?: string, at = base) =>
+  fetch(`${at}/stripe/webhook`, { method: "POST", body: raw, headers: signature ? { "stripe-signature": signature } : {} });
 
 describe("grant settlement surface", () => {
   it("settles a verified rewarded ad with the impression-keyed grant", async () => {
@@ -46,7 +62,8 @@ describe("grant settlement surface", () => {
   });
   it("settles a paid TEST-mode Stripe checkout to an IAP grant", async () => {
     const session = { id: "cs_test_9", payment_status: "paid", livemode: false, metadata: { userId: "u1", offerId: "pack_medium" } };
-    const r = await (await post("/stripe/webhook", session)).json();
+    const raw = event(session);
+    const r = await (await webhook(raw, sign(raw))).json();
     assert.equal(r.granted, true);
     assert.equal(r.type, "iap");
     assert.equal(r.amount, 120);
@@ -54,8 +71,41 @@ describe("grant settlement surface", () => {
   });
   it("refuses a livemode Stripe session (test mode only until the live key is enabled)", async () => {
     const session = { id: "cs_live_1", payment_status: "paid", livemode: true, metadata: { userId: "u1", offerId: "pack_small" } };
-    const r = await (await post("/stripe/webhook", session)).json();
+    const raw = event(session);
+    const r = await (await webhook(raw, sign(raw))).json();
     assert.equal(r.granted, false);
     assert.match(r.skipped, /livemode/);
+  });
+  it("refuses an unsigned webhook and never grants", async () => {
+    const before = grants.length;
+    const raw = event({ id: "cs_test_forged", payment_status: "paid", livemode: false, metadata: { userId: "u1", offerId: "pack_large" } });
+    const res = await webhook(raw);
+    assert.equal(res.status, 400);
+    assert.equal(grants.length, before);
+  });
+  it("refuses a webhook signed with the wrong secret", async () => {
+    const raw = event({ id: "cs_test_x", payment_status: "paid", livemode: false, metadata: { userId: "u1", offerId: "pack_small" } });
+    assert.equal((await webhook(raw, sign(raw, "whsec_wrong"))).status, 400);
+  });
+  it("refuses a body tampered after signing", async () => {
+    const raw = event({ id: "cs_test_y", payment_status: "paid", livemode: false, metadata: { userId: "u1", offerId: "pack_small" } });
+    const tampered = raw.replace("pack_small", "pack_large");
+    assert.equal((await webhook(tampered, sign(raw))).status, 400);
+  });
+  it("refuses a replayed signature older than the tolerance window", async () => {
+    const raw = event({ id: "cs_test_z", payment_status: "paid", livemode: false, metadata: { userId: "u1", offerId: "pack_small" } });
+    const old = Math.floor(Date.now() / 1000) - 3600;
+    assert.equal((await webhook(raw, sign(raw, WHSEC, old))).status, 400);
+  });
+  it("ignores other signed event types without granting", async () => {
+    const before = grants.length;
+    const raw = event({ id: "cs_test_e" }, "checkout.session.expired");
+    const r = await (await webhook(raw, sign(raw))).json();
+    assert.equal(r.granted, false);
+    assert.equal(grants.length, before);
+  });
+  it("fails closed with 503 when no signing secret is configured", async () => {
+    const raw = event({ id: "cs_test_n", payment_status: "paid", livemode: false, metadata: { userId: "u1", offerId: "pack_small" } });
+    assert.equal((await webhook(raw, sign(raw), unconfiguredBase)).status, 503);
   });
 });

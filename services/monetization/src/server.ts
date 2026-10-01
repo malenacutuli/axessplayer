@@ -7,7 +7,7 @@
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
 import { isGrant, type GrantRequest } from "./grant.js";
 import { settleCheckin, settleRewardedAd, settleFollow, DAILY_AD_CAP, type AdReward } from "./rewards.js";
-import { grantFromCheckout, type CheckoutSession } from "./stripe.js";
+import { grantFromCheckout, verifyStripeSignature, type StripeEvent } from "./stripe.js";
 import {
   DEFAULT_OFFERS,
   selectPaywallPath,
@@ -35,10 +35,14 @@ function send(res: ServerResponse, code: number, body: unknown): void {
   res.end(JSON.stringify(body));
 }
 
-async function readJson<T>(req: IncomingMessage): Promise<T> {
+async function readRaw(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const c of req) chunks.push(c as Buffer);
-  const raw = Buffer.concat(chunks).toString("utf8");
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+async function readJson<T>(req: IncomingMessage): Promise<T> {
+  const raw = await readRaw(req);
   return (raw ? JSON.parse(raw) : {}) as T;
 }
 
@@ -74,6 +78,9 @@ export interface SettlementOptions {
   logPaywall?: (e: PaywallPresentation) => Promise<void>;
   // Deterministic rng for the path bandit in tests. Defaults to Math.random in production.
   rng?: () => number;
+  // Stripe endpoint signing secret (whsec_...). Without it the webhook refuses every request (fail closed):
+  // an unsigned body must never mint coins.
+  stripeWebhookSecret?: string;
 }
 
 export function createSettlementServer(sink: GrantSink, opts: SettlementOptions = {}): Server {
@@ -156,8 +163,17 @@ export function createSettlementServer(sink: GrantSink, opts: SettlementOptions 
           });
         }
         if (method === "POST" && path === "/stripe/webhook") {
-          const session = await readJson<CheckoutSession>(req);
-          return await settle(res,grantFromCheckout(session, offers)); // livemode refused inside (test mode only)
+          if (!opts.stripeWebhookSecret) return send(res, 503, { error: "stripe webhook not configured" });
+          const raw = await readRaw(req);
+          const sig = req.headers["stripe-signature"];
+          if (!verifyStripeSignature(raw, Array.isArray(sig) ? sig[0] : sig, opts.stripeWebhookSecret)) {
+            return send(res, 400, { error: "invalid stripe signature" });
+          }
+          const event = JSON.parse(raw) as StripeEvent;
+          if (event.type !== "checkout.session.completed" || !event.data?.object) {
+            return send(res, 200, { granted: false, skipped: `ignored event ${event.type ?? "unknown"}` });
+          }
+          return await settle(res, grantFromCheckout(event.data.object, offers)); // livemode refused inside (test mode only)
         }
         send(res, 404, { error: "not found" });
       } catch (e) {

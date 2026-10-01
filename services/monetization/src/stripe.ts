@@ -4,6 +4,7 @@
 // webhook is a server-side no-op. Coins come from the founder-approved offer set, never from client input.
 // Web/Studio only (the mobile IAP tax keeps real purchasing where the margin survives, C8). No em dashes.
 
+import { createHmac, timingSafeEqual } from "node:crypto";
 import type { GrantRequest, Skip } from "./grant.js";
 import type { Offer } from "./paywall.js";
 
@@ -27,3 +28,36 @@ export function grantFromCheckout(session: CheckoutSession, offers: Offer[], opt
   if (!offer) return { skip: `unknown offer ${offerId}` };
   return { userId, amount: offer.coins, type: "iap", clientTxnId: `stripe:${session.id}` };
 }
+
+// Stripe webhook signature check (Stripe-Signature: t=<unix>,v1=<hex>[,v1=...]). HMAC-SHA256 of
+// "<t>.<raw body>" with the endpoint signing secret, compared in constant time, inside a replay window.
+// Implemented on node:crypto so the service keeps zero runtime dependencies. No em dashes.
+
+export const STRIPE_SIGNATURE_TOLERANCE_SEC = 300;
+
+export function verifyStripeSignature(
+  rawBody: string,
+  header: string | undefined,
+  secret: string,
+  nowSec: number = Math.floor(Date.now() / 1000),
+  toleranceSec: number = STRIPE_SIGNATURE_TOLERANCE_SEC,
+): boolean {
+  if (!header || !secret) return false;
+  let t: number | null = null;
+  const v1: string[] = [];
+  for (const part of header.split(",")) {
+    const [k, v] = part.split("=", 2).map((s) => s.trim());
+    if (k === "t" && v && /^\d+$/.test(v)) t = Number(v);
+    else if (k === "v1" && v) v1.push(v);
+  }
+  if (t === null || v1.length === 0) return false;
+  if (Math.abs(nowSec - t) > toleranceSec) return false;
+  const expected = Buffer.from(createHmac("sha256", secret).update(`${t}.${rawBody}`, "utf8").digest("hex"), "utf8");
+  return v1.some((sig) => {
+    const got = Buffer.from(sig, "utf8");
+    return got.length === expected.length && timingSafeEqual(got, expected);
+  });
+}
+
+// The webhook body is a Stripe Event. Only checkout.session.completed carries a grantable session.
+export type StripeEvent = { id?: string; type?: string; data?: { object?: CheckoutSession } };

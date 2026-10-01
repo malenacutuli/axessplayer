@@ -58,7 +58,13 @@ const port = Number(process.env.PORT ?? 8100);
 // process bound to localhost only answers inside the container and Render reports "No open ports detected".
 // Mirrors the other services (content/decision/economy/manifest). Override with HOST for local-only binds.
 const host = process.env.HOST ?? "0.0.0.0";
-createSettlementServer(economySink, { adsGrantedToday, logPaywall, ...(dailyAdCap ? { dailyAdCap } : {}) }).listen(port, host, () => {
+createSettlementServer(economySink, {
+  adsGrantedToday,
+  logPaywall,
+  ...(dailyAdCap ? { dailyAdCap } : {}),
+  // Unset means the Stripe webhook answers 503 and never grants (fail closed).
+  ...(process.env.STRIPE_WEBHOOK_SECRET ? { stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET } : {}),
+}).listen(port, host, () => {
   // eslint-disable-next-line no-console
   console.log(`grant settlement listening on ${host}:${port} (economy ${economyBase}, content ${contentBase}, Stripe TEST mode only)`);
 });
