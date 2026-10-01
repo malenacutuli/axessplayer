@@ -149,13 +149,20 @@ export function supabaseAuthUserVerifier(opts: SupabaseSessionVerifierOptions): 
   return { verifyAccessToken: (token) => core.cached<AuthUser>("auth", token, () => core.authUser(token)) };
 }
 
-// Refuses every token. Used when production is missing its Supabase config.
+// The unsigned test verifier is only ever used when explicitly allowed: ALLOW_TEST_SESSIONS=1 (local stacks)
+// or inside a test runner (node --test sets NODE_TEST_CONTEXT, Vitest sets VITEST). Deployed services never
+// have these.
+export function testSessionsAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.ALLOW_TEST_SESSIONS === "1" || Boolean(env.NODE_TEST_CONTEXT) || Boolean(env.VITEST);
+}
+
+// Refuses every token. Used when Supabase config is missing and test sessions are not explicitly allowed.
 export const denyAllSessions: SessionVerifier = { verifySession: async () => null };
 
 // Picks the session verifier for a service. Real verification whenever SUPABASE_URL and SUPABASE_ANON_KEY are
-// set, in every NODE_ENV. Without them: the caller's test verifier outside production, and in production a
-// verifier that denies everyone (logged loudly), so a misconfigured deploy can never accept unsigned test
-// tokens and still keeps its public routes up.
+// set, in every NODE_ENV. Without them: the caller's test verifier only with an explicit opt-in outside
+// production (testSessionsAllowed), otherwise a verifier that denies everyone (logged loudly), so a
+// misconfigured deploy can never accept unsigned test tokens and still keeps its public routes up.
 export interface AuthEnv {
   SUPABASE_URL?: string;
   SUPABASE_ANON_KEY?: string;
@@ -175,11 +182,10 @@ export function selectSessionVerifier(
       ...(resolveUserId ? { resolveUserId } : {}),
     });
   }
-  if (env.NODE_ENV === "production") {
-    // Misconfigured production: stay up (public routes keep serving) but authenticate NO ONE. Never fall back
-    // to the unsigned test verifier.
-    console.error(`${serviceName}: SUPABASE_URL and SUPABASE_ANON_KEY are required in production; denying all sessions`);
-    return denyAllSessions;
-  }
-  return testVerifier();
+  if (env.NODE_ENV !== "production" && testSessionsAllowed()) return testVerifier();
+  // No Supabase config and no explicit opt-in: stay up (public routes keep serving) but authenticate NO ONE.
+  // Never fall back to the unsigned test verifier by accident: on 2026-10-01 live services running with
+  // NODE_ENV=staging and no Supabase config were still accepting forged session:<uuid> tokens.
+  console.error(`${serviceName}: SUPABASE_URL and SUPABASE_ANON_KEY are not set; denying all sessions`);
+  return denyAllSessions;
 }

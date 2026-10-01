@@ -2,7 +2,7 @@
 // Supabase) is unauthenticated, and positive answers are cached briefly. No em dashes.
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { supabaseSessionVerifier, supabaseAuthUserVerifier, selectSessionVerifier, pgUserIdResolver, type SessionVerifier } from "../src/index.js";
+import { supabaseSessionVerifier, supabaseAuthUserVerifier, selectSessionVerifier, pgUserIdResolver, testSessionsAllowed, type SessionVerifier } from "../src/index.js";
 
 const USER = "3f1c2a9e-1111-4222-8333-944455556666";
 const jwt = (exp: number) =>
@@ -99,9 +99,13 @@ describe("selectSessionVerifier", () => {
     const v = selectSessionVerifier({ NODE_ENV: "production" }, test, "svc");
     assert.equal(await v.verifySession("anything"), null);
   });
-  it("falls back to the test verifier only outside production", async () => {
+  it("falls back to the test verifier only outside production with an explicit opt-in", async () => {
     const v = selectSessionVerifier({ NODE_ENV: "development" }, test, "svc");
-    assert.deepEqual(await v.verifySession("x"), { userId: "test" });
+    assert.deepEqual(await v.verifySession("x"), { userId: "test" }); // node --test sets NODE_TEST_CONTEXT
+  });
+  it("without an opt-in, staging (or any env) without Supabase config denies everyone", () => {
+    assert.equal(testSessionsAllowed({ NODE_ENV: "staging" }), false);
+    assert.equal(testSessionsAllowed({ ALLOW_TEST_SESSIONS: "1" }), true);
   });
 });
 

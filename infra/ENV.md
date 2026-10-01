@@ -109,3 +109,12 @@ native build inlines these at build time.
 `VERCEL_DEPLOYMENT.md` references `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. The
 actual `apps/web` and `apps/studio` are Vite, not Next.js, so the live code reads the `VITE_*` names above.
 If a Next.js surface is added later, mirror the Supabase pair under the `NEXT_PUBLIC_` prefix.
+
+## Session verification (2026-10-01)
+
+Every service that checks a viewer or creator session verifies the Supabase access token with Supabase Auth
+(`packages/session-auth`). It needs `SUPABASE_URL` and `SUPABASE_ANON_KEY` (public values). Without them a
+deployed service authenticates nobody (signed-in routes answer 401; guest routes keep working).
+
+Local stacks that use the unsigned `session:<uuid>` test tokens must opt in explicitly with
+`ALLOW_TEST_SESSIONS=1` (never set this on a deployed service). Test runners are allowed automatically.
