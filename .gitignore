@@ -21,3 +21,6 @@ supabase/.temp/
 # Back these up separately (external drive / object storage), not in the repo.
 tools/accessibility-pipeline/libras-raw/
 tools/accessibility-pipeline/libras-extracted/
+
+# Cloudflare Stream setup output (scripts/stream-setup.mjs): secrets, never commit.
+stream-secrets.env

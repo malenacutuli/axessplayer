@@ -30,6 +30,17 @@ services:
     plan: starter
     region: oregon
     envVars:
+      # Cloudflare Stream (creator uploads + signed playback). Values from scripts/stream-setup.mjs.
+      - key: CLOUDFLARE_ACCOUNT_ID
+        sync: false
+      - key: CLOUDFLARE_STREAM_API_TOKEN
+        sync: false
+      - key: STREAM_WEBHOOK_SECRET
+        sync: false
+      - key: STREAM_SIGNING_KEY_ID
+        sync: false
+      - key: STREAM_SIGNING_KEY_PEM
+        sync: false
       # Creator auth (session verification + series ownership) and the service secret for /admin routes.
       - key: SUPABASE_ANON_KEY
         sync: false
