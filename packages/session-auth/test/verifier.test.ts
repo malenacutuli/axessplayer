@@ -95,8 +95,9 @@ describe("selectSessionVerifier", () => {
     const v = selectSessionVerifier({ SUPABASE_URL: "https://x.supabase.co", SUPABASE_ANON_KEY: "k", NODE_ENV: "staging" }, test, "svc");
     assert.notEqual(v, test());
   });
-  it("refuses to start in production without Supabase config", () => {
-    assert.throws(() => selectSessionVerifier({ NODE_ENV: "production" }, test, "svc"), /required in production/);
+  it("denies every session in production without Supabase config (never the test verifier)", async () => {
+    const v = selectSessionVerifier({ NODE_ENV: "production" }, test, "svc");
+    assert.equal(await v.verifySession("anything"), null);
   });
   it("falls back to the test verifier only outside production", async () => {
     const v = selectSessionVerifier({ NODE_ENV: "development" }, test, "svc");

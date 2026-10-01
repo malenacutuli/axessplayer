@@ -38,21 +38,18 @@ export function readConfigFromEnv(env: NodeJS.ProcessEnv = process.env): AdminSe
   return { databaseUrl, nodeEnv: env.NODE_ENV, ...(dbOptions != null && dbOptions.length > 0 ? { dbOptions } : {}) };
 }
 
-// Choose the operator verifier. CUTOVER GATE: in production a real MFA/JWKS-backed OperatorVerifier MUST
-// be injected; the test verifier is refused there. Outside production the test verifier is wired for
-// local/dev use.
-export function selectVerifier(cfg: AdminServerConfig): OperatorVerifier {
-  if (cfg.nodeEnv === "production") {
-    throw new Error(
-      "admin-api server: real operator MFA/JWKS verifier wiring is a cutover gate and is not implemented; " +
-        "inject a real OperatorVerifier before running with NODE_ENV=production",
-    );
-  }
-  return testOperatorVerifier();
+// Choose the operator verifier. There is no real operator login yet (MFA/JWKS operator verification is a
+// tracked follow-up), so the default is DENY ALL: every operator request is 401 and nothing is exposed. The
+// unsigned test verifier (operator:<id>:<role>) is available only on a local stack that opts in explicitly
+// with ADMIN_ALLOW_TEST_OPERATORS=1 outside production. It was live before 2026-10-01 and let anyone act as
+// any operator role.
+export function selectVerifier(cfg: AdminServerConfig, env: NodeJS.ProcessEnv = process.env): OperatorVerifier {
+  if (cfg.nodeEnv !== "production" && env.ADMIN_ALLOW_TEST_OPERATORS === "1") return testOperatorVerifier();
+  return { verify: async () => null };
 }
 
 // Build the production admin app: a node-postgres pool as the query port, the selected verifier, and the
-// Pg-backed immutable audit sink. The cutover gate throws here under NODE_ENV=production.
+// Pg-backed immutable audit sink.
 export function buildAdminApp(pool: pg.Pool, cfg: AdminServerConfig, auditOverride?: AdminAuditSink): Hono {
   const verifier = selectVerifier(cfg);
   const audit: AdminAuditSink = auditOverride ?? new PgAuditSink(pool);

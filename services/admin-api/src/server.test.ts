@@ -11,7 +11,7 @@ import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import type pg from "pg";
 
-import { buildAdminApp, startServer, type AdminServerConfig } from "./server.js";
+import { selectVerifier, buildAdminApp, startServer, type AdminServerConfig } from "./server.js";
 import { InMemoryAuditSink } from "./audit.js";
 
 const throwingPool = {
@@ -21,6 +21,8 @@ const throwingPool = {
 } as unknown as pg.Pool;
 
 const devCfg: AdminServerConfig = { databaseUrl: "postgres://unused", nodeEnv: "test" };
+// The served-entry tests run the local test operator verifier, which now needs an explicit opt-in.
+process.env.ADMIN_ALLOW_TEST_OPERATORS = "1";
 
 async function withServer(fn: (base: string, server: Server) => Promise<void>): Promise<void> {
   const app = buildAdminApp(throwingPool, devCfg, new InMemoryAuditSink());
@@ -57,6 +59,12 @@ test("admin-api served entry: a valid operator token reaches GET /admin/me over 
   });
 });
 
-test("admin-api served entry: NODE_ENV=production refuses the test operator verifier (cutover gate)", () => {
-  assert.throws(() => buildAdminApp(throwingPool, { ...devCfg, nodeEnv: "production" }, new InMemoryAuditSink()), /cutover gate/);
+test("admin-api: without an explicit local opt-in, every operator token is refused (no forged operators)", async () => {
+  for (const nodeEnv of ["production", "staging", undefined]) {
+    const v = selectVerifier({ ...devCfg, nodeEnv } as never, {});
+    assert.equal(await v.verify("operator:Admin:attacker"), null);
+  }
+  const local = selectVerifier({ ...devCfg, nodeEnv: "development" } as never, { ADMIN_ALLOW_TEST_OPERATORS: "1" });
+  assert.notEqual(await local.verify("operator:Admin:a1"), null);
+  assert.equal(await selectVerifier({ ...devCfg, nodeEnv: "production" } as never, { ADMIN_ALLOW_TEST_OPERATORS: "1" }).verify("operator:Admin:x"), null);
 });

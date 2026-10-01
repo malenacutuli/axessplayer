@@ -48,11 +48,9 @@ test("selectVerifiers uses real Supabase verification in production when configu
   assert.equal(await v.session.verifySession("anon-key"), null);
 });
 
-test("selectVerifiers throws under NODE_ENV=production without Supabase config", () => {
-  assert.throws(
-    () => selectVerifiers({ databaseUrl: "x", nodeEnv: "production" }),
-    /required in production/
-  );
+test("selectVerifiers under NODE_ENV=production without Supabase config authenticates no one", async () => {
+  const v = selectVerifiers({ databaseUrl: "x", nodeEnv: "production" }, undefined, {});
+  assert.equal(await v.session.verifySession("session:2a000000-0000-0000-0000-0000000000c0"), null);
 });
 
 test("selectVerifiers returns the test verifier outside production", () => {

@@ -19,6 +19,7 @@ import type { AddressInfo } from "node:net";
 import pg from "pg";
 import type { Hono } from "hono";
 
+import { randomUUID } from "node:crypto";
 import { createContentApp } from "./http/app.js";
 import { PgContentDb } from "./pgContentDb.js";
 import { PgReadingDb } from "./pgReadingDb.js";
@@ -65,9 +66,11 @@ export function buildContentApp(pool: pg.Pool, env: NodeJS.ProcessEnv = process.
   // Creator auth: real Supabase sessions (test verifier only outside production), series ownership over the
   // same pool, and a service secret for the /admin routes other services call. Production refuses to start
   // without the secret, so those routes are never open there.
-  const serviceSecret = env.CONTENT_SERVICE_SECRET;
+  let serviceSecret = env.CONTENT_SERVICE_SECRET;
   if (env.NODE_ENV === "production" && !serviceSecret) {
-    throw new Error("content server: CONTENT_SERVICE_SECRET is required in production (service-to-service /admin routes)");
+    // Misconfigured production: keep serving, but lock the /admin routes behind a secret nobody has.
+    console.error("content server: CONTENT_SERVICE_SECRET is required in production; /admin routes are locked");
+    serviceSecret = randomUUID() + randomUUID();
   }
   const session: SessionVerifier = selectSessionVerifier(
     { SUPABASE_URL: env.SUPABASE_URL, SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY, NODE_ENV: env.NODE_ENV },

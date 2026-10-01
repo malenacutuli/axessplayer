@@ -56,9 +56,12 @@ test("decision served entry: real POST /decide with an invalid token returns the
   });
 });
 
-test("decision served entry: NODE_ENV=production without Supabase config refuses to start (no test verifier in prod)", () => {
-  assert.throws(
-    () => buildDecisionApp(throwingPool, { ...devCfg, nodeEnv: "production" }),
-    /required in production/
-  );
+test("decision served entry: NODE_ENV=production without Supabase config stays up but authenticates no one", async () => {
+  const app = buildDecisionApp(throwingPool, { ...devCfg, nodeEnv: "production" });
+  const res = await app.request("/decide", {
+    method: "POST",
+    headers: { authorization: "Bearer session:2a000000-0000-0000-0000-0000000000c0", "content-type": "application/json" },
+    body: JSON.stringify({ current_beat_id: 'x', signals: {} }),
+  });
+  assert.equal(res.status, 401);
 });

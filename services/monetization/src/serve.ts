@@ -5,7 +5,7 @@
 import { createSettlementServer, type GrantSink, type PaywallPresentation } from "./server.js";
 import type { GrantRequest } from "./grant.js";
 import pg from "pg";
-import { selectSessionVerifier, pgUserIdResolver } from "@axessplayer/session-auth";
+import { selectSessionVerifier, pgUserIdResolver, denyAllSessions } from "@axessplayer/session-auth";
 
 // Normalize a base URL: Render's Blueprint `fromService property: hostport` injects a bare "host:port"
 // with NO scheme, which makes fetch() throw on an invalid URL. Prepend http:// when the scheme is absent.
@@ -58,13 +58,16 @@ const logPaywall = async (e: PaywallPresentation): Promise<void> => {
 
 // Reward routes credit the verified session subject. Mapping a Supabase login to its profile id needs the
 // users table, so production requires DATABASE_URL alongside SUPABASE_URL / SUPABASE_ANON_KEY.
-if (process.env.NODE_ENV === "production" && !process.env.DATABASE_URL) {
-  throw new Error("grant settlement: DATABASE_URL is required in production (session -> profile mapping for rewards)");
+const missingProfileDb = process.env.NODE_ENV === "production" && !process.env.DATABASE_URL;
+if (missingProfileDb) {
+  // Without the users table a Supabase login cannot be mapped to a profile, so rewards would credit the wrong
+  // id: deny every reward session instead (logged loudly); the Stripe webhook and paywall keep working.
+  console.error("grant settlement: DATABASE_URL is required in production; reward routes are denied");
 }
 const pool = process.env.DATABASE_URL
   ? new pg.Pool({ connectionString: process.env.DATABASE_URL, ...(process.env.DB_OPTIONS ? { options: process.env.DB_OPTIONS } : {}) })
   : undefined;
-const sessionVerifier = selectSessionVerifier(
+const sessionVerifier = missingProfileDb ? denyAllSessions : selectSessionVerifier(
   { SUPABASE_URL: process.env.SUPABASE_URL, SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY, NODE_ENV: process.env.NODE_ENV },
   // Outside production with no Supabase config there is no session at all: rewards stay closed.
   () => ({ verifySession: async () => null }),

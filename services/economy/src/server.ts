@@ -22,6 +22,7 @@
 // starting with NODE_ENV=production throws rather than silently serving with the test verifier. This is a
 // deliberate hard stop so an unverified token scheme can never reach the live ledger.
 
+import { randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import pg from "pg";
@@ -65,10 +66,12 @@ export function readConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Economy
 // Real Supabase session verification whenever SUPABASE_URL + SUPABASE_ANON_KEY are set (any NODE_ENV); the
 // test verifier only outside production without them; a hard stop in production without them.
 export function selectVerifiers(cfg: EconomyServerConfig, pool?: pg.Pool, env: NodeJS.ProcessEnv = process.env): Verifiers {
+  let secret = cfg.serviceSecret && cfg.serviceSecret.length > 0 ? cfg.serviceSecret : "dev-service-secret";
   if (cfg.nodeEnv === "production" && !(cfg.serviceSecret && cfg.serviceSecret.length > 0)) {
-    throw new Error("economy server: ECONOMY_SERVICE_SECRET is required in production (service-to-service /grant auth)");
+    // Misconfigured production: keep serving wallets, but lock /grant behind a secret nobody has.
+    console.error("economy server: ECONOMY_SERVICE_SECRET is required in production; /grant is locked");
+    secret = randomUUID() + randomUUID();
   }
-  const secret = cfg.serviceSecret && cfg.serviceSecret.length > 0 ? cfg.serviceSecret : "dev-service-secret";
   return {
     session: selectSessionVerifier({ SUPABASE_URL: env.SUPABASE_URL, SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY, NODE_ENV: cfg.nodeEnv }, testSessionVerifier, "economy server", pool ? pgUserIdResolver((sql, params) => pool.query(sql, params)) : undefined),
     service: testServiceVerifier(secret),

@@ -149,9 +149,13 @@ export function supabaseAuthUserVerifier(opts: SupabaseSessionVerifierOptions): 
   return { verifyAccessToken: (token) => core.cached<AuthUser>("auth", token, () => core.authUser(token)) };
 }
 
+// Refuses every token. Used when production is missing its Supabase config.
+export const denyAllSessions: SessionVerifier = { verifySession: async () => null };
+
 // Picks the session verifier for a service. Real verification whenever SUPABASE_URL and SUPABASE_ANON_KEY are
-// set, in every NODE_ENV. Without them: the caller's test verifier outside production, and a hard stop in
-// production so a misconfigured deploy cannot silently accept unsigned test tokens.
+// set, in every NODE_ENV. Without them: the caller's test verifier outside production, and in production a
+// verifier that denies everyone (logged loudly), so a misconfigured deploy can never accept unsigned test
+// tokens and still keeps its public routes up.
 export interface AuthEnv {
   SUPABASE_URL?: string;
   SUPABASE_ANON_KEY?: string;
@@ -172,7 +176,10 @@ export function selectSessionVerifier(
     });
   }
   if (env.NODE_ENV === "production") {
-    throw new Error(`${serviceName}: SUPABASE_URL and SUPABASE_ANON_KEY are required in production (real session verification)`);
+    // Misconfigured production: stay up (public routes keep serving) but authenticate NO ONE. Never fall back
+    // to the unsigned test verifier.
+    console.error(`${serviceName}: SUPABASE_URL and SUPABASE_ANON_KEY are required in production; denying all sessions`);
+    return denyAllSessions;
   }
   return testVerifier();
 }

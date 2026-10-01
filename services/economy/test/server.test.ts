@@ -57,9 +57,12 @@ test("economy served entry: real GET /wallet with no auth returns the documented
   });
 });
 
-test("economy served entry: NODE_ENV=production without Supabase config refuses to start (no test verifier in prod)", () => {
-  assert.throws(
-    () => buildEconomyApp(throwingPool, { ...devCfg, nodeEnv: "production" }),
-    /required in production/
-  );
+test("economy served entry: NODE_ENV=production without Supabase config stays up but authenticates no one", async () => {
+  const app = buildEconomyApp(throwingPool, { ...devCfg, nodeEnv: "production", serviceSecret: "s" });
+  const res = await app.request("/wallet", {
+    method: "GET",
+    headers: { authorization: "Bearer session:2a000000-0000-0000-0000-0000000000c0", "content-type": "application/json" },
+    
+  });
+  assert.equal(res.status, 401);
 });
