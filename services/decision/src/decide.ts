@@ -21,6 +21,7 @@ import {
   type CohortSeeds,
 } from "./features.js";
 import { EXPLORATION_ALPHA, PREFETCH_TOP_K, SERVE_TIMEOUT_MS, policyVersion } from "./config.js";
+import { randomUUID } from "node:crypto";
 
 // Request and response shapes, bound to the generated contract types. If decision.yaml changes and is
 // re-generated, these aliases break and the handler stops typechecking until it is reconciled.
@@ -182,6 +183,28 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
       }
     );
   });
+}
+
+// Signed-out viewers (product decision 2026-10-01: guests watch free with a default cut). Serves the
+// deterministic director's cut with no per-user reads (no opt-in, no viewer vector, no cohort) and no
+// writes: guests are not part of the experiment dataset, so nothing is logged and the decision_id is a
+// throwaway. Throws NoSuccessorsError (422) like decide().
+export async function decideForGuest(currentBeatId: string, deps: DecideDeps): Promise<DecideResult> {
+  const candidates = await deps.db.candidatesOf(currentBeatId);
+  if (candidates.length === 0) throw new NoSuccessorsError();
+  const canonFacts = await deps.db.canonFactsOf(currentBeatId);
+  const dc = directorsCutDecision(candidates, canonFacts);
+  const pv = policyVersion();
+  return {
+    response: {
+      decision_id: randomUUID(),
+      next_variant_id: dc.variantId,
+      prefetch_variant_ids: dc.prefetch,
+      is_control: true,
+      policy_version: pv,
+    },
+    explanation: { topFeatures: [], canonReason: dc.canonReason, isControl: true, policyVersion: pv },
+  };
 }
 
 // The handler. Returns the contract response plus the explanation. Throws NoSuccessorsError (422) only

@@ -65,6 +65,11 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
     try {
       setWallet(await clients.economy.getWallet());
     } catch (err) {
+      // 401 = signed out (guests watch free; the wallet needs sign-in). Not an app error: leave it empty.
+      if ((err as { status?: unknown }).status === 401) {
+        setWallet(null);
+        return;
+      }
       setLoadError(err instanceof Error ? err.message : "wallet load failed");
     }
   }, [clients]);

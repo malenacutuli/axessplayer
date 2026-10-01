@@ -43,6 +43,11 @@ export function Home({ catalog, analytics, coins, onResume, onOpenSeries, onOpen
         const items = await catalog.getContinue();
         if (live) setCont({ status: "ready", data: items });
       } catch (err) {
+        // Signed out: there is nothing to continue, which is an empty rail, not an error.
+        if ((err as { status?: unknown }).status === 401) {
+          if (live) setCont({ status: "ready", data: [] });
+          return;
+        }
         if (live) setCont({ status: "error", message: err instanceof Error ? err.message : "Could not load" });
       }
     })();

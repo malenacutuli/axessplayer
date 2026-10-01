@@ -129,3 +129,34 @@ describe("grant settlement surface", () => {
     assert.equal((await webhook(raw, sign(raw), unconfiguredBase)).status, 503);
   });
 });
+
+describe("paywall presentation identity", () => {
+  const logged: Array<{ userId: string }> = [];
+  const pw = createSettlementServer(sink, {
+    sessionVerifier,
+    logPaywall: async (e) => {
+      logged.push({ userId: e.userId });
+    },
+  });
+  let pwBase: string;
+  before(async () => {
+    await new Promise<void>((r) => pw.listen(0, "127.0.0.1", r));
+    pwBase = `http://127.0.0.1:${(pw.address() as AddressInfo).port}`;
+  });
+  after(() => pw.close());
+
+  it("serves a guest a paywall without logging anything for them", async () => {
+    const res = await post("/paywall/present", { userId: "someone-else", beatVariantId: "v1" }, null, pwBase);
+    assert.equal(res.status, 200);
+    assert.ok(((await res.json()) as { path?: string }).path);
+    assert.equal(logged.length, 0);
+  });
+  it("logs a signed-in viewer under the session subject, never the body userId", async () => {
+    const res = await post("/paywall/present", { userId: "victim", beatVariantId: "v1" }, "tok-viewer", pwBase);
+    assert.equal(res.status, 200);
+    assert.deepEqual(logged.at(-1), { userId: "viewer" });
+  });
+  it("refuses a present-but-invalid token", async () => {
+    assert.equal((await post("/paywall/present", { beatVariantId: "v1" }, "forged", pwBase)).status, 401);
+  });
+});

@@ -131,18 +131,23 @@ export function createSettlementServer(sink: GrantSink, opts: SettlementOptions 
           return await settle(res,settleRewardedAd(r));
         }
         if (method === "POST" && path === "/paywall/present") {
-          const body = await readJson<{ userId?: string; seriesId?: string; beatVariantId?: string; sessionId?: string }>(req);
-          if (!body.userId) return send(res, 400, { error: "userId required" });
+          const body = await readJson<{ seriesId?: string; beatVariantId?: string; sessionId?: string }>(req);
+          // The presented user is the verified session subject, never a body userId. A guest (no token) still
+          // gets a paywall, but nothing is logged for them; a present-but-invalid token is a 401.
+          const token = bearerOf(req);
+          const identity = token && opts.sessionVerifier ? await opts.sessionVerifier.verifySession(token) : null;
+          if (token && !identity) return send(res, 401, { error: "sign_in_required" });
+          const userId = identity?.userId ?? null;
           // DRAFT bandit: neutral weights, no revenue optimization until the reward-weights sign-off.
           const sel = selectPaywallPath(PAYWALL_PATHS, DRAFT_PATH_WEIGHTS, 0.2, rng);
-          const sessionId = body.sessionId || `sess-${body.userId}`;
+          const sessionId = body.sessionId || `sess-${userId ?? "guest"}`;
           const eventId = `pw-${Date.now()}-${Math.floor(rng() * 1e9)}`;
-          if (opts.logPaywall) {
+          if (opts.logPaywall && userId) {
             // Best effort: a log failure must not block the viewer's paywall.
             await opts
               .logPaywall({
                 eventId,
-                userId: body.userId,
+                userId,
                 ...(body.seriesId ? { seriesId: body.seriesId } : {}),
                 ...(body.beatVariantId ? { beatVariantId: body.beatVariantId } : {}),
                 sessionId,

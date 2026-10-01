@@ -134,15 +134,35 @@ test("POST /decide end of graph maps to the contract 422 no_successors", async (
   assert.equal(((await res.json()) as { error: string }).error, "no_successors");
 });
 
-test("POST /decide without a token is 401, before any decision", async () => {
-  const app = appWith();
+test("POST /decide without a token serves a guest the director's cut, with no per-user reads or writes", async () => {
+  const logger = new InMemoryLogger();
+  let optInReads = 0;
+  const app = appWith({
+    logger,
+    db: fakeDB({ adaptiveOptIn: async () => { optInReads++; return true; } }),
+  });
   const res = await app.request("/decide", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ current_beat_id: BEAT, signals: {} }),
   });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { is_control: boolean; next_variant_id: string; decision_id: string };
+  assert.equal(body.is_control, true);
+  assert.ok(body.next_variant_id);
+  assert.ok(body.decision_id);
+  assert.equal(logger.rows.length, 0, "guests are not logged into the experiment dataset");
+  assert.equal(optInReads, 0, "no per-user state is read for a guest");
+});
+
+test("POST /decide with a present but invalid token is 401, never treated as a guest", async () => {
+  const app = appWith();
+  const res = await app.request("/decide", {
+    method: "POST",
+    headers: { authorization: "Bearer not-a-session", "content-type": "application/json" },
+    body: JSON.stringify({ current_beat_id: BEAT, signals: {} }),
+  });
   assert.equal(res.status, 401);
-  assert.equal(((await res.json()) as { error: string }).error, "unauthorized");
 });
 
 test("POST /decide with a non-session token is 401", async () => {

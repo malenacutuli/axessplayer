@@ -17,9 +17,9 @@ import { cors } from "hono/cors";
 import type { operations } from "../../../../contracts/types/generated/decision.js";
 import {
   decide,
+  decideForGuest,
   NoSuccessorsError,
   type DecideDeps,
-  type DecideRequest,
 } from "../decide.js";
 import { parseBearer, type Verifiers } from "./auth.js";
 
@@ -59,8 +59,10 @@ export function createDecisionApp(deps: AppDeps): Hono {
   // client cannot request a decision on behalf of another viewer.
   app.post("/decide", async (c) => {
     const token = parseBearer(c.req.header("authorization"));
-    const identity = await verifiers.session.verifySession(token);
-    if (identity == null) {
+    // No token at all = a signed-out viewer: serve the guest director's cut (no per-user state). A token that
+    // is present but fails verification is still a 401, so a broken or forged session never looks like a guest.
+    const identity = token == null ? null : await verifiers.session.verifySession(token);
+    if (token != null && identity == null) {
       return c.json({ error: "unauthorized" }, 401);
     }
 
@@ -77,15 +79,15 @@ export function createDecisionApp(deps: AppDeps): Hono {
       return c.json({ error: "invalid_request" }, 400);
     }
 
-    // user_id comes from the verified session subject, never the body.
-    const req: DecideRequest = {
-      user_id: identity.userId,
-      current_beat_id: partial.current_beat_id,
-      signals: partial.signals,
-    };
-
     try {
-      const result = await decide(req, decisionDeps);
+      const result =
+        identity == null
+          ? await decideForGuest(partial.current_beat_id, decisionDeps)
+          : await decide(
+              // user_id comes from the verified session subject, never the body.
+              { user_id: identity.userId, current_beat_id: partial.current_beat_id, signals: partial.signals },
+              decisionDeps,
+            );
       const body: DecideResponseBody = result.response;
       return c.json(body, 200);
     } catch (err) {

@@ -43,11 +43,11 @@ test("decision served entry: binds 0.0.0.0 on an ephemeral port", async () => {
   });
 });
 
-test("decision served entry: real POST /decide with no auth returns the documented 401 over a socket", async () => {
+test("decision served entry: real POST /decide with an invalid token returns the documented 401 over a socket", async () => {
   await withServer(async (base) => {
     const res = await fetch(`${base}/decide`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", authorization: "Bearer forged" },
       body: JSON.stringify({ current_beat_id: "x", signals: {} }),
     });
     assert.equal(res.status, 401);
