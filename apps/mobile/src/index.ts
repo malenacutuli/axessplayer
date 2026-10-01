@@ -1,7 +1,6 @@
-// Public surface of the consumer mobile app. Re-exports the configurable network layer, the feed / player
-// / wallet logic, the accessibility selection, and the screen components, so the Expo entry point (and
-// the tests) wire them together from one import. The native entry (App.tsx / expo-router) is added at EAS
-// build time and is out of this CI lane. No em dashes.
+// LEGACY v1 surface (series graph, /decide, wallet + paywall). Platform v2 (free, accessible-by-default)
+// does not use it: the Expo app entry is expo-router (app/) over src/core and src/ui. Kept, with its
+// tests, for the interactive-series work that may return. No em dashes.
 
 // network + config
 export { createApiClient, PaywallRequiredError, AuthRequiredError, assertNoForbiddenKeys } from "./api/client.js";
@@ -51,8 +50,3 @@ export {
 } from "./wallet/wallet.js";
 export type { UnlockOutcome } from "./wallet/wallet.js";
 
-// screens
-export { FeedScreen } from "./screens/FeedScreen.js";
-export { PlayerScreen } from "./screens/PlayerScreen.js";
-export { PaywallSheet } from "./screens/PaywallSheet.js";
-export { WalletScreen } from "./screens/WalletScreen.js";
