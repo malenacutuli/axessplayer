@@ -65,3 +65,11 @@ test("decision served entry: NODE_ENV=production without Supabase config stays u
   });
   assert.equal(res.status, 401);
 });
+
+test("decision served entry: GET /healthz answers 200 without touching the database", async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/healthz`);
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { ok: true, service: "decision" });
+  });
+});

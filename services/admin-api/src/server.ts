@@ -97,6 +97,12 @@ function readBody(req: IncomingMessage): Promise<Buffer> {
 // picks an ephemeral port (tests). Resolves with the server and bound port.
 export function startServer(app: Hono, port = 0, host = "0.0.0.0"): Promise<{ server: Server; port: number }> {
   const server = createServer((req, res) => {
+    // Liveness for the platform health check (Render healthCheckPath + uptime monitoring). No DB, no auth.
+    if ((req.method ?? "GET") === "GET" && (req.url ?? "").split("?")[0] === "/healthz") {
+      res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
+      res.end(JSON.stringify({ ok: true, service: "admin-api" }));
+      return;
+    }
     void (async () => {
       try {
         const body = await readBody(req);

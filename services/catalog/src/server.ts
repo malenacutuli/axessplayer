@@ -481,6 +481,12 @@ export function startServer(
   host = "0.0.0.0"
 ): Promise<{ server: Server; port: number }> {
   const server = createServer((req, res) => {
+    // Liveness for the platform health check (Render healthCheckPath + uptime monitoring). No DB, no auth.
+    if ((req.method ?? "GET") === "GET" && (req.url ?? "").split("?")[0] === "/healthz") {
+      res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
+      res.end(JSON.stringify({ ok: true, service: "catalog" }));
+      return;
+    }
     void (async () => {
       try {
         if (req.method === "OPTIONS") {

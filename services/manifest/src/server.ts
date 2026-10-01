@@ -43,6 +43,12 @@ async function writeWebResponse(res: ServerResponse, webRes: Response): Promise<
 export function createServerForDB(db: ManifestDB): Server {
   const handler = createHandler(db);
   return createServer((req, res) => {
+    // Liveness for the platform health check (Render healthCheckPath + uptime monitoring). No DB, no auth.
+    if ((req.method ?? "GET") === "GET" && (req.url ?? "").split("?")[0] === "/healthz") {
+      res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
+      res.end(JSON.stringify({ ok: true, service: "manifest" }));
+      return;
+    }
     void (async () => {
       try {
         // Preflight: answer OPTIONS directly with the CORS headers.

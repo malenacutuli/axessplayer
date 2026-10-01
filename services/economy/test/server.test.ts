@@ -66,3 +66,11 @@ test("economy served entry: NODE_ENV=production without Supabase config stays up
   });
   assert.equal(res.status, 401);
 });
+
+test("economy served entry: GET /healthz answers 200 without touching the database", async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/healthz`);
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { ok: true, service: "economy" });
+  });
+});
