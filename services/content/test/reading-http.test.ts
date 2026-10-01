@@ -47,11 +47,22 @@ class MemStore implements ReadingStore {
   async linkGraduated(workId: string, seriesId: string) { const w = this.works.get(workId)!; w.candidate = { ...(w.candidate ?? { demand_score: 0, signals: {} }), status: "adapting", linked_series_id: seriesId } as never; }
 }
 
+// Reading writes need a verified session; "session:<uuid>" is a valid test session.
+const testAuth = {
+  session: {
+    verifySession: async (t: string | null) => {
+      const m = /^session:([0-9a-f-]{36})$/i.exec(t ?? "");
+      return m ? { userId: m[1] } : null;
+    },
+  },
+  ownership: {} as never,
+};
 function appWith(store: ReadingStore) {
-  return createContentApp({ db: {} as unknown as ContentDB, reading: store });
+  return createContentApp({ db: {} as unknown as ContentDB, reading: store, auth: testAuth });
 }
 const TOKEN = "Bearer session:2a000000-0000-0000-0000-0000000000c0";
-function req(app: ReturnType<typeof appWith>, method: string, path: string, body?: unknown, auth?: string) {
+// Requests are signed in as TOKEN by default; pass "" to send none.
+function req(app: ReturnType<typeof appWith>, method: string, path: string, body?: unknown, auth: string = TOKEN) {
   return app.fetch(new Request(`http://content.test${path}`, { method, headers: { "content-type": "application/json", ...(auth ? { authorization: auth } : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) }));
 }
 
@@ -98,7 +109,9 @@ test("validation + auth: empty title 400, unknown work 404, adapt-unready 409, r
   // force overrides and graduates
   assert.equal((await req(app, "POST", `/works/${id}/adapt`, { force: true })).status, 200);
   // reading-state requires a session bearer
-  assert.equal((await req(app, "PUT", `/works/${id}/reading-state`, { chapterIndex: 2, percent: 0.5 })).status, 401);
+  assert.equal((await req(app, "PUT", `/works/${id}/reading-state`, { chapterIndex: 2, percent: 0.5 }, "")).status, 401);
+  // and so do the creator writes
+  assert.equal((await req(app, "POST", "/works", { title: "x", genre: "romance" }, "")).status, 401);
   assert.equal((await req(app, "PUT", `/works/${id}/reading-state`, { chapterIndex: 2, percent: 0.5 }, TOKEN)).status, 200);
 });
 
@@ -109,7 +122,7 @@ test("the reading routes are absent (404) when no store is wired", async () => {
 
 test("GET /read feed + /reading/works list published works; reader emits to the events base", async () => {
   const store = new MemStore();
-  const app = createContentApp({ db: {} as unknown as ContentDB, reading: store, eventsBaseUrl: "https://events.test" });
+  const app = createContentApp({ db: {} as unknown as ContentDB, reading: store, eventsBaseUrl: "https://events.test", auth: testAuth });
   const { id } = (await (await req(app, "POST", "/works", { title: "Published One" })).json()) as { id: string };
   await req(app, "POST", `/works/${id}/chapters`, { index: 1, is_free: true });
   await req(app, "POST", `/works/${id}/publish`);

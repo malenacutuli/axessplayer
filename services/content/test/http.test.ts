@@ -13,12 +13,40 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { freshDb, emptyDb, pgliteContentDb, FIX } from "./harness.js";
+import { freshDb, emptyDb, pgliteContentDb, FIX, TEST_CREATOR } from "./harness.js";
+import { sqlOwnership } from "../src/ownership.js";
 import { createContentApp } from "../src/http/app.js";
 import type { Hono } from "hono";
 
-function appFor(db: Awaited<ReturnType<typeof freshDb>>): Hono {
-  return createContentApp({ db: pgliteContentDb(db) });
+// Test sessions: "session:<uuid>" is a valid session for that user; anything else is signed out.
+const testSessions = {
+  verifySession: async (t: string | null) => {
+    const m = /^session:([0-9a-f-]{36})$/i.exec(t ?? "");
+    return m ? { userId: m[1] } : null;
+  },
+};
+const asUser = (id: string) => `Bearer session:${id}`;
+const OTHER_CREATOR = "aaaaaaaa-0000-0000-0000-000000000002";
+
+// The content app with creator auth wired to the real SQL ownership checks. Requests act as TEST_CREATOR
+// unless they set their own authorization header (or "" for signed out).
+function appFor(db: Awaited<ReturnType<typeof freshDb>>, opts: { serviceSecret?: string } = {}): Hono {
+  const app = createContentApp({
+    db: pgliteContentDb(db),
+    auth: {
+      session: testSessions,
+      ownership: sqlOwnership((sql, params) => db.query(sql, params) as never),
+      ...(opts.serviceSecret ? { serviceSecret: opts.serviceSecret } : {}),
+    },
+  });
+  const request = app.request.bind(app);
+  app.request = ((input: string, init: RequestInit = {}) => {
+    const headers = new Headers(init.headers);
+    if (!headers.has("authorization")) headers.set("authorization", asUser(TEST_CREATOR));
+    if (headers.get("authorization") === "") headers.delete("authorization");
+    return request(input, { ...init, headers });
+  }) as typeof app.request;
+  return app;
 }
 
 const json = (body: unknown) => ({
@@ -326,4 +354,69 @@ test("PATCH /series/{id}/poster stores the poster url", async () => {
   // The graph read now carries it.
   const g = (await (await app.request(`/series/${FIX.series}/graph`)).json()) as { series: { poster_url: string } };
   assert.equal(g.series.poster_url, "https://posters/ls.png");
+});
+
+// ---------------- creator auth + ownership ----------------
+
+test("writes need a signed-in creator: signed out is 401 and nothing is created", async () => {
+  const app = appFor(await emptyDb());
+  const res = await app.request("/series", { ...json({ title: "Nope" }), headers: { "content-type": "application/json", authorization: "" } });
+  assert.equal(res.status, 401);
+  const forged = await app.request("/series", { ...json({ title: "Nope" }), headers: { "content-type": "application/json", authorization: "Bearer demo-session-token" } });
+  assert.equal(forged.status, 401);
+});
+
+test("a creator cannot change another creator's series (403 on every write route)", async () => {
+  const app = appFor(await freshDb());
+  const other = { "content-type": "application/json", authorization: asUser(OTHER_CREATOR) };
+  const attempts: Array<[string, RequestInit]> = [
+    [`/series/${FIX.series}/publish`, { method: "POST", headers: other }],
+    [`/series/${FIX.series}/unpublish`, { method: "POST", headers: other }],
+    [`/series/${FIX.series}`, { method: "PATCH", headers: other, body: JSON.stringify({ title: "pwned" }) }],
+    [`/series/${FIX.series}/poster`, { method: "PATCH", headers: other, body: JSON.stringify({ poster_url: "https://x/p.png", provenance: {} }) }],
+    [`/variants/${FIX.variantEnding}`, { method: "DELETE", headers: other }],
+    [`/variants/${FIX.variantEnding}/tracks`, { method: "PATCH", headers: other, body: JSON.stringify({ caption_doc_url: "https://x/c.json" }) }],
+  ];
+  for (const [path, init] of attempts) {
+    const res = await app.request(path, init);
+    assert.equal(res.status, 403, `${init.method} ${path}`);
+  }
+  // The owner can.
+  assert.equal((await app.request(`/series/${FIX.series}/unpublish`, { method: "POST" })).status, 200);
+});
+
+test("creating a series records the creator as owner; the studio list shows only their series", async () => {
+  const app = appFor(await freshDb());
+  const created = await app.request("/series", { ...json({ title: "Mine", base_language: "en" }), headers: { "content-type": "application/json", authorization: asUser(OTHER_CREATOR) } });
+  assert.equal(created.status, 201);
+  const { id } = (await created.json()) as { id: string };
+  const theirs = (await (await app.request("/series", { headers: { authorization: asUser(OTHER_CREATOR) } })).json()) as { series: Array<{ id: string }> };
+  assert.deepEqual(theirs.series.map((s) => s.id), [id]);
+  const mine = (await (await app.request("/series")).json()) as { series: Array<{ id: string }> };
+  assert.ok(!mine.series.some((s) => s.id === id), "another creator's draft is not listed");
+  assert.equal((await app.request("/series", { headers: { authorization: "" } })).status, 401);
+});
+
+test("draft graphs are private to the owner; published graphs are public", async () => {
+  const app = appFor(await freshDb());
+  const created = await app.request("/series", { ...json({ title: "Draft", base_language: "en" }), headers: { "content-type": "application/json", authorization: asUser(OTHER_CREATOR) } });
+  const { id } = (await created.json()) as { id: string };
+  assert.equal((await app.request(`/series/${id}/graph`, { headers: { authorization: "" } })).status, 404);
+  assert.equal((await app.request(`/series/${id}/graph`)).status, 404, "another creator cannot read the draft");
+  assert.notEqual((await app.request(`/series/${id}/graph`, { headers: { authorization: asUser(OTHER_CREATOR) } })).status, 404);
+  await app.request(`/series/${id}/publish`, { method: "POST", headers: { authorization: asUser(OTHER_CREATOR) } });
+  assert.equal((await app.request(`/series/${id}/graph`, { headers: { authorization: "" } })).status, 200);
+});
+
+test("admin routes require the service secret when one is configured", async () => {
+  const app = appFor(await freshDb(), { serviceSecret: "svc-secret" });
+  assert.equal((await app.request("/admin/ads-today/aaaaaaaa-0000-0000-0000-000000000001")).status, 403);
+  const ok = await app.request("/admin/ads-today/aaaaaaaa-0000-0000-0000-000000000001", { headers: { authorization: "Bearer svc-secret" } });
+  assert.notEqual(ok.status, 403);
+});
+
+test("writes fail closed with 503 when creator auth is not configured", async () => {
+  const app = createContentApp({ db: pgliteContentDb(await emptyDb()) });
+  const res = await app.request("/series", json({ title: "x" }));
+  assert.equal(res.status, 503);
 });

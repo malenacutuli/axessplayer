@@ -40,6 +40,8 @@ import {
   type CreateEdgeBody,
 } from "../content.js";
 import type { PosterGenerator } from "../poster.js";
+import type { SessionVerifier } from "@axessplayer/session-auth";
+import type { Ownership, SeriesAccess } from "../ownership.js";
 import { readerPageHtml, readFeedHtml } from "../readerPage.js";
 import { watchFeedHtml, watchPlayerHtml } from "../watchPage.js";
 import {
@@ -71,6 +73,16 @@ export interface AppDeps {
   // Public base URL of the events service (EVENTS_BASE_URL). Injected into the reader/watch pages so reading
   // and viewing behavior flow into the engagement pipeline (the demand sensor). Empty disables emission.
   eventsBaseUrl?: string;
+  // Creator auth. Every write needs a verified session, and series writes need the series owner. Without it
+  // the write routes answer 503 (fail closed). serviceSecret guards the service-to-service /admin routes.
+  auth?: { session: SessionVerifier; ownership: Ownership; serviceSecret?: string };
+}
+
+type Ctx = { req: { header: (k: string) => string | undefined }; json: (b: unknown, s?: number) => Response };
+
+function bearerOf(c: Ctx): string | null {
+  const m = /^Bearer\s+(.+)$/i.exec(c.req.header("authorization") ?? "");
+  return m ? m[1].trim() : null;
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -93,6 +105,37 @@ export function createContentApp(deps: AppDeps): Hono {
     }),
   );
   const { db } = deps;
+  const auth = deps.auth;
+
+  // The verified viewer (users.id), or null when there is no valid session.
+  const viewerOf = async (c: Ctx): Promise<string | null> => {
+    const token = bearerOf(c);
+    if (!token || !auth) return null;
+    return (await auth.session.verifySession(token))?.userId ?? null;
+  };
+  // A signed-in user id, or the response to send instead (503 unconfigured, 401 signed out).
+  const signedIn = async (c: Ctx): Promise<string | Response> => {
+    if (!auth) return c.json({ error: "auth_not_configured" }, 503);
+    return (await viewerOf(c)) ?? c.json({ error: "sign_in_required" }, 401);
+  };
+  // The owner's user id, or the response to send instead (403 when the series belongs to someone else).
+  const ownerOf = async (c: Ctx, resolve: (o: Ownership) => Promise<SeriesAccess | null>): Promise<string | Response> => {
+    const uid = await signedIn(c);
+    if (uid instanceof Response || !auth) return uid;
+    const a = await resolve(auth.ownership);
+    // Unknown or malformed target: nothing exists to change, so the route's own validation answers (its
+    // documented 400/404). A signed-in session is still required to get this far.
+    if (!a) return uid;
+    if (a.ownerId !== uid) return c.json({ error: "forbidden" }, 403);
+    return uid;
+  };
+  // Service-to-service routes: the bearer must equal the configured secret (open only when none is configured,
+  // which production refuses to start without).
+  const serviceOnly = (c: Ctx): Response | null => {
+    if (!auth?.serviceSecret) return null;
+    return bearerOf(c) === auth.serviceSecret ? null : c.json({ error: "forbidden" }, 403);
+  };
+  const str = (v: unknown): string | null => (typeof v === "string" && v.length > 0 ? v : null);
 
   // GET / and GET /healthz : liveness. The bare service URL should answer 200 (not a confusing 404), and
   // surface which capability groups are mounted so a browser hit is self-describing.
@@ -122,6 +165,11 @@ export function createContentApp(deps: AppDeps): Hono {
   // handler (a malformed uuid is a clean 404 without touching the DB), so the route only forwards it.
   app.get("/series/:id/graph", async (c) => {
     const id: GraphIdParam = c.req.param("id");
+    // Drafts are private to their owner; published series are public.
+    if (auth) {
+      const a = await auth.ownership.ofSeries(id);
+      if (a && !a.published && a.ownerId !== (await viewerOf(c))) return c.json({ error: "not_found" }, 404);
+    }
     const result = await handleGetSeriesGraph(id, db);
     return c.json(result.body, result.status as 200 | 404);
   });
@@ -129,9 +177,12 @@ export function createContentApp(deps: AppDeps): Hono {
   // POST /series : create a series. A malformed or missing JSON body becomes a 400 here rather than an
   // unhandled 500; the handler applies the server-authoritative defaults and validation.
   app.post("/series", async (c) => {
+    const uid = await signedIn(c);
+    if (uid instanceof Response) return uid;
     const raw = await readJson(c);
     if (raw == null) return c.json({ error: "invalid_json" }, 400);
     const result = await handleCreateSeries(raw as CreateSeriesBody, db);
+    if (result.status === 201 && auth) await auth.ownership.setOwner((result.body as { id: string }).id, uid);
     return c.json(result.body, result.status as 201 | 400);
   });
 
@@ -139,6 +190,11 @@ export function createContentApp(deps: AppDeps): Hono {
   app.post("/episodes", async (c) => {
     const raw = await readJson(c);
     if (raw == null) return c.json({ error: "invalid_json" }, 400);
+    {
+      const sid = str((raw as { series_id?: unknown }).series_id);
+      const ok = sid ? await ownerOf(c, (o) => o.ofSeries(sid)) : await signedIn(c);
+      if (ok instanceof Response) return ok;
+    }
     const result = await handleCreateEpisode(raw as CreateEpisodeBody, db);
     return c.json(result.body, result.status as 201 | 400);
   });
@@ -148,6 +204,16 @@ export function createContentApp(deps: AppDeps): Hono {
   app.post("/beats", async (c) => {
     const raw = await readJson(c);
     if (raw == null) return c.json({ error: "invalid_json" }, 400);
+    {
+      const eid = str((raw as { episode_id?: unknown }).episode_id);
+      const sid = str((raw as { series_id?: unknown }).series_id);
+      const ok = eid ? await ownerOf(c, (o) => o.ofEpisode(eid)) : sid ? await ownerOf(c, (o) => o.ofSeries(sid)) : await signedIn(c);
+      if (ok instanceof Response) return ok;
+      if (eid && sid) {
+        const bySeries = await ownerOf(c, (o) => o.ofSeries(sid));
+        if (bySeries instanceof Response) return bySeries;
+      }
+    }
     const result = await handleCreateBeat(raw as CreateBeatBody, db);
     return c.json(result.body, result.status as 201 | 400);
   });
@@ -156,6 +222,11 @@ export function createContentApp(deps: AppDeps): Hono {
   app.post("/variants", async (c) => {
     const raw = await readJson(c);
     if (raw == null) return c.json({ error: "invalid_json" }, 400);
+    {
+      const bid = str((raw as { beat_id?: unknown }).beat_id);
+      const ok = bid ? await ownerOf(c, (o) => o.ofBeat(bid)) : await signedIn(c);
+      if (ok instanceof Response) return ok;
+    }
     const result = await handleCreateVariant(raw as CreateVariantBody, db);
     return c.json(result.body, result.status as 201 | 400);
   });
@@ -163,6 +234,8 @@ export function createContentApp(deps: AppDeps): Hono {
   // DELETE /variants/{id} : remove a beat_variant (an uploaded or registered cut). The media bytes on the
   // ingest server are pruned separately by the Studio; the content DB owns only the row.
   app.delete("/variants/:id", async (c) => {
+    const ok = await ownerOf(c, (o) => o.ofVariant(c.req.param("id")));
+    if (ok instanceof Response) return ok;
     const result = await handleDeleteVariant(c.req.param("id"), db);
     return c.json(result.body, result.status as 200 | 400 | 404);
   });
@@ -171,16 +244,24 @@ export function createContentApp(deps: AppDeps): Hono {
   app.patch("/variants/:id/tracks", async (c) => {
     const raw = await readJson(c);
     if (raw == null) return c.json({ error: "invalid_json" }, 400);
+    {
+      const ok = await ownerOf(c, (o) => o.ofVariant(c.req.param("id")));
+      if (ok instanceof Response) return ok;
+    }
     const result = await handleSetVariantTracks(c.req.param("id"), raw, db);
     return c.json(result.body, result.status as 200 | 400 | 404);
   });
 
   // POST /series/{id}/publish and /unpublish (0009b) : flip the series publish state.
   app.post("/series/:id/publish", async (c) => {
+    const ok = await ownerOf(c, (o) => o.ofSeries(c.req.param("id")));
+    if (ok instanceof Response) return ok;
     const result = await handleSetSeriesPublished(c.req.param("id"), true, db);
     return c.json(result.body, result.status as 200 | 400 | 404);
   });
   app.post("/series/:id/unpublish", async (c) => {
+    const ok = await ownerOf(c, (o) => o.ofSeries(c.req.param("id")));
+    if (ok instanceof Response) return ok;
     const result = await handleSetSeriesPublished(c.req.param("id"), false, db);
     return c.json(result.body, result.status as 200 | 400 | 404);
   });
@@ -195,6 +276,13 @@ export function createContentApp(deps: AppDeps): Hono {
   // creator can pick and keep building unpublished series.
   app.get("/series", async (c) => {
     const result = await handleListAllSeries(db);
+    if (auth) {
+      // Drafts are private: the studio picker lists the signed-in creator's own series only.
+      const uid = await signedIn(c);
+      if (uid instanceof Response) return uid;
+      const mine = await auth.ownership.ownedSeriesIds(uid);
+      return c.json({ ...result.body, series: result.body.series.filter((row) => mine.has(row.id)) }, 200);
+    }
     return c.json(result.body, result.status as 200);
   });
 
@@ -203,18 +291,26 @@ export function createContentApp(deps: AppDeps): Hono {
   app.patch("/series/:id", async (c) => {
     const raw = await readJson(c);
     if (raw == null) return c.json({ error: "invalid_json" }, 400);
+    {
+      const ok = await ownerOf(c, (o) => o.ofSeries(c.req.param("id")));
+      if (ok instanceof Response) return ok;
+    }
     const result = await handleUpdateSeries(c.req.param("id"), raw, db);
     return c.json(result.body, result.status as 200 | 400 | 404);
   });
 
   // GET /admin/overview : read-only operator dashboard aggregates (content + ledger + decisions).
   app.get("/admin/overview", async (c) => {
+    const denied = serviceOnly(c);
+    if (denied) return denied;
     const result = await handleAdminOverview(db);
     return c.json(result.body, result.status as 200 | 501);
   });
 
   // POST /admin/paywall-event : append a paywall presentation (bandit propensity) to the events stream.
   app.post("/admin/paywall-event", async (c) => {
+    const denied = serviceOnly(c);
+    if (denied) return denied;
     const raw = await readJson(c);
     if (raw == null) return c.json({ error: "invalid_json" }, 400);
     const result = await handleAdminPaywallEvent(raw, db);
@@ -223,6 +319,8 @@ export function createContentApp(deps: AppDeps): Hono {
 
   // GET /admin/ads-today/{userId}?day=YYYY-MM-DD : today's rewarded_ad count (server-side cap input).
   app.get("/admin/ads-today/:userId", async (c) => {
+    const denied = serviceOnly(c);
+    if (denied) return denied;
     const day = c.req.query("day") ?? new Date().toISOString().slice(0, 10);
     const result = await handleAdminAdsToday(c.req.param("userId"), day, db);
     return c.json(result.body, result.status as 200 | 400 | 501);
@@ -231,6 +329,8 @@ export function createContentApp(deps: AppDeps): Hono {
   // POST /series/{id}/poster/generate : server-side generate (stability-ai) -> upload -> persist
   // series.poster_url with C2PA + Article 50 provenance. The generation key never reaches the browser.
   app.post("/series/:id/poster/generate", async (c) => {
+    const ok = await ownerOf(c, (o) => o.ofSeries(c.req.param("id")));
+    if (ok instanceof Response) return ok;
     if (!deps.posterGen) return c.json({ error: "poster_generation_unavailable" }, 501);
     const id = c.req.param("id");
     const raw = await readJson(c);
@@ -252,6 +352,10 @@ export function createContentApp(deps: AppDeps): Hono {
   app.patch("/series/:id/poster", async (c) => {
     const raw = await readJson(c);
     if (raw == null) return c.json({ error: "invalid_json" }, 400);
+    {
+      const ok = await ownerOf(c, (o) => o.ofSeries(c.req.param("id")));
+      if (ok instanceof Response) return ok;
+    }
     const result = await handleSetSeriesPoster(c.req.param("id"), raw, db);
     return c.json(result.body, result.status as 200 | 400 | 404);
   });
@@ -260,6 +364,10 @@ export function createContentApp(deps: AppDeps): Hono {
   app.post("/series/:id/produce", async (c) => {
     const raw = await readJson(c);
     if (raw == null) return c.json({ error: "invalid_json" }, 400);
+    {
+      const ok = await ownerOf(c, (o) => o.ofSeries(c.req.param("id")));
+      if (ok instanceof Response) return ok;
+    }
     const result = await handleProduceSeries(c.req.param("id"), raw, db);
     return c.json(result.body, result.status as 200 | 400 | 404 | 409);
   });
@@ -269,6 +377,14 @@ export function createContentApp(deps: AppDeps): Hono {
   app.post("/edges", async (c) => {
     const raw = await readJson(c);
     if (raw == null) return c.json({ error: "invalid_json" }, 400);
+    {
+      const from = str((raw as { from_beat_id?: unknown }).from_beat_id);
+      const to = str((raw as { to_beat_id?: unknown }).to_beat_id);
+      for (const bid of [from, to]) {
+        const ok = bid ? await ownerOf(c, (o) => o.ofBeat(bid)) : await signedIn(c);
+        if (ok instanceof Response) return ok;
+      }
+    }
     const result = await handleCreateEdge(raw as CreateEdgeBody, db);
     return c.json(result.body, result.status as 201 | 400);
   });
@@ -290,29 +406,32 @@ export function createContentApp(deps: AppDeps): Hono {
       return c.json({ error: "reading_error", message: e instanceof Error ? e.message : String(e) }, 500);
     }
   };
-  // The reader identity for reading_state comes from the session bearer (session:<uuid>), never the body.
-  const sessionUser = (c: { req: { header: (k: string) => string | undefined } }): string | null => {
-    const m = /^Bearer\s+session:([0-9a-fA-F-]{36})$/.exec(c.req.header("authorization") ?? "");
-    return m ? m[1] : null;
-  };
+  // Reading writes need a verified session (works have no owner column yet: any signed-in user, tracked as a
+  // follow-up). The reader identity for reading_state is the verified session subject, never the body.
 
   if (reading) {
     app.post("/works", async (c) => {
+      const uid = await signedIn(c);
+      if (uid instanceof Response) return uid;
       const raw = await readJson(c);
       if (!isRecord(raw)) return c.json({ error: "invalid_json" }, 400);
       return runReading(c, () => createWork(raw as unknown as CreateWorkInput, reading), 201);
     });
     app.post("/works/:id/chapters", async (c) => {
+      const uid = await signedIn(c);
+      if (uid instanceof Response) return uid;
       const raw = await readJson(c);
       if (!isRecord(raw)) return c.json({ error: "invalid_json" }, 400);
       return runReading(c, () => addChapter(c.req.param("id"), raw as unknown as CreateChapterInput, reading), 201);
     });
-    app.post("/works/:id/publish", (c) =>
-      runReading(c, async () => {
+    app.post("/works/:id/publish", async (c) => {
+      const uid = await signedIn(c);
+      if (uid instanceof Response) return uid;
+      return runReading(c, async () => {
         await reading.publishWork(c.req.param("id"));
         return { ok: true };
-      }),
-    );
+      });
+    });
     app.get("/works/:id", async (c) => {
       const detail = await reading.getWorkDetail(c.req.param("id"));
       return detail ? c.json(detail, 200) : c.json({ error: "work_not_found" }, 404);
@@ -328,9 +447,15 @@ export function createContentApp(deps: AppDeps): Hono {
       return c.html(readerPageHtml(id, deps.eventsBaseUrl ?? ""));
     });
     // run the demand sensor for a work and persist the verdict (the Studio demand dashboard reads this).
-    app.post("/works/:id/recompute-demand", (c) => runReading(c, () => recomputeDemand(c.req.param("id"), reading)));
+    app.post("/works/:id/recompute-demand", async (c) => {
+      const uid = await signedIn(c);
+      if (uid instanceof Response) return uid;
+      return runReading(c, () => recomputeDemand(c.req.param("id"), reading));
+    });
     // one-click "adapt to series": graduate a ready_to_adapt work into a video series + beats.
     app.post("/works/:id/adapt", async (c) => {
+      const uid = await signedIn(c);
+      if (uid instanceof Response) return uid;
       const raw = (await readJson(c)) as { force?: boolean } | null;
       return runReading(c, () => adaptWork(c.req.param("id"), reading, { force: raw?.force === true }));
     });
@@ -338,7 +463,7 @@ export function createContentApp(deps: AppDeps): Hono {
     app.get("/reading/candidates", (c) => runReading(c, () => reading.listCandidates(c.req.query("status") || undefined)));
     // per-reader progress, the reading_state sibling of viewer_state. Identity from the session bearer.
     app.put("/works/:id/reading-state", async (c) => {
-      const uid = sessionUser(c);
+      const uid = await viewerOf(c);
       if (!uid) return c.json({ error: "unauthorized" }, 401);
       const raw = await readJson(c);
       if (!isRecord(raw)) return c.json({ error: "invalid_json" }, 400);

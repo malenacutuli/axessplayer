@@ -41,6 +41,10 @@ export const FIX = {
   variantPremiumEnding: "cccccccc-0000-0000-0000-000000000005",
 } as const;
 
+// The signed-in creator the HTTP tests act as by default (a seed user). It owns the seed series and, in an
+// empty database, is created so series it creates can record it as owner.
+export const TEST_CREATOR = "aaaaaaaa-0000-0000-0000-000000000001";
+
 // Spin up a fresh database with migrations + seed applied. Each call is fully isolated.
 export async function freshDb(): Promise<PGlite> {
   const db = await PGlite.create();
@@ -50,6 +54,7 @@ export async function freshDb(): Promise<PGlite> {
     await db.exec(await readFile(path.join(migrationsDir, f), "utf8"));
   }
   await db.exec(await readFile(seedFile, "utf8"));
+  await db.query("update series set owner_id = $1", [TEST_CREATOR]);
   return db;
 }
 
@@ -62,6 +67,7 @@ export async function emptyDb(): Promise<PGlite> {
   for (const f of files) {
     await db.exec(await readFile(path.join(migrationsDir, f), "utf8"));
   }
+  await db.query("insert into users (id, email) values ($1, $2)", [TEST_CREATOR, "creator@example.test"]);
   return db;
 }
 

@@ -23,6 +23,8 @@ import { createContentApp } from "./http/app.js";
 import { PgContentDb } from "./pgContentDb.js";
 import { PgReadingDb } from "./pgReadingDb.js";
 import { makePosterGenerator } from "./poster.js";
+import { sqlOwnership } from "./ownership.js";
+import { selectSessionVerifier, pgUserIdResolver, type SessionVerifier } from "@axessplayer/session-auth";
 
 export interface ContentServerConfig {
   databaseUrl: string;
@@ -58,7 +60,31 @@ export function buildContentApp(pool: pg.Pool, env: NodeJS.ProcessEnv = process.
   // Events service base URL so the reader/watch pages emit engagement events into the demand sensor. Defaults
   // to the live events service; override with EVENTS_BASE_URL (empty string disables emission).
   const eventsBaseUrl = env.EVENTS_BASE_URL ?? "https://axessplayer-events.onrender.com";
-  return createContentApp({ db: new PgContentDb(pool), reading: new PgReadingDb(pool), eventsBaseUrl, ...(posterGen ? { posterGen } : {}) });
+  // Creator auth: real Supabase sessions (test verifier only outside production), series ownership over the
+  // same pool, and a service secret for the /admin routes other services call. Production refuses to start
+  // without the secret, so those routes are never open there.
+  const serviceSecret = env.CONTENT_SERVICE_SECRET;
+  if (env.NODE_ENV === "production" && !serviceSecret) {
+    throw new Error("content server: CONTENT_SERVICE_SECRET is required in production (service-to-service /admin routes)");
+  }
+  const session: SessionVerifier = selectSessionVerifier(
+    { SUPABASE_URL: env.SUPABASE_URL, SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY, NODE_ENV: env.NODE_ENV },
+    () => ({
+      // Local stacks only: the same session:<uuid> scheme the other services' test verifiers use.
+      verifySession: async (t) => {
+        const m = /^session:([0-9a-f-]{36})$/i.exec(t ?? "");
+        return m ? { userId: m[1] } : null;
+      },
+    }),
+    "content server",
+    pgUserIdResolver((sql, params) => pool.query(sql, params)),
+  );
+  const auth = {
+    session,
+    ownership: sqlOwnership((sql, params) => pool.query(sql, params)),
+    ...(serviceSecret ? { serviceSecret } : {}),
+  };
+  return createContentApp({ db: new PgContentDb(pool), reading: new PgReadingDb(pool), eventsBaseUrl, auth, ...(posterGen ? { posterGen } : {}) });
 }
 
 // --- node:http bridge: map a Node request to a Web Request, run the Hono app, write the Web Response back.

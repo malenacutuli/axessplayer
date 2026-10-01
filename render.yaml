@@ -30,6 +30,11 @@ services:
     plan: starter
     region: oregon
     envVars:
+      # Creator auth (session verification + series ownership) and the service secret for /admin routes.
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: CONTENT_SERVICE_SECRET
+        sync: false
       - key: NODE_ENV
         value: production
       - key: DB_OPTIONS
@@ -108,6 +113,9 @@ services:
     plan: starter
     region: oregon
     envVars:
+      # Same value as the content service's CONTENT_SERVICE_SECRET (settlement calls content /admin routes).
+      - key: CONTENT_SERVICE_SECRET
+        sync: false
       # Session -> profile mapping for the reward routes (same database as economy).
       - key: DATABASE_URL
         sync: false

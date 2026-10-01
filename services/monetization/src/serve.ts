@@ -32,9 +32,13 @@ const economySink: GrantSink = {
 // Server-side daily rewarded-ad cap input: read today's rewarded_ad count from the content service's
 // read-only ledger aggregate. The cap is checked before any mint, so the client cannot exceed it.
 const contentBase = withScheme((process.env.CONTENT_BASE_URL ?? "http://127.0.0.1:8093").replace(/\/$/, ""));
+// content's /admin routes are service-to-service: they require CONTENT_SERVICE_SECRET in production.
+const contentAuth: Record<string, string> = process.env.CONTENT_SERVICE_SECRET
+  ? { authorization: `Bearer ${process.env.CONTENT_SERVICE_SECRET}` }
+  : {};
 const adsGrantedToday = async (userId: string, dayIso: string): Promise<number> => {
   try {
-    const res = await fetch(`${contentBase}/admin/ads-today/${encodeURIComponent(userId)}?day=${dayIso}`);
+    const res = await fetch(`${contentBase}/admin/ads-today/${encodeURIComponent(userId)}?day=${dayIso}`, { headers: contentAuth });
     if (!res.ok) return 0; // fail-open on a flaky count read; never block a legitimate reward
     const body = (await res.json()) as { count?: number };
     return typeof body.count === "number" ? body.count : 0;
@@ -47,7 +51,7 @@ const adsGrantedToday = async (userId: string, dayIso: string): Promise<number> 
 const logPaywall = async (e: PaywallPresentation): Promise<void> => {
   await fetch(`${contentBase}/admin/paywall-event`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...contentAuth },
     body: JSON.stringify(e),
   }).catch(() => {});
 };

@@ -11,21 +11,25 @@
 -- Zone 1 policies and buckets are not touched. Public READ of these public buckets is unchanged.
 -- Apply only with the matching deploy (generation service has SUPABASE_SERVICE_ROLE_KEY). Rollback below.
 
-drop policy if exists axessplayer_qa_insert_masters on storage.objects;
-drop policy if exists axessplayer_qa_update_masters on storage.objects;
-drop policy if exists reading_works_anon_insert on storage.objects;
-
--- Owner-scoped replacement for signed-in studio uploads (additive).
-create policy axessplayer_creator_insert_own on storage.objects
+-- Supabase-only: local and CI Postgres (PGlite, embedded, postgres:15) have no storage schema or Supabase
+-- roles, so the block is a no-op there.
+do $$
+begin
+  if exists (select 1 from pg_namespace where nspname = 'storage')
+     and exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute $sql$drop policy if exists axessplayer_qa_insert_masters on storage.objects$sql$;
+    execute $sql$drop policy if exists axessplayer_qa_update_masters on storage.objects$sql$;
+    execute $sql$drop policy if exists reading_works_anon_insert on storage.objects$sql$;
+    -- Owner-scoped replacement for signed-in studio uploads (additive).
+    execute $sql$create policy axessplayer_creator_insert_own on storage.objects
   for insert to authenticated
   with check (
     bucket_id = 'videos'
     and (storage.foldername(name))[1] = 'axessplayer'
     and (storage.foldername(name))[2] = 'uploads'
     and (storage.foldername(name))[3] = auth.uid()::text
-  );
-
-create policy axessplayer_creator_update_own on storage.objects
+  )$sql$;
+    execute $sql$create policy axessplayer_creator_update_own on storage.objects
   for update to authenticated
   using (
     bucket_id = 'videos'
@@ -38,7 +42,10 @@ create policy axessplayer_creator_update_own on storage.objects
     and (storage.foldername(name))[1] = 'axessplayer'
     and (storage.foldername(name))[2] = 'uploads'
     and (storage.foldername(name))[3] = auth.uid()::text
-  );
+  )$sql$;
+  end if;
+end
+$$;
 
 -- ROLLBACK (restores the exact pre-0009 live policies; run only to undo):
 --   drop policy if exists axessplayer_creator_insert_own on storage.objects;

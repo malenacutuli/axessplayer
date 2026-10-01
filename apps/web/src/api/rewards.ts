@@ -84,7 +84,7 @@ export function createRewardsClient(opts: RewardsClientOptions = {}): RewardsCli
     async presentPaywall(input) {
       const res = await doFetch(`${rb}/paywall/present`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...(opts.session ? await authHeader(opts.session) : {}) },
         body: JSON.stringify(input),
       });
       if (!res.ok) throw new Error(`paywall present failed (${res.status})`);
