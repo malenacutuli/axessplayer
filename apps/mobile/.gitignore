@@ -1,0 +1,12 @@
+# Expo local state and native build output. No em dashes.
+.expo/
+dist/
+web-build/
+ios/
+android/
+expo-env.d.ts
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
