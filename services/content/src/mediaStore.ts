@@ -38,11 +38,12 @@ export function sqlMediaStore(query: Query): MediaStore {
     async setStreamUploading(variantId, uid) {
       await query("update beat_variants set stream_uid = $2, stream_status = 'uploading' where id = $1", [variantId, uid]);
     },
-    // Ready: the cut becomes servable (qa passed) with Stream's manifest URL and duration. Idempotent.
+    // Ready: the cut becomes servable (qa passed) with Stream's manifest URL and duration, and its playback_url
+    // becomes the stream marker (a migrated legacy cut switches to signed Stream playback here). Idempotent.
     async markStreamReady(uid, hls, durationMs) {
       const { rows } = await query(
         `update beat_variants set stream_status = 'ready', stream_hls = $2, duration_ms = coalesce($3, duration_ms),
-           qa_status = 'passed' where stream_uid = $1 returning id`,
+           qa_status = 'passed', playback_url = 'stream:' || stream_uid where stream_uid = $1 returning id`,
         [uid, hls, durationMs],
       );
       return str(rows[0]?.id);
