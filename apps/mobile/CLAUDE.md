@@ -31,7 +31,7 @@ expo-video needs a development build (`npx expo run:ios` / `run:android` or EAS)
   - `feed/shorts.ts` paging (cursor, dedupe) and the playback window (one active, next preloaded, previous mounted, rest released).
   - `player/` quartile tracker, letterbox math, signed playback url cache and retry policy.
   - `a11y/tracks.ts` caption track selection (captions ON by default), badges, sponsor disclosure, duration labels.
-  - `consent/` analytics consent gate (default OFF). `analytics/events.ts` POST /events, gated at send time.
+  - `consent/` analytics consent gate (default OFF). `analytics/events.ts` POST /events, gated at send time. Default wire is the collector AxpEvent shape (`{ eventId, sessionId, name, ts, props }`, taxonomy names such as completion_25 / caption_toggled); `wire: "flat"` posts the brief ViewEvent shape.
   - `economy/tips.ts` POST /tips (signed in only, Idempotency-Key header, 404 means coming soon).
 - `src/state/` : React providers (Auth via Supabase + AsyncStorage, Prefs for consent and captions, Services for the clients).
 - `src/ui/` : components and the `useVideoPlayback` hook (expo-video) shared by Shorts and Watch.

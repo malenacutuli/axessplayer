@@ -38,9 +38,12 @@ function orientationOf(v: unknown, width: number | null, height: number | null):
   return "horizontal";
 }
 
-function formatOf(v: unknown, orientation: Orientation): VideoFormat {
+// Mirrors the content service rule when the server left format null: a non-horizontal video of at most
+// three minutes is a short.
+export const SHORT_MAX_MS = 3 * 60 * 1000;
+function formatOf(v: unknown, orientation: Orientation, durationMs: number | null): VideoFormat {
   if (v === "short" || v === "long") return v;
-  return orientation === "vertical" ? "short" : "long";
+  return orientation !== "horizontal" && durationMs !== null && durationMs <= SHORT_MAX_MS ? "short" : "long";
 }
 
 function parseAccessibility(v: unknown): VideoAccessibility {
@@ -79,7 +82,7 @@ export function parseVideo(v: unknown): Video | null {
     width,
     height,
     duration_ms: num(v.duration_ms),
-    format: formatOf(v.format, orientation),
+    format: formatOf(v.format, orientation, num(v.duration_ms)),
     language: str(v.language) ?? "und",
     category: str(v.category),
     thumbnail_url: str(v.thumbnail_url),

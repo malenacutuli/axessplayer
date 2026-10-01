@@ -77,9 +77,11 @@ test("parseVideo infers orientation and format from dimensions when missing", ()
   assert.equal(v?.orientation, "square");
   assert.equal(v?.format, "long");
   assert.equal(v?.accessibility.captions, false);
-  const vert = parseVideo({ id: "a", title: "b", width: 720, height: 1280 });
+  const vert = parseVideo({ id: "a", title: "b", orientation: null, format: null, width: 720, height: 1280, duration_ms: 60000 });
   assert.equal(vert?.orientation, "vertical");
   assert.equal(vert?.format, "short");
+  const longVert = parseVideo({ id: "a", title: "b", width: 720, height: 1280, duration_ms: 600000 });
+  assert.equal(longVert?.format, "long");
 });
 
 test("parseHomeFeed drops malformed and empty rows", () => {

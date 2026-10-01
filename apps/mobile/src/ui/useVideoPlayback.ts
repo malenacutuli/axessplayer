@@ -12,6 +12,7 @@ import { useEvent, useEventListener } from "expo";
 import { useVideoPlayer, type AudioTrack, type SubtitleTrack, type VideoPlayer } from "expo-video";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import type { TrackInput } from "../core/analytics/events";
 import type { Video } from "../core/api/types";
 import { pickSubtitleTrack, sameTrack } from "../core/a11y/tracks";
 import { resolvePlaybackUrl, shouldRetryPlayback } from "../core/player/playbackUrl";
@@ -26,6 +27,8 @@ export interface PlaybackOptions {
   loop?: boolean;
   // When false the item is still resolved and buffered but never auto-started (reduce motion).
   autoplay?: boolean;
+  // True on the Watch screen: emits video_opened once.
+  opened?: boolean;
 }
 
 export interface Playback {
@@ -152,15 +155,25 @@ export function useVideoPlayback(video: Video, opts: PlaybackOptions): Playback 
   // Viewership events: impression when the item becomes active, then play / quartiles / complete / seek.
   const tracker = useRef(new QuartileTracker());
   const lastPos = useRef<number | null>(null);
-  const send = useCallback(
-    (e: TrackerEvent) => {
-      events.track({ type: e.type, video_id: video.id, position_ms: e.position_ms, value: "value" in e ? e.value : undefined });
-    },
-    [events, video.id]
+  const context = useMemo(
+    () => ({ channelId: video.channel.id, format: video.format, orientation: video.orientation }),
+    [video.channel.id, video.format, video.orientation]
   );
+  const track = useCallback(
+    (type: TrackInput["type"], position_ms: number, value?: TrackInput["value"]) => {
+      events.track({ type, video_id: video.id, position_ms, value, context });
+    },
+    [events, video.id, context]
+  );
+  const send = useCallback((e: TrackerEvent) => track(e.type, e.position_ms, "value" in e ? e.value : undefined), [track]);
   useEffect(() => {
-    if (opts.active) events.track({ type: "impression", video_id: video.id, position_ms: 0 });
-  }, [opts.active, events, video.id]);
+    if (!opts.active) return;
+    track("impression", 0);
+    if (video.sponsor) track("sponsor_shown", 0, video.sponsor.brand);
+  }, [opts.active, track, video.sponsor]);
+  useEffect(() => {
+    if (opts.opened) track("video_opened", 0);
+  }, [opts.opened, track]);
 
   useEventListener(player, "timeUpdate", ({ currentTime }) => {
     if (!opts.active) return;
@@ -186,31 +199,31 @@ export function useVideoPlayback(video: Video, opts: PlaybackOptions): Playback 
     (on: boolean) => {
       manualTrack.current = undefined;
       persistCaptions(on);
-      events.track({ type: "a11y_toggle", video_id: video.id, position_ms: player.currentTime * 1000, value: on ? "captions:on" : "captions:off" });
+      track("a11y_toggle", player.currentTime * 1000, on ? "captions:on" : "captions:off");
     },
-    [persistCaptions, events, video.id, player]
+    [persistCaptions, track, player]
   );
 
   const selectSubtitle = useCallback(
-    (track: SubtitleTrack | null) => {
-      manualTrack.current = track;
-      if (track === null) {
+    (t: SubtitleTrack | null) => {
+      manualTrack.current = t;
+      if (t === null) {
         setCaptionsEnabled(false);
         return;
       }
       if (!captionsEnabled) persistCaptions(true);
-      player.subtitleTrack = track;
-      events.track({ type: "a11y_toggle", video_id: video.id, position_ms: player.currentTime * 1000, value: `captions:${track.language}` });
+      player.subtitleTrack = t;
+      track("a11y_toggle", player.currentTime * 1000, `captions:${t.language}`);
     },
-    [player, captionsEnabled, persistCaptions, setCaptionsEnabled, events, video.id]
+    [player, captionsEnabled, persistCaptions, setCaptionsEnabled, track]
   );
 
   const selectAudio = useCallback(
-    (track: AudioTrack) => {
-      player.audioTrack = track;
-      events.track({ type: "a11y_toggle", video_id: video.id, position_ms: player.currentTime * 1000, value: `audio:${track.language}` });
+    (t: AudioTrack) => {
+      player.audioTrack = t;
+      track("a11y_toggle", player.currentTime * 1000, `audio:${t.language}`);
     },
-    [player, events, video.id]
+    [player, track]
   );
 
   const togglePlay = useCallback(() => {

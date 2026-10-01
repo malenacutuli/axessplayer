@@ -46,7 +46,7 @@ export default function WatchScreen() {
 }
 
 function WatchBody({ video }: { video: Video }) {
-  const playback = useVideoPlayback(video, { active: true, loop: false, autoplay: true });
+  const playback = useVideoPlayback(video, { active: true, loop: false, autoplay: true, opened: true });
   const { session } = useAuth();
   const [tipOpen, setTipOpen] = useState(false);
   const screen = useWindowDimensions();

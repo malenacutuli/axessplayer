@@ -21,7 +21,7 @@ const MESSAGES: Record<TipOutcome["status"], string> = {
 };
 
 export function TipSheet({ videoId, channelName, visible, onClose }: { videoId: string; channelName: string; visible: boolean; onClose(): void }) {
-  const { tips } = useServices();
+  const { tips, events } = useServices();
   const [coins, setCoins] = useState<number>(TIP_PRESETS[0]);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<TipOutcome | null>(null);
@@ -34,7 +34,10 @@ export function TipSheet({ videoId, channelName, visible, onClose }: { videoId: 
     const r = await tips.sendTip(videoId, coins, key.current.key);
     setBusy(false);
     setResult(r);
-    if (r.status === "sent") key.current = null;
+    if (r.status === "sent") {
+      key.current = null;
+      events.track({ type: "tip_sent", video_id: videoId, value: coins });
+    }
   }
 
   function close() {

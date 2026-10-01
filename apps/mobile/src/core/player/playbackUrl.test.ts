@@ -38,3 +38,10 @@ test("a failed fetch is not cached", async () => {
   assert.equal(await resolvePlaybackUrl(cache, "v", async () => null), null);
   assert.equal(cache.get("v"), null);
 });
+
+test("expiry from a Cloudflare Stream signed token (JWT in the path)", () => {
+  const b64url = (o: object) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  const token = `${b64url({ alg: "RS256", kid: "k" })}.${b64url({ sub: "uid", exp: 1790003600 })}.sig`;
+  const url = `https://customer-abc.cloudflarestream.com/${token}/manifest/video.m3u8`;
+  assert.equal(expiryFromUrl(url, 1_790_000_000_000), 1_790_003_600_000);
+});

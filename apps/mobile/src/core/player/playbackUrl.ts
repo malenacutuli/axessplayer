@@ -1,7 +1,9 @@
 // Short-lived signed HLS urls. The content service returns a playback_url that expires; the cache keeps a
 // url only while it is comfortably fresh and forgets it on a playback error (a 403 from the CDN surfaces
-// as a player error), so the next load refetches. Expiry comes from an "exp" query parameter (unix
-// seconds) when present, otherwise from a conservative default TTL. No em dashes.
+// as a player error), so the next load refetches. Expiry comes from the signed token itself: Cloudflare
+// Stream puts a JWT in the url path in place of the video uid, and its payload carries "exp" (unix
+// seconds). An "exp" query parameter is honored too. Otherwise a conservative default TTL applies.
+// No em dashes.
 
 export interface CachedUrl {
   url: string;
@@ -12,10 +14,41 @@ export const DEFAULT_TTL_MS = 5 * 60 * 1000;
 export const SAFETY_MARGIN_MS = 30 * 1000;
 export const MAX_PLAYBACK_RETRIES = 2;
 
+function base64UrlDecode(seg: string): string | null {
+  try {
+    const b64 = seg.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (seg.length % 4)) % 4);
+    if (typeof atob === "function") return atob(b64);
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// The exp claim (unix seconds) of the first JWT-shaped path segment, or null.
+export function jwtExpFromUrl(url: string): number | null {
+  const path = url.split(/[?#]/)[0] ?? "";
+  for (const seg of path.split("/")) {
+    const parts = seg.split(".");
+    if (parts.length !== 3 || parts[1].length < 8) continue;
+    const json = base64UrlDecode(parts[1]);
+    if (!json) continue;
+    try {
+      const exp = (JSON.parse(json) as { exp?: unknown }).exp;
+      if (typeof exp === "number" && Number.isFinite(exp)) return exp;
+    } catch {
+      // not a JWT
+    }
+  }
+  return null;
+}
+
 export function expiryFromUrl(url: string, fetchedAt: number, defaultTtlMs = DEFAULT_TTL_MS): number {
+  const candidates: number[] = [];
   const m = /[?&](?:exp|expires|Expires)=(\d{9,13})(?:&|$)/.exec(url);
-  if (m) {
-    const n = Number(m[1]);
+  if (m) candidates.push(Number(m[1]));
+  const jwtExp = jwtExpFromUrl(url);
+  if (jwtExp !== null) candidates.push(jwtExp);
+  for (const n of candidates) {
     const ms = n < 1e12 ? n * 1000 : n;
     if (ms > fetchedAt) return ms;
   }
