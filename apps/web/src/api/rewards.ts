@@ -1,3 +1,4 @@
+import { authHeader, type SessionProvider } from "./session.js";
 // Rewards client: triggers the SERVER-SIDE reward callbacks (rewarded ad, daily check-in, follow bonus).
 // The browser NEVER mints coins. It calls the settlement service, which verifies and calls economy /grant
 // service-to-service (idempotent by client_txn_id). In production the rewarded-ad completion is the ad
@@ -49,6 +50,9 @@ export interface RewardsClientOptions {
   contentBaseUrl?: string;
   fetch?: typeof globalThis.fetch;
   dailyAdCap?: number;
+  // The viewer's session. Rewards are credited to the verified session subject, so every reward call
+  // carries it; the userId arguments below are kept for the call sites but the server ignores them.
+  session?: SessionProvider;
 }
 
 export const DEFAULT_DAILY_AD_CAP = 5;
@@ -62,7 +66,7 @@ export function createRewardsClient(opts: RewardsClientOptions = {}): RewardsCli
   const post = async (path: string, body: Record<string, unknown>): Promise<RewardResult> => {
     const res = await doFetch(`${rb}${path}`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...(opts.session ? await authHeader(opts.session) : {}) },
       body: JSON.stringify(body),
     });
     const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;

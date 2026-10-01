@@ -77,6 +77,7 @@ export function buildClients(opts: BuildClientsOptions): Clients {
     rewards: createRewardsClient({
       rewardsBaseUrl: config.economyBaseUrl,
       contentBaseUrl: config.contentBaseUrl,
+      session: opts.session,
       fetch: opts.fetch,
     }),
     playerTransport: (onStripUserId) =>

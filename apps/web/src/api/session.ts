@@ -21,3 +21,23 @@ export async function authHeader(session: SessionProvider): Promise<Record<strin
   const token = await session.getToken();
   return token ? { authorization: `Bearer ${token}` } : {};
 }
+
+// The production provider: the live Supabase access token (auto-refreshed by supabase-js), or null when
+// signed out or when auth is not configured. Services verify it against Supabase and map it to the
+// viewer's profile, so a signed-out viewer simply has no session.
+export function supabaseSession(
+  getClient: () => { auth: { getSession(): Promise<{ data: { session: { access_token: string } | null } }> } } | null,
+): SessionProvider {
+  return {
+    async getToken() {
+      const client = getClient();
+      if (!client) return null;
+      try {
+        const { data } = await client.auth.getSession();
+        return data.session?.access_token ?? null;
+      } catch {
+        return null;
+      }
+    },
+  };
+}
