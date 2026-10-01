@@ -41,3 +41,4 @@
 .vtile__channel { display: block; font-size: 12px; color: var(--axp-muted, #555); }
 @media (prefers-reduced-motion: reduce) { .shorts { scroll-behavior: auto; } }
 .scr--dark { background: #000; }
+.scr--dark .shorts__msg { color: #fff; }
