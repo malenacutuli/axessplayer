@@ -50,6 +50,21 @@ export interface StreamUploadStart {
   stream_uid: string;
 }
 
+export interface StudioVideo {
+  id: string;
+  title: string;
+  description: string | null;
+  orientation: "vertical" | "horizontal" | "square" | null;
+  duration_ms: number | null;
+  format: "short" | "long" | null;
+  language: string;
+  thumbnail_url: string | null;
+  visibility: "draft" | "published";
+  status: "uploading" | "ready" | "error" | null;
+  views: number;
+  accessibility: { captions: boolean; audio_description: boolean; sign: boolean; dubs: string[] };
+}
+
 export class ContentApiError extends Error {
   readonly status: number;
   readonly apiError?: string;
@@ -212,6 +227,27 @@ export class ContentClient {
   createEdge(body: CreateEdgeBody): Promise<EdgeRow> {
     return this.sendJson<EdgeRow>("/edges", body);
   }
+  // Platform v2 standalone videos (any length/aspect). The creator's own list includes drafts.
+  async listMyVideos(): Promise<StudioVideo[]> {
+    const res = await this.fetchImpl(joinUrl(this.baseUrl, "/me/videos"), { method: "GET", headers: { accept: "application/json" } });
+    return (await this.parse<{ items: StudioVideo[] }>(res)).items;
+  }
+  createVideo(body: { title: string; description?: string; language?: string; category?: string; size_bytes: number; name: string }): Promise<{ video: StudioVideo; upload_url: string }> {
+    return this.sendJson(`/videos`, body);
+  }
+  async updateVideo(id: string, patch: Partial<{ title: string; description: string; visibility: "draft" | "published"; format: "short" | "long" }>): Promise<StudioVideo> {
+    const res = await this.fetchImpl(joinUrl(this.baseUrl, `/videos/${encodeURIComponent(id)}`), {
+      method: "PATCH",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify(patch),
+    });
+    return this.parse<StudioVideo>(res);
+  }
+  async deleteVideo(id: string): Promise<void> {
+    const res = await this.fetchImpl(joinUrl(this.baseUrl, `/videos/${encodeURIComponent(id)}`), { method: "DELETE", headers: { accept: "application/json" } });
+    await this.parse<unknown>(res);
+  }
+
   // POST /beats/{id}/stream-upload : start a Cloudflare Stream upload for a beat. The server creates the
   // pending variant and returns the one-time tus URL the browser uploads the file to. 501 when Stream is not
   // configured on the server (local stacks).

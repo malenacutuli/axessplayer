@@ -22,6 +22,7 @@ import { ComingSoon } from "./ComingSoon.js";
 import { SettingsPanel } from "./SettingsPanel.js";
 import { AiStudioPanel } from "./studio/AiStudioPanel.js";
 import { UploadPanel } from "./studio/UploadPanel.js";
+import { VideosPanel } from "./studio/VideosPanel.js";
 import { ProcessPanel } from "./studio/ProcessPanel.js";
 import { BranchesSection } from "./studio/BranchesSection.js";
 import { AnalyticsSection } from "./studio/AnalyticsSection.js";
@@ -50,6 +51,7 @@ const WORKFLOW_PANEL: Partial<Record<SectionId, PanelId>> = {
 // (branch and endings, analytics) are dedicated catalog-backed surfaces, not the legacy StudioPage panels.
 const DEDICATED_SECTIONS = new Set<SectionId>([
   "dashboard",
+  "videos",
   "settings",
   "create",
   "upload",
@@ -115,6 +117,11 @@ export function CreatorStudio(): JSX.Element {
             {active.id === "create" && (
               <div className="smain">
                 <AiStudioPanel onNavigate={onSelect} />
+              </div>
+            )}
+            {active.id === "videos" && (
+              <div className="smain">
+                <VideosPanel />
               </div>
             )}
             {active.id === "upload" && (

@@ -4,6 +4,7 @@
 // Routing truth: every section is linkable via #/studio/<slug>. No em dashes.
 
 export type SectionId =
+  | "videos"
   | "dashboard"
   | "create"
   | "upload"
@@ -36,6 +37,7 @@ export interface StudioSection {
 
 export const STUDIO_SECTIONS: StudioSection[] = [
   { id: "dashboard", label: "Dashboard", built: true, blurb: "Your channel at a glance." },
+  { id: "videos", label: "My videos", built: true, blurb: "Upload any video, vertical or horizontal. Captions are generated automatically." },
   { id: "create", label: "Create with AI", built: true, blurb: "Prompt to series: the writers-room showrunner." },
   { id: "upload", label: "Upload", built: true, blurb: "Drop 9:16 masters; we encode and register them." },
   { id: "library", label: "Library", built: true, blurb: "Every series you have authored." },
@@ -65,6 +67,12 @@ export function sectionById(id: string): StudioSection | undefined {
 
 // Section icons (inline SVG, never emoji). Stroke uses currentColor so the rail .on state can tint rose.
 export const SECTION_ICONS: Record<SectionId, JSX.Element> = {
+  videos: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+      <rect x="2.5" y="5" width="13" height="14" rx="2" />
+      <path d="M15.5 10l6-3v10l-6-3z" />
+    </svg>
+  ),
   dashboard: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
       <rect x="3" y="3" width="7" height="9" />
