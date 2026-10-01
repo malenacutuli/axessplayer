@@ -24,6 +24,33 @@ Effort: S = days, M = 1–3 weeks, L = 3+ weeks.
 | **G11** | **Mobile player** | `PlayerScreen.tsx` is a placeholder | expo-video / react-native-video with HLS, reusing player-sdk decisions | build | M | low | G3 |
 | **G12** | **Docs contamination** | SwissBrain/Exoscale references in 3 docs could drive wrong hosting decisions | Remove them, or mark them "different project" | build | S | low | none |
 
+## Security fix log (2026-10-01) and follow-ups found while fixing
+
+| Item | State |
+|---|---|
+| 22 unversioned prod edge functions | versioned (`0dc54fc`) |
+| `axessplayer-*` caller checks (generation and stitch need the service key; R2 uploads need a user) | committed (`7bbc8a5`), **not deployed** |
+| Settlement Stripe webhook signature, fail closed | **live 2026-10-01 15:57**: unsigned probe now gets 503 |
+| Real session verification (option a: Supabase `/auth/v1/user`, fail closed, 60s cache) in decision, economy, catalog, library, identity, recap, experiment; reward routes credit the session user | committed (`ff3a36a`), staging gate 5/5 (`ffb3b6d`), **awaiting coordinated release** |
+| Web sends the real Supabase session; no demo identity in production bundles | committed (`c490656`), ships with `ff3a36a` |
+| Anon storage writes closed (migration 0009); generation uses the service key only | committed (`038d984`), **not applied** |
+
+Follow-ups:
+- **`STRIPE_WEBHOOK_SECRET` before real settlement.** Settlement fails closed. Before pointing any Stripe
+  endpoint at `/stripe/webhook`, set `STRIPE_WEBHOOK_SECRET` on the Render settlement service, or every real
+  purchase is rejected (503).
+- **admin-api accepts forged operator tokens** (`operator:<id>:<role>`, test verifier live). Suspend the
+  service until real operator auth exists (operator allow-list mapped to Supabase users, role from the
+  database, never from the token).
+- **Rewarded-ad verification is client-asserted** (the web client sends `verified: true`). With session auth,
+  abuse is limited to a user's own daily cap. Real fix: ad-network server-side verification callbacks.
+- **`users.auth_id` is not in the repo migrations** but exists in prod; the session mapping depends on it.
+  Part of G6 (migration baseline).
+- **Guest policy.** Signed-out viewers have no session after the release, so session endpoints (wallet,
+  decide, library, recap) answer 401 for them. Anonymous Supabase sign-in is deliberately not used: anonymous
+  users get the `authenticated` role, which would widen Zone 1 policies.
+- **Studio has no real login**, so the R2 upload locks and the owner-scoped upload policy wait on it.
+
 ## Decision D1: production host (blocks G2, G5, G7)
 
 **What exists:** `render.yaml` with 11 Docker services (starter plan, Oregon), 14 Render services (all suspended),
