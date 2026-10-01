@@ -3,6 +3,7 @@
 // image_to_video (gen4_turbo). 'start' generates the first frame then kicks the video task; 'status' polls.
 // promptText is clamped to 1000 chars (Runway's hard limit). No em dashes.
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { requireService } from "../_shared/auth.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -39,6 +40,8 @@ function firstOutput(t: Record<string, unknown>): string | null {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  const denied = requireService(req, cors);
+  if (denied) return denied;
   const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
   try {
     const key = Deno.env.get("RUNWAYML_API_KEY");

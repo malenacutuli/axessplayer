@@ -14,6 +14,7 @@
 // via its managed public r2.dev domain (CLOUDFLARE_R2_PUBLIC_URL, default the bound pub-*.r2.dev domain),
 // so complete returns a publicly readable playback URL for the player + produce pipeline. No em dashes.
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { requireUser } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -96,6 +97,8 @@ function assertPrefixed(key: string) {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const caller = await requireUser(req, corsHeaders);
+  if (caller instanceof Response) return caller;
   const json = (status: number, body: unknown) =>
     new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   try {

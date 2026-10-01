@@ -3,6 +3,7 @@
 // TUS chunks. Anon-callable; every key is forced under axessplayer/ so anon can only write our namespace.
 // actions: init (create multipart) -> sign (presigned PUT url per part) -> complete. No em dashes.
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { requireUser } from "../_shared/auth.ts";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const PREFIX = "axessplayer";
@@ -75,6 +76,8 @@ function sanitize(s: string): string { return (s || "x").replace(/[^a-zA-Z0-9_.-
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  const caller = await requireUser(req, cors);
+  if (caller instanceof Response) return caller;
   const json = (s: number, b: unknown) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
   try {
     const endpoint = (Deno.env.get("CLOUDFLARE_R2_ENDPOINT") ?? "").replace(/\/$/, "");

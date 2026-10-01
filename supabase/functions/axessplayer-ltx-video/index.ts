@@ -4,6 +4,7 @@
 // for cross-provider chaining); native joint audio on by default; vertical 9:16 default. LTX async returns a
 // google storage video_url which the caller re-hosts to a durable bucket. No em dashes.
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { requireService } from "../_shared/auth.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +14,8 @@ const BASE = "https://api.ltx.video";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  const denied = requireService(req, cors);
+  if (denied) return denied;
   const json = (status: number, body: unknown) =>
     new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
   try {

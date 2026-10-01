@@ -4,6 +4,7 @@
 // videos/axessplayer/episodes for a durable URL. action start -> returns a Rendi command id; action status
 // -> polls + on success re-hosts and returns the durable url. No em dashes.
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { requireService } from "../_shared/auth.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -17,6 +18,8 @@ function uuid(): string {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  const denied = requireService(req, cors);
+  if (denied) return denied;
   const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
   try {
     const key = Deno.env.get("RENDI_API_KEY");
