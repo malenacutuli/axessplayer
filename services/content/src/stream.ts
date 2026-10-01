@@ -51,6 +51,9 @@ export interface StreamApi {
   copyFromUrl(input: { url: string; name: string; creatorId?: string }): Promise<{ uid: string }>;
   signPlaybackUrl(hlsUrl: string, uid: string, ttlSeconds?: number): string;
   verifyWebhook(rawBody: string, header: string | undefined, nowSec?: number): boolean;
+  // Ask Stream to generate AI captions for a ready video (accessible by default). Stream embeds the WebVTT
+  // track in the HLS manifest once generated. Resolves false when the language is not supported.
+  generateCaptions(uid: string, language: string): Promise<boolean>;
 }
 
 export const MAX_UPLOAD_BYTES = 30 * 1024 ** 3; // generous cap on a single master (30 GiB)
@@ -116,6 +119,16 @@ export function createStreamApi(cfg: StreamConfig, fetchFn: typeof fetch = fetch
     verifyWebhook(rawBody, header, nowSec = Math.floor(Date.now() / 1000)) {
       return verifyStreamSignature(rawBody, header, cfg.webhookSecret, nowSec);
     },
+
+    async generateCaptions(uid, language) {
+      const lang = encodeURIComponent(language.toLowerCase().slice(0, 8));
+      const res = await fetchFn(`${api}/${encodeURIComponent(uid)}/captions/${lang}/generate`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${cfg.apiToken}` },
+      });
+      await res.body?.cancel();
+      return res.ok;
+    },
   };
 }
 
@@ -137,6 +150,7 @@ export function verifyStreamSignature(rawBody: string, header: string | undefine
 // A Stream webhook body (the video object). Only the fields we use.
 export interface StreamWebhookVideo {
   uid?: string;
+  input?: { width?: number; height?: number };
   readyToStream?: boolean;
   status?: { state?: string; errReasonCode?: string };
   playback?: { hls?: string };

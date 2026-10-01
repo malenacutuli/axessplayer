@@ -45,6 +45,7 @@ import type { Ownership, SeriesAccess } from "../ownership.js";
 import type { MediaStore } from "../mediaStore.js";
 import { isStreamRef, streamRef, MAX_UPLOAD_BYTES, StreamError, type StreamApi, type StreamWebhookVideo } from "../stream.js";
 import type { SeriesGraph } from "../content.js";
+import { mountVideoRoutes, handleVideoWebhook, type VideoStore } from "../videos.js";
 import { readerPageHtml, readFeedHtml } from "../readerPage.js";
 import { watchFeedHtml, watchPlayerHtml } from "../watchPage.js";
 import {
@@ -85,6 +86,8 @@ export interface AppDeps {
   stream?: StreamApi;
   // Creator-scoped dashboard numbers (same shape as the operator overview, own series only).
   creatorOverview?: (ownerId: string) => Promise<unknown>;
+  // Standalone creator videos (platform v2). When wired, /videos, /feed/shorts, /feed/home, /channels mount.
+  videos?: VideoStore;
 }
 
 type Ctx = { req: { header: (k: string) => string | undefined }; json: (b: unknown, s?: number) => Response };
@@ -246,7 +249,7 @@ export function createContentApp(deps: AppDeps): Hono {
   // POST /stream/webhook : Cloudflare Stream calls this when a video is ready or failed. Verified with the
   // webhook secret (Webhook-Signature); unsigned or stale deliveries are refused.
   app.post("/stream/webhook", async (c) => {
-    if (!deps.stream || !deps.media) return c.json({ error: "stream_not_configured" }, 503);
+    if (!deps.stream || (!deps.media && !deps.videos)) return c.json({ error: "stream_not_configured" }, 503);
     const rawBody = await c.req.text();
     if (!deps.stream.verifyWebhook(rawBody, c.req.header("webhook-signature"))) {
       return c.json({ error: "invalid_signature" }, 400);
@@ -259,6 +262,20 @@ export function createContentApp(deps: AppDeps): Hono {
     }
     if (!video.uid) return c.json({ error: "missing_uid" }, 400);
     const state = video.status?.state;
+    // A standalone video first; otherwise the uid belongs to a series cut.
+    if (deps.videos) {
+      const handled = await handleVideoWebhook(deps.videos, deps.stream, {
+        uid: video.uid,
+        ...(state ? { state } : {}),
+        ready: video.readyToStream === true,
+        ...(video.playback?.hls ? { hls: video.playback.hls } : {}),
+        durationMs: typeof video.duration === "number" && video.duration > 0 ? Math.round(video.duration * 1000) : null,
+        width: typeof video.input?.width === "number" && video.input.width > 0 ? video.input.width : null,
+        height: typeof video.input?.height === "number" && video.input.height > 0 ? video.input.height : null,
+      });
+      if (handled) return c.json({ ok: true, ...handled }, 200);
+    }
+    if (!deps.media) return c.json({ ok: true, ignored: "unknown_uid" }, 200);
     if (video.readyToStream && state === "ready" && video.playback?.hls) {
       const durationMs = typeof video.duration === "number" && video.duration > 0 ? Math.round(video.duration * 1000) : null;
       const variantId = await deps.media.markStreamReady(video.uid, video.playback.hls, durationMs);
@@ -416,6 +433,18 @@ export function createContentApp(deps: AppDeps): Hono {
     const result = await handleUpdateSeries(c.req.param("id"), raw, db);
     return c.json(result.body, result.status as 200 | 400 | 404);
   });
+
+  // Standalone creator videos, the shorts feed, the home rows, and channel pages (platform v2).
+  if (deps.videos) {
+    const db0 = db;
+    mountVideoRoutes(app, {
+      videos: deps.videos,
+      ...(deps.stream ? { stream: deps.stream } : {}),
+      viewerOf: (c) => viewerOf(c as never),
+      signedIn: (c) => signedIn(c as never),
+      publishedSeries: async () => (await db0.listPublishedSeries()) as unknown as Array<Record<string, unknown>>,
+    });
+  }
 
   // GET /creator/overview : the signed-in creator's own dashboard numbers (their series only).
   app.get("/creator/overview", async (c) => {

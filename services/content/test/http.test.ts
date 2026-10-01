@@ -36,6 +36,7 @@ const OTHER_CREATOR = "aaaaaaaa-0000-0000-0000-000000000002";
 // unless they set their own authorization header (or "" for signed out).
 // A fake Stream API: records uploads, verifies webhooks with a test secret, "signs" as signed:<uid>.
 const STREAM_SECRET = "stream-whs";
+const captionRequests: Array<{ uid: string; lang: string }> = [];
 function fakeStream(): StreamApi & { uploads: Array<{ sizeBytes: number; creatorId: string }> } {
   let n = 0;
   const uploads: Array<{ sizeBytes: number; creatorId: string }> = [];
@@ -50,6 +51,10 @@ function fakeStream(): StreamApi & { uploads: Array<{ sizeBytes: number; creator
       return { uid: "copied" };
     },
     signPlaybackUrl: (hls, uid) => hls.replace(uid, `signed-${uid}`),
+    async generateCaptions(uid, lang) {
+      captionRequests.push({ uid, lang });
+      return true;
+    },
     verifyWebhook: (raw, header) => verifyStreamSignature(raw, header, STREAM_SECRET, Math.floor(Date.now() / 1000)),
   };
 }
