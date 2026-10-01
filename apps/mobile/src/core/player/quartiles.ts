@@ -78,3 +78,11 @@ export class QuartileTracker {
     return [{ type: "complete", position_ms: Math.max(0, Math.round(positionMs)) }];
   }
 }
+
+// A looping short jumps from the end back to the start. That wrap is a new playthrough, not a seek:
+// true when the previous position was in the last 10% (or last 1.5 s) and the new one is near 0.
+export function isLoopWrap(prevMs: number | null, posMs: number, durationMs: number | null): boolean {
+  if (prevMs === null || !durationMs || durationMs <= 0) return false;
+  const nearEnd = prevMs >= Math.min(durationMs * 0.9, durationMs - 1500);
+  return nearEnd && posMs < Math.min(1500, durationMs * 0.1) && posMs < prevMs;
+}

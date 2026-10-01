@@ -42,3 +42,12 @@ test("reset starts a new playthrough (shorts loop)", () => {
   const evs = run(t, [0, 1000], 4000);
   assert.deepEqual(evs.map((e) => (e.type === "quartile" ? `q${e.value}` : e.type)), ["play", "q25"]);
 });
+
+test("isLoopWrap detects end-to-start wraps only", async () => {
+  const { isLoopWrap } = await import("./quartiles");
+  assert.equal(isLoopWrap(29500, 200, 30000), true);
+  assert.equal(isLoopWrap(15000, 200, 30000), false);
+  assert.equal(isLoopWrap(29500, 20000, 30000), false);
+  assert.equal(isLoopWrap(null, 0, 30000), false);
+  assert.equal(isLoopWrap(29500, 200, null), false);
+});
