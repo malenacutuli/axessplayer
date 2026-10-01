@@ -35,6 +35,14 @@ Effort: S = days, M = 1–3 weeks, L = 3+ weeks.
 | Web sends the real Supabase session; no demo identity in production bundles | committed (`c490656`), ships with `ff3a36a` |
 | Anon storage writes closed (migration 0009); generation uses the service key only | committed (`038d984`), **not applied** |
 
+| Guest playback (decision guest cut, no wallet error for guests, paywall identity from session) | committed (`5df9e5b`) |
+| Content service: session + series ownership on every write, private drafts, /admin service secret (0010) | committed (`b11e820`) |
+| Studio: real Supabase sign-in linked to the creator profile; every call carries the session | committed (`11e5d78`) |
+| Cloudflare Stream: tus creator uploads, signed webhook, signed playback, premium URLs withheld server-side (0011) | committed (`2c38af9`, `8da6c07`, `717fe38`) |
+| CI/deploy: root build generates contract types (fixes every Vercel web build since June), live e2e-matrix moved to `test:live`, SPA rewrite + security headers | committed (`16510cb`) |
+
+Full repo at `16510cb`: typecheck 44/44, 1,122 node tests + 212 vitest, 0 failures.
+
 Follow-ups:
 - **`STRIPE_WEBHOOK_SECRET` before real settlement.** Settlement fails closed. Before pointing any Stripe
   endpoint at `/stripe/webhook`, set `STRIPE_WEBHOOK_SECRET` on the Render settlement service, or every real
@@ -49,7 +57,15 @@ Follow-ups:
 - **Guest policy.** Signed-out viewers have no session after the release, so session endpoints (wallet,
   decide, library, recap) answer 401 for them. Anonymous Supabase sign-in is deliberately not used: anonymous
   users get the `authenticated` role, which would widen Zone 1 policies.
-- **Studio has no real login**, so the R2 upload locks and the owner-scoped upload policy wait on it.
+- **Episode-level paywall.** Server-side gating covers premium variants (what the player gates today). Paid
+  episodes (`episodes.is_free = false`) are not yet withheld server-side.
+- **Works (reading platform) have no owner.** Reading writes need a session, but any signed-in user can edit
+  any work until a `works.owner_id` lands.
+- **Studio dashboard** called `/admin/overview` (platform-wide totals) from the browser; it now needs the
+  service secret, so creators need a creator-scoped stats endpoint.
+- **Legacy upload path** (R2 presign / Supabase storage) remains only as the 501 fallback for local stacks;
+  lock the two R2 edge functions once Stream is configured in production.
+- **Mobile player** (G11) and **observability** (G7) are next.
 
 ## Decision D1: production host (blocks G2, G5, G7)
 
