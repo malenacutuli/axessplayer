@@ -34,6 +34,22 @@ export type GraphIdParam = operations["getSeriesGraph"]["parameters"]["path"]["i
 // Compile-time only: forces GraphRoute to resolve. Unused at runtime by design.
 export type _GraphRouteBound = GraphRoute extends never ? never : true;
 
+export interface StreamUploadRequest {
+  size_bytes: number;
+  name: string;
+  language?: string;
+  intensity?: number;
+  tier?: string;
+  is_premium?: boolean;
+  coin_cost?: number;
+  accessibility?: Record<string, unknown>;
+}
+export interface StreamUploadStart {
+  variant: VariantRow;
+  upload_url: string;
+  stream_uid: string;
+}
+
 export class ContentApiError extends Error {
   readonly status: number;
   readonly apiError?: string;
@@ -188,6 +204,12 @@ export class ContentClient {
   }
   createEdge(body: CreateEdgeBody): Promise<EdgeRow> {
     return this.sendJson<EdgeRow>("/edges", body);
+  }
+  // POST /beats/{id}/stream-upload : start a Cloudflare Stream upload for a beat. The server creates the
+  // pending variant and returns the one-time tus URL the browser uploads the file to. 501 when Stream is not
+  // configured on the server (local stacks).
+  startStreamUpload(beatId: string, body: StreamUploadRequest): Promise<StreamUploadStart> {
+    return this.sendJson<StreamUploadStart>(`/beats/${encodeURIComponent(beatId)}/stream-upload`, body);
   }
   // DELETE /variants/{id} : remove a beat_variant. Resolves on 200, throws ContentApiError on 4xx (e.g. a 404
   // variant_not_found). No body, so F1 (no user_id) is not in play here.

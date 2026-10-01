@@ -99,6 +99,10 @@ export interface ContentClient {
   getSeriesGraph(seriesId: string): Promise<SeriesGraph>;
   // Published series only, newest first. Empty when nothing is live.
   getFeed(): Promise<FeedItem[]>;
+  // The playable URL for one cut (GET /variants/:id/playback). Premium cuts are not in the graph; the
+  // server returns them only to a viewer holding the unlock (401 signed out, 402 locked). Stream cuts come
+  // back as short-lived signed URLs.
+  getVariantPlayback(variantId: string): Promise<{ playback_url: string }>;
 }
 
 export interface ContentClientOptions {
@@ -120,6 +124,11 @@ export function createContentClient(opts: ContentClientOptions): ContentClient {
     async getFeed(): Promise<FeedItem[]> {
       const raw = await apiFetch<{ series: FeedItem[] }>(baseUrl, "/feed", session, { fetch: opts.fetch });
       return raw.series ?? [];
+    },
+    async getVariantPlayback(variantId: string): Promise<{ playback_url: string }> {
+      return apiFetch<{ playback_url: string }>(baseUrl, `/variants/${encodeURIComponent(variantId)}/playback`, session, {
+        fetch: opts.fetch,
+      });
     },
   };
 }

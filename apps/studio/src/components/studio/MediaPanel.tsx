@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { useContentClient } from "../../api/useContentClient.js";
 import { ContentApiError } from "../../api/client.js";
+import { uploadToStream } from "../../api/streamUpload.js";
 import { VARIANT_TIERS, type VariantTier } from "../../api/contractGap.js";
 import { attachHls, deleteMedia, isPlayableVideoUrl, pingMediaServer, uploadAndEncode } from "../../api/media.js";
 import type { FlatGraph, FlatBeat, FlatVariant } from "../../api/flattenGraph.js";
@@ -340,6 +341,25 @@ function UploadVariantInspector({
       let url = playbackUrl.trim();
       let encoded = false;
       if (picked) {
+        // Cloudflare Stream first: the server creates the pending cut with these settings, the browser uploads
+        // straight to Stream, and Stream's webhook marks it ready once transcoded.
+        try {
+          setStatus({ state: "uploading" });
+          const started = await uploadToStream(client, beat.id, picked, {
+            language: language.trim() || undefined,
+            intensity: Number.parseInt(intensity, 10),
+            tier,
+            is_premium: isPremium,
+            coin_cost: Number.parseInt(coinCost, 10) || 0,
+            accessibility: { captions, audio_description: audioDesc, sign },
+          });
+          setStatus({ state: "ok", message: `${started.variant.id} (processing on Stream)` });
+          onCreated(started.variant.playback_url);
+          return;
+        } catch (streamErr) {
+          // 501: Stream is not configured on this server (local stacks): fall back to the local media server.
+          if (!(streamErr instanceof ContentApiError && streamErr.status === 501)) throw streamErr;
+        }
         const result = await uploadAndEncode(picked, { onState: (s) => setStatus({ state: s }) });
         url = result.url;
         encoded = true;

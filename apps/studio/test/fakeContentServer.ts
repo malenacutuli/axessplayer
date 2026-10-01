@@ -216,6 +216,10 @@ export function createFakeContentServer(): FakeServer {
     lastBodies.push({ path, body });
     if (!isObject(body)) return bad("invalid_body");
 
+    // POST /beats/{id}/stream-upload : Cloudflare Stream is not configured on this fake (a local stack), so
+    // it answers 501 and the studio falls back to the local media server.
+    if (/^\/beats\/[^/]+\/stream-upload$/.test(path)) return json(501, { error: "stream_not_configured" });
+
     switch (path) {
       case "/series": {
         if (typeof body.title !== "string" || body.title.trim().length === 0) return bad("invalid_title");

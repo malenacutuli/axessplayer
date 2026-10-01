@@ -16,6 +16,7 @@ import { useIngestionClient } from "../../api/useIngestionClient.js";
 import { useFlatGraph } from "../../api/useFlatGraph.js";
 import { isStorageConfigured, StorageUploadError } from "../../api/storageUpload.js";
 import { uploadMasterRouted, type UploadBackend } from "../../api/uploadRouter.js";
+import { uploadToStream } from "../../api/streamUpload.js";
 import { ContentApiError } from "../../api/client.js";
 import { IngestionApiError, type ProduceTargets } from "../../api/ingestion.js";
 import { SeriesPicker } from "./SeriesPicker.js";
@@ -47,7 +48,7 @@ interface RowItem {
   // Upload progress in [0,1] while state is "uploading" (resumable chunks complete), for the progress bar.
   progress?: number;
   // Which backend stored the master: "supabase" (default) or "r2" (overflow for very large files).
-  backend?: UploadBackend;
+  backend?: UploadBackend | "stream";
   // Accessibility produce state for the per-row CTA.
   produce: ProduceState;
   produceJobId?: string;
@@ -153,18 +154,29 @@ export function UploadPanel({ proMode, onNavigate }: UploadPanelProps): JSX.Elem
       }
       try {
         patchRow(id, { state: "uploading", progress: 0 });
-        const { publicUrl, backend } = await uploadMasterRouted(file, workingGraph.seriesId, {
-          onProgress: (fraction) => patchRow(id, { progress: fraction }),
-        });
-        patchRow(id, { backend });
-        patchRow(id, { state: "registering" });
-        await client.createVariant({
-          beat_id: beat.id,
-          tier: "A_filmed",
-          playback_url: publicUrl,
-          // Accessible by default: a freshly uploaded master is flagged for the Process fan-out to enrich.
-          accessibility: { captions: false, audio_description: false, sign: false },
-        });
+        // Accessible by default: a freshly uploaded master is flagged for the Process fan-out to enrich.
+        const accessibility = { captions: false, audio_description: false, sign: false };
+        let viaStream = true;
+        try {
+          // Cloudflare Stream: the server creates the pending cut, the browser uploads straight to Stream, and
+          // Stream's webhook marks the cut ready once transcoded.
+          await uploadToStream(client, beat.id, file, { tier: "A_filmed", accessibility }, {
+            onProgress: (fraction) => patchRow(id, { progress: fraction }),
+          });
+          patchRow(id, { backend: "stream" });
+        } catch (e) {
+          // 501: Stream is not configured on this server (local stacks). Use the legacy storage path.
+          if (!(e instanceof ContentApiError && e.status === 501)) throw e;
+          viaStream = false;
+        }
+        if (!viaStream) {
+          const { publicUrl, backend } = await uploadMasterRouted(file, workingGraph.seriesId, {
+            onProgress: (fraction) => patchRow(id, { progress: fraction }),
+          });
+          patchRow(id, { backend });
+          patchRow(id, { state: "registering" });
+          await client.createVariant({ beat_id: beat.id, tier: "A_filmed", playback_url: publicUrl, accessibility });
+        }
         patchRow(id, { state: "done", beatId: beat.id, episodeId: beat.episode_id });
         setReloadToken((n) => n + 1);
       } catch (e) {
@@ -318,7 +330,8 @@ export function UploadPanel({ proMode, onNavigate }: UploadPanelProps): JSX.Elem
                         ? `Uploading... ${Math.round(r.progress * 100)}%`
                         : "Uploading...")}
                     {r.state === "registering" && "Registering variant..."}
-                    {r.state === "done" && (r.backend === "r2" ? "Registered (R2)" : "Registered")}
+                    {r.state === "done" &&
+                      (r.backend === "stream" ? "Uploaded, processing on Stream" : r.backend === "r2" ? "Registered (R2)" : "Registered")}
                     {r.state === "error" && <span role="alert">Failed: {r.message}</span>}
                   </span>
 

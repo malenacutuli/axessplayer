@@ -71,6 +71,9 @@ export interface PlayerProps {
   // are emitted and no real signals feed /decide. Defaults make the player work standalone (no capture).
   capture?: CaptureClient;
   personalize?: boolean;
+  // Fetches the playable URL of a cut the graph does not carry one for (premium cuts after an unlock, signed
+  // Stream URLs). Wired to GET /variants/:id/playback.
+  resolvePlayback?: (variantId: string) => Promise<string>;
 }
 
 // The viewer's felt branch. The engine normally decides; the picker lets the viewer override the cut
@@ -95,6 +98,7 @@ export function Player({
   onBalanceChange,
   capture = noopCapture,
   personalize = false,
+  resolvePlayback,
 }: PlayerProps) {
   const resolveBeatId = useMemo(() => variantToBeatResolver(graph), [graph]);
   const { state, advance, recordSignals } = usePlayer({ transport, userId, startBeatId, resolveBeatId });
@@ -320,7 +324,29 @@ export function Player({
   );
 
   // The cut shown after an unlock is the premium ending; otherwise whatever is on the branch path.
-  const onScreen: VariantNode | undefined = unlocked && premiumGate ? premiumGate : shown;
+  const onScreenCut: VariantNode | undefined = unlocked && premiumGate ? premiumGate : shown;
+
+  // Premium cuts arrive without a URL (the server withholds it until the viewer holds the unlock). Once one is
+  // actually on screen (unlocked, or an owned cut picked in the Cuts browser), fetch its URL from the server.
+  const [resolvedUrls, setResolvedUrls] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!onScreenCut || onScreenCut.playback_url || !onScreenCut.is_premium || !resolvePlayback) return;
+    if (resolvedUrls[onScreenCut.id]) return;
+    let live = true;
+    const id = onScreenCut.id;
+    resolvePlayback(id)
+      .then((url) => {
+        if (live && url) setResolvedUrls((m) => ({ ...m, [id]: url }));
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [onScreenCut, resolvePlayback, resolvedUrls]);
+  const onScreen: VariantNode | undefined =
+    onScreenCut && !onScreenCut.playback_url && resolvedUrls[onScreenCut.id]
+      ? { ...onScreenCut, playback_url: resolvedUrls[onScreenCut.id] }
+      : onScreenCut;
 
   // Never hand the surface a cut whose media does not exist (a black player). If the chosen cut has no
   // playable URL, fall back to a sibling variant on the same beat that does (qa passed + real media). This is
@@ -541,8 +567,9 @@ export function Player({
 
   // Prefetch the immediate alternate cuts (calm/tense/premium) so switching or advancing has no buffering.
   useEffect(() => {
-    prefetchMedia([calmVariant?.playback_url, tenseVariant?.playback_url, premiumGate?.playback_url]);
-  }, [currentBeatId, calmVariant?.playback_url, tenseVariant?.playback_url, premiumGate?.playback_url]);
+    // Premium cuts are not prefetched: their URL is withheld until the viewer holds the unlock.
+    prefetchMedia([calmVariant?.playback_url, tenseVariant?.playback_url]);
+  }, [currentBeatId, calmVariant?.playback_url, tenseVariant?.playback_url]);
 
   // Back to feed: close the session.
   const onBackToFeed = useCallback(() => {
@@ -1059,9 +1086,10 @@ const CAP_SAFE_STYLE: CSSProperties = {
   pointerEvents: "none",
 };
 
-// True when a variant playback_url points at a directly playable video (an uploaded master on the media
-// server, or a plain video file) rather than an HLS playlist or a cdn.example placeholder. Kept in sync
-// with apps/studio/src/api/media.ts isPlayableVideoUrl. No em dashes.
+// True when a variant playback_url points at real media: an uploaded master on the media server, a plain
+// video file, or an absolute HLS manifest (Cloudflare Stream signed URLs, played via hls.js), rather than a
+// cdn.example placeholder or an empty (withheld premium) URL. Kept in sync with apps/studio/src/api/media.ts
+// isPlayableVideoUrl. No em dashes.
 function isPlayableVideoUrl(url: string | undefined): boolean {
   if (!url) return false;
   // A path the local media proxy serves (relative or absolute) is playable.
@@ -1069,7 +1097,8 @@ function isPlayableVideoUrl(url: string | undefined): boolean {
   // An absolute video file URL is playable. A BARE relative path (e.g. /manus-storage/x.mp4) is NOT: it
   // resolves against the app origin and 404s, mounting a dead <video> the tap can never start. Treat it as
   // no-media so the player shows the explicit reason instead of a frozen "Tap to play".
-  return /^https?:\/\//i.test(url) && /\.(mp4|m4v|mov|webm|ogv|ogg)(\?|$)/i.test(url);
+  if (!/^https?:\/\//i.test(url) || url.includes("cdn.example")) return false;
+  return /\.(mp4|m4v|mov|webm|ogv|ogg|m3u8)(\?|$)/i.test(url);
 }
 
 // Plain SVG control glyphs (no emoji, no symbol fonts), inheriting currentColor.

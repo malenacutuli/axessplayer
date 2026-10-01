@@ -217,6 +217,7 @@ export function App({ clients, seriesId, userId, viewerName = "Malena", consent 
             onBalanceChange={() => void refreshWallet()}
             capture={capture}
             personalize={personalize}
+            resolvePlayback={(id) => clients.content.getVariantPlayback(id).then((r) => r.playback_url)}
           />
         </div>
       );
