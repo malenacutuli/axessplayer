@@ -379,6 +379,10 @@ importers:
         version: 5.9.3
 
   services/brand:
+    dependencies:
+      '@axessplayer/session-auth':
+        specifier: workspace:*
+        version: link:../../packages/session-auth
     devDependencies:
       '@types/node':
         specifier: ^20.0.0

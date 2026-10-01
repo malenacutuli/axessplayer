@@ -13,20 +13,22 @@
 import { createBrandServer } from "./server.js";
 import { createInMemoryBrandDB, type BrandDB } from "./store.js";
 import { createStubDemandAdapter, assertNoVisionCapability } from "./demand.js";
+import { randomUUID } from "node:crypto";
+import { testSessionsAllowed } from "@axessplayer/session-auth";
 import { testVerifiers, type Verifiers } from "./auth.js";
 
+// Operator access needs BRAND_OPERATOR_SECRET; without it a random value nobody holds locks the operator routes
+// (there is no default secret). Advertiser tokens are the unsigned test scheme (advertiser:<id>), honoured only
+// on a local stack that opts in with ALLOW_TEST_SESSIONS=1; otherwise advertiser access is denied until the
+// brand portal's real sign-in lands. Before 2026-10-01 the live service accepted both forged advertisers and
+// the default "dev-operator-secret".
 function selectVerifiers(): Verifiers {
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "brand server: real advertiser/operator JWKS verifier wiring is a cutover gate and is not implemented; " +
-        "inject a real Verifiers before running with NODE_ENV=production",
-    );
-  }
-  const secret =
-    process.env.BRAND_OPERATOR_SECRET && process.env.BRAND_OPERATOR_SECRET.length > 0
-      ? process.env.BRAND_OPERATOR_SECRET
-      : "dev-operator-secret";
-  return testVerifiers(secret);
+  const configured = process.env.BRAND_OPERATOR_SECRET;
+  if (!configured) console.error("brand server: BRAND_OPERATOR_SECRET is not set; operator routes are locked");
+  const secret = configured && configured.length > 0 ? configured : randomUUID() + randomUUID();
+  const test = testVerifiers(secret);
+  if (process.env.NODE_ENV !== "production" && testSessionsAllowed()) return test;
+  return { ...test, advertiser: { verifyAdvertiser: async () => null } };
 }
 
 // The production store is the pg-backed BrandDB (PgBrandDb over a node-postgres Pool with
