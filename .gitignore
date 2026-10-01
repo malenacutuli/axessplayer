@@ -9,6 +9,9 @@ dist
 !.env.example
 !**/.env.example
 !**/.env.hosted.example
+# Public production build config for the browser apps (VITE_* only: origins + Supabase URL/anon key).
+!apps/web/.env.production
+!apps/studio/.env.production
 .vercel
 contracts/types/generated
 

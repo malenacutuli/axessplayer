@@ -75,7 +75,7 @@ export function buildClients(opts: BuildClientsOptions): Clients {
     }),
     // Same-origin via the Vite proxy: /reward/* to the settlement service, /admin/* to content.
     rewards: createRewardsClient({
-      rewardsBaseUrl: config.economyBaseUrl,
+      rewardsBaseUrl: config.rewardsBaseUrl,
       contentBaseUrl: config.contentBaseUrl,
       session: opts.session,
       fetch: opts.fetch,

@@ -28,6 +28,7 @@ function clientsFor(server: ReturnType<typeof createMockServer>) {
     config: {
       contentBaseUrl: BASE,
       economyBaseUrl: BASE,
+      rewardsBaseUrl: BASE,
       decisionBaseUrl: BASE,
       manifestBaseUrl: BASE,
       identityBaseUrl: BASE,

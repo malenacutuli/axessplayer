@@ -5,6 +5,8 @@
 export interface AppConfig {
   contentBaseUrl: string;
   economyBaseUrl: string;
+  // Settlement service (rewards + paywall presentation). Falls back to the economy origin for local stacks.
+  rewardsBaseUrl: string;
   decisionBaseUrl: string;
   manifestBaseUrl: string;
   // 20-V0 identity service (auth token verify, profile, consent). In dev it defaults to the same-origin
@@ -38,6 +40,7 @@ export function loadConfig(env: EnvBag = readEnv()): AppConfig {
   return {
     contentBaseUrl: env.VITE_CONTENT_BASE_URL ?? DEFAULT_GATEWAY,
     economyBaseUrl: env.VITE_ECONOMY_BASE_URL ?? DEFAULT_GATEWAY,
+    rewardsBaseUrl: env.VITE_REWARDS_BASE_URL ?? env.VITE_ECONOMY_BASE_URL ?? DEFAULT_GATEWAY,
     decisionBaseUrl: env.VITE_DECISION_BASE_URL ?? DEFAULT_GATEWAY,
     manifestBaseUrl: env.VITE_MANIFEST_BASE_URL ?? DEFAULT_GATEWAY,
     // Default to the same-origin "/identity" prefix forwarded by the Vite dev proxy. A deployed build
