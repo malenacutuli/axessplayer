@@ -15,6 +15,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { freshDb, emptyDb, pgliteContentDb, FIX, TEST_CREATOR } from "./harness.js";
 import { sqlOwnership } from "../src/ownership.js";
+import { sqlMediaStore } from "../src/mediaStore.js";
+import { verifyStreamSignature, type StreamApi } from "../src/stream.js";
+import { createHmac } from "node:crypto";
 import { createContentApp } from "../src/http/app.js";
 import type { Hono } from "hono";
 
@@ -30,9 +33,37 @@ const OTHER_CREATOR = "aaaaaaaa-0000-0000-0000-000000000002";
 
 // The content app with creator auth wired to the real SQL ownership checks. Requests act as TEST_CREATOR
 // unless they set their own authorization header (or "" for signed out).
-function appFor(db: Awaited<ReturnType<typeof freshDb>>, opts: { serviceSecret?: string } = {}): Hono {
+// A fake Stream API: records uploads, verifies webhooks with a test secret, "signs" as signed:<uid>.
+const STREAM_SECRET = "stream-whs";
+function fakeStream(): StreamApi & { uploads: Array<{ sizeBytes: number; creatorId: string }> } {
+  let n = 0;
+  const uploads: Array<{ sizeBytes: number; creatorId: string }> = [];
+  return {
+    uploads,
+    async createDirectUpload(i) {
+      uploads.push({ sizeBytes: i.sizeBytes, creatorId: i.creatorId });
+      n++;
+      return { uid: `uid${n}`, uploadUrl: `https://upload.example/tus/uid${n}` };
+    },
+    async copyFromUrl() {
+      return { uid: "copied" };
+    },
+    signPlaybackUrl: (hls, uid) => hls.replace(uid, `signed-${uid}`),
+    verifyWebhook: (raw, header) => verifyStreamSignature(raw, header, STREAM_SECRET, Math.floor(Date.now() / 1000)),
+  };
+}
+const streamHook = (body: unknown) => {
+  const raw = JSON.stringify(body);
+  const t = Math.floor(Date.now() / 1000);
+  const sig = createHmac("sha256", STREAM_SECRET).update(`${t}.${raw}`).digest("hex");
+  return { method: "POST", body: raw, headers: { "content-type": "application/json", "webhook-signature": `time=${t},sig1=${sig}`, authorization: "" } };
+};
+
+function appFor(db: Awaited<ReturnType<typeof freshDb>>, opts: { serviceSecret?: string; stream?: StreamApi } = {}): Hono {
   const app = createContentApp({
     db: pgliteContentDb(db),
+    media: sqlMediaStore((sql, params) => db.query(sql, params) as never),
+    ...(opts.stream ? { stream: opts.stream } : {}),
     auth: {
       session: testSessions,
       ownership: sqlOwnership((sql, params) => db.query(sql, params) as never),
@@ -419,4 +450,96 @@ test("writes fail closed with 503 when creator auth is not configured", async ()
   const app = createContentApp({ db: pgliteContentDb(await emptyDb()) });
   const res = await app.request("/series", json({ title: "x" }));
   assert.equal(res.status, 503);
+});
+
+// ---------------- Cloudflare Stream: upload, webhook, signed playback, premium gating ----------------
+
+async function beatOfSeedSeries(app: Hono): Promise<string> {
+  const g = (await (await app.request(`/series/${FIX.series}/graph`)).json()) as { episodes: Array<{ beats: Array<{ id: string }> }> };
+  return g.episodes[0].beats[0].id;
+}
+const variantsOf = (g: { episodes: Array<{ beats: Array<{ variants: Array<{ id: string; playback_url: string; qa_status: string }> }> }> }) =>
+  g.episodes.flatMap((e) => e.beats.flatMap((b) => b.variants));
+
+test("stream upload: owner gets a tus URL and a pending stream variant; others are refused", async () => {
+  const stream = fakeStream();
+  const app = appFor(await freshDb(), { stream });
+  const beat = await beatOfSeedSeries(app);
+  const up = (body: unknown, headers: Record<string, string> = {}) =>
+    app.request(`/beats/${beat}/stream-upload`, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", ...headers } });
+
+  assert.equal((await up({ size_bytes: 10 }, { authorization: "" })).status, 401);
+  assert.equal((await up({ size_bytes: 10 }, { authorization: asUser(OTHER_CREATOR) })).status, 403);
+  assert.equal((await up({ size_bytes: 0 })).status, 400);
+  assert.equal(stream.uploads.length, 0, "no Stream upload is created for refused requests");
+
+  const res = await up({ size_bytes: 5_000_000, name: "ep1.mp4", language: "en", intensity: 3 });
+  assert.equal(res.status, 201);
+  const body = (await res.json()) as { variant: { id: string; playback_url: string; qa_status: string }; upload_url: string; stream_uid: string };
+  assert.equal(body.upload_url, "https://upload.example/tus/uid1");
+  assert.equal(body.variant.playback_url, "stream:uid1");
+  assert.equal(body.variant.qa_status, "pending");
+  assert.deepEqual(stream.uploads[0], { sizeBytes: 5_000_000, creatorId: TEST_CREATOR });
+});
+
+test("stream upload answers 501 when Stream is not configured", async () => {
+  const app = appFor(await freshDb());
+  const beat = await beatOfSeedSeries(app);
+  const res = await app.request(`/beats/${beat}/stream-upload`, { method: "POST", body: JSON.stringify({ size_bytes: 10 }), headers: { "content-type": "application/json" } });
+  assert.equal(res.status, 501);
+});
+
+test("stream webhook: unsigned is refused; signed ready makes the cut servable with a signed URL", async () => {
+  const stream = fakeStream();
+  const app = appFor(await freshDb(), { stream });
+  const beat = await beatOfSeedSeries(app);
+  const created = (await (await app.request(`/beats/${beat}/stream-upload`, { method: "POST", body: JSON.stringify({ size_bytes: 10 }), headers: { "content-type": "application/json" } })).json()) as { variant: { id: string } };
+  await app.request(`/series/${FIX.series}/publish`, { method: "POST" });
+
+  // Before ready: listed but with no playable URL.
+  const guest = { headers: { authorization: "" } };
+  let v = variantsOf(await (await app.request(`/series/${FIX.series}/graph`, guest)).json()).find((x) => x.id === created.variant.id)!;
+  assert.equal(v.playback_url, "");
+  assert.equal((await app.request(`/variants/${created.variant.id}/playback`, guest)).status, 409);
+
+  const ready = { uid: "uid1", readyToStream: true, status: { state: "ready" }, playback: { hls: "https://customer-x.cloudflarestream.com/uid1/manifest/video.m3u8" }, duration: 12.5 };
+  const unsigned = await app.request("/stream/webhook", { method: "POST", body: JSON.stringify(ready), headers: { "content-type": "application/json", authorization: "" } });
+  assert.equal(unsigned.status, 400);
+  assert.equal((await app.request("/stream/webhook", streamHook(ready))).status, 200);
+
+  v = variantsOf(await (await app.request(`/series/${FIX.series}/graph`, guest)).json()).find((x) => x.id === created.variant.id)!;
+  assert.equal(v.qa_status, "passed");
+  assert.equal(v.playback_url, "https://customer-x.cloudflarestream.com/signed-uid1/manifest/video.m3u8");
+  const pb = (await (await app.request(`/variants/${created.variant.id}/playback`, guest)).json()) as { playback_url: string };
+  assert.equal(pb.playback_url, "https://customer-x.cloudflarestream.com/signed-uid1/manifest/video.m3u8");
+});
+
+test("stream webhook error rejects the cut", async () => {
+  const stream = fakeStream();
+  const app = appFor(await freshDb(), { stream });
+  const beat = await beatOfSeedSeries(app);
+  const created = (await (await app.request(`/beats/${beat}/stream-upload`, { method: "POST", body: JSON.stringify({ size_bytes: 10 }), headers: { "content-type": "application/json" } })).json()) as { variant: { id: string } };
+  await app.request("/stream/webhook", streamHook({ uid: "uid1", readyToStream: false, status: { state: "error", errReasonCode: "ERR_MALFORMED_VIDEO" } }));
+  const v = variantsOf(await (await app.request(`/series/${FIX.series}/graph`)).json()).find((x) => x.id === created.variant.id)!;
+  assert.equal(v.qa_status, "rejected");
+});
+
+test("premium cuts: no URL in the graph for non-owners; playback needs the entitlement", async () => {
+  const db = await freshDb();
+  const app = appFor(db);
+  await app.request(`/series/${FIX.series}/publish`, { method: "POST" });
+  const premium = FIX.variantPremiumEnding;
+  const urlIn = async (headers: Record<string, string>) =>
+    variantsOf(await (await app.request(`/series/${FIX.series}/graph`, { headers })).json()).find((x) => x.id === premium)!.playback_url;
+
+  assert.equal(await urlIn({ authorization: "" }), "", "guests never receive a premium URL");
+  assert.equal(await urlIn({ authorization: asUser(OTHER_CREATOR) }), "", "nor signed-in viewers without the unlock");
+  assert.notEqual(await urlIn({}), "", "the owner previews their own premium cut");
+
+  assert.equal((await app.request(`/variants/${premium}/playback`, { headers: { authorization: "" } })).status, 401);
+  assert.equal((await app.request(`/variants/${premium}/playback`, { headers: { authorization: asUser(OTHER_CREATOR) } })).status, 402);
+  await db.query("insert into entitlements (user_id, scope, scope_id) values ($1, 'beat_variant', $2)", [OTHER_CREATOR, premium]);
+  const unlocked = await app.request(`/variants/${premium}/playback`, { headers: { authorization: asUser(OTHER_CREATOR) } });
+  assert.equal(unlocked.status, 200);
+  assert.ok(((await unlocked.json()) as { playback_url: string }).playback_url);
 });

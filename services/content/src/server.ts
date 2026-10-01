@@ -24,6 +24,8 @@ import { PgContentDb } from "./pgContentDb.js";
 import { PgReadingDb } from "./pgReadingDb.js";
 import { makePosterGenerator } from "./poster.js";
 import { sqlOwnership } from "./ownership.js";
+import { sqlMediaStore } from "./mediaStore.js";
+import { createStreamApi, streamConfigFromEnv } from "./stream.js";
 import { selectSessionVerifier, pgUserIdResolver, type SessionVerifier } from "@axessplayer/session-auth";
 
 export interface ContentServerConfig {
@@ -84,7 +86,21 @@ export function buildContentApp(pool: pg.Pool, env: NodeJS.ProcessEnv = process.
     ownership: sqlOwnership((sql, params) => pool.query(sql, params)),
     ...(serviceSecret ? { serviceSecret } : {}),
   };
-  return createContentApp({ db: new PgContentDb(pool), reading: new PgReadingDb(pool), eventsBaseUrl, auth, ...(posterGen ? { posterGen } : {}) });
+  // Media state + Cloudflare Stream (creator uploads, signed playback). Stream is on only when all of
+  // CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_STREAM_API_TOKEN, STREAM_WEBHOOK_SECRET, STREAM_SIGNING_KEY_ID and
+  // STREAM_SIGNING_KEY_PEM are set (scripts/stream-setup.mjs); otherwise the upload route answers 501.
+  const media = sqlMediaStore((sql, params) => pool.query(sql, params));
+  const streamCfg = streamConfigFromEnv(env);
+  const stream = streamCfg ? createStreamApi(streamCfg) : undefined;
+  return createContentApp({
+    db: new PgContentDb(pool),
+    reading: new PgReadingDb(pool),
+    eventsBaseUrl,
+    auth,
+    media,
+    ...(stream ? { stream } : {}),
+    ...(posterGen ? { posterGen } : {}),
+  });
 }
 
 // --- node:http bridge: map a Node request to a Web Request, run the Hono app, write the Web Response back.

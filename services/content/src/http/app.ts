@@ -42,6 +42,9 @@ import {
 import type { PosterGenerator } from "../poster.js";
 import type { SessionVerifier } from "@axessplayer/session-auth";
 import type { Ownership, SeriesAccess } from "../ownership.js";
+import type { MediaStore } from "../mediaStore.js";
+import { isStreamRef, streamRef, MAX_UPLOAD_BYTES, StreamError, type StreamApi, type StreamWebhookVideo } from "../stream.js";
+import type { SeriesGraph } from "../content.js";
 import { readerPageHtml, readFeedHtml } from "../readerPage.js";
 import { watchFeedHtml, watchPlayerHtml } from "../watchPage.js";
 import {
@@ -76,6 +79,10 @@ export interface AppDeps {
   // Creator auth. Every write needs a verified session, and series writes need the series owner. Without it
   // the write routes answer 503 (fail closed). serviceSecret guards the service-to-service /admin routes.
   auth?: { session: SessionVerifier; ownership: Ownership; serviceSecret?: string };
+  // Media state + entitlements (Stream lifecycle, premium gating). Production wires sqlMediaStore.
+  media?: MediaStore;
+  // Cloudflare Stream API (uploads, webhook verification, signed playback). Absent: upload routes answer 501.
+  stream?: StreamApi;
 }
 
 type Ctx = { req: { header: (k: string) => string | undefined }; json: (b: unknown, s?: number) => Response };
@@ -163,15 +170,124 @@ export function createContentApp(deps: AppDeps): Hono {
 
   // GET /series/{id}/graph : resolve a series into its playable graph, or 404. The id is validated by the
   // handler (a malformed uuid is a clean 404 without touching the DB), so the route only forwards it.
+  // Make a graph safe to hand to this viewer: premium cuts carry no playable URL (the player asks
+  // GET /variants/:id/playback after an unlock) unless the viewer owns the series, and Stream cuts get a
+  // short-lived signed URL (or none until the transcode is ready).
+  const prepareGraph = async (graph: SeriesGraph, viewerIsOwner: boolean): Promise<void> => {
+    const refs = deps.media ? await deps.media.streamRefsOfSeries(graph.series.id) : new Map();
+    for (const ep of graph.episodes) {
+      for (const beat of ep.beats) {
+        for (const v of beat.variants) {
+          if (v.is_premium && !viewerIsOwner && auth) {
+            v.playback_url = "";
+            continue;
+          }
+          if (isStreamRef(v.playback_url)) {
+            const ref = refs.get(v.id);
+            v.playback_url =
+              ref && ref.status === "ready" && ref.hls && deps.stream ? deps.stream.signPlaybackUrl(ref.hls, ref.uid) : "";
+          }
+        }
+      }
+    }
+  };
+
   app.get("/series/:id/graph", async (c) => {
     const id: GraphIdParam = c.req.param("id");
-    // Drafts are private to their owner; published series are public.
+    let viewerIsOwner = false;
     if (auth) {
+      // Drafts are private to their owner; published series are public.
       const a = await auth.ownership.ofSeries(id);
-      if (a && !a.published && a.ownerId !== (await viewerOf(c))) return c.json({ error: "not_found" }, 404);
+      const viewer = await viewerOf(c);
+      viewerIsOwner = a != null && a.ownerId != null && a.ownerId === viewer;
+      if (a && !a.published && !viewerIsOwner) return c.json({ error: "not_found" }, 404);
     }
     const result = await handleGetSeriesGraph(id, db);
+    if (result.status === 200) await prepareGraph(result.body as SeriesGraph, viewerIsOwner);
     return c.json(result.body, result.status as 200 | 404);
+  });
+
+  // POST /beats/{id}/stream-upload : start a creator upload to Cloudflare Stream. Creates the pending variant
+  // (playback_url stream:<uid>) and returns the one-time tus URL the browser uploads to directly. The Stream
+  // webhook marks it ready (qa passed) once transcoded. Owner only.
+  app.post("/beats/:id/stream-upload", async (c) => {
+    const beatId = c.req.param("id");
+    const uid = await ownerOf(c, (o) => o.ofBeat(beatId));
+    if (uid instanceof Response) return uid;
+    if (!deps.stream || !deps.media) return c.json({ error: "stream_not_configured" }, 501);
+    const raw = await readJson(c);
+    if (!isRecord(raw)) return c.json({ error: "invalid_json" }, 400);
+    const size = raw.size_bytes;
+    if (typeof size !== "number" || !Number.isInteger(size) || size <= 0 || size > MAX_UPLOAD_BYTES) {
+      return c.json({ error: "invalid_size_bytes", max: MAX_UPLOAD_BYTES }, 400);
+    }
+    const name = typeof raw.name === "string" && raw.name.trim() ? raw.name.trim() : "upload";
+    let upload;
+    try {
+      upload = await deps.stream.createDirectUpload({ sizeBytes: size, name, creatorId: uid });
+    } catch (e) {
+      const status = e instanceof StreamError ? e.status : 0;
+      return c.json({ error: "stream_upload_failed", status }, 502);
+    }
+    const { size_bytes: _s, name: _n, playback_url: _p, qa_status: _q, ...fields } = raw;
+    const created = await handleCreateVariant(
+      // A creator upload is a filmed cut unless the studio says otherwise (same default as the upload panel).
+      { tier: "A_filmed", ...fields, beat_id: beatId, playback_url: streamRef(upload.uid), qa_status: "pending" } as CreateVariantBody,
+      db,
+    );
+    if (created.status !== 201) return c.json(created.body, created.status as 400);
+    const variant = created.body as { id: string };
+    await deps.media.setStreamUploading(variant.id, upload.uid);
+    return c.json({ variant: created.body, upload_url: upload.uploadUrl, stream_uid: upload.uid }, 201);
+  });
+
+  // POST /stream/webhook : Cloudflare Stream calls this when a video is ready or failed. Verified with the
+  // webhook secret (Webhook-Signature); unsigned or stale deliveries are refused.
+  app.post("/stream/webhook", async (c) => {
+    if (!deps.stream || !deps.media) return c.json({ error: "stream_not_configured" }, 503);
+    const rawBody = await c.req.text();
+    if (!deps.stream.verifyWebhook(rawBody, c.req.header("webhook-signature"))) {
+      return c.json({ error: "invalid_signature" }, 400);
+    }
+    let video: StreamWebhookVideo;
+    try {
+      video = JSON.parse(rawBody) as StreamWebhookVideo;
+    } catch {
+      return c.json({ error: "invalid_json" }, 400);
+    }
+    if (!video.uid) return c.json({ error: "missing_uid" }, 400);
+    const state = video.status?.state;
+    if (video.readyToStream && state === "ready" && video.playback?.hls) {
+      const durationMs = typeof video.duration === "number" && video.duration > 0 ? Math.round(video.duration * 1000) : null;
+      const variantId = await deps.media.markStreamReady(video.uid, video.playback.hls, durationMs);
+      return c.json({ ok: true, variant_id: variantId, state: "ready" }, 200);
+    }
+    if (state === "error") {
+      const variantId = await deps.media.markStreamError(video.uid);
+      return c.json({ ok: true, variant_id: variantId, state: "error" }, 200);
+    }
+    return c.json({ ok: true, ignored: state ?? "unknown" }, 200);
+  });
+
+  // GET /variants/{id}/playback : the playable URL for one cut. Free cuts of published series are open to
+  // anyone (guests included); drafts only to the owner; premium cuts only to the owner or a viewer holding the
+  // beat_variant entitlement (402 otherwise). Stream cuts return a signed URL that expires.
+  app.get("/variants/:id/playback", async (c) => {
+    if (!deps.media) return c.json({ error: "not_configured" }, 503);
+    const info = await deps.media.playbackOf(c.req.param("id"));
+    if (!info) return c.json({ error: "not_found" }, 404);
+    const viewer = await viewerOf(c);
+    const isOwner = viewer != null && info.ownerId === viewer;
+    if (!info.seriesPublished && !isOwner) return c.json({ error: "not_found" }, 404);
+    if (info.isPremium && !isOwner) {
+      if (!viewer) return c.json({ error: "sign_in_required" }, 401);
+      if (!(await deps.media.hasEntitlement(viewer, info.variantId))) return c.json({ error: "locked" }, 402);
+    }
+    if (info.streamUid) {
+      if (info.streamStatus !== "ready" || !info.streamHls || !deps.stream) return c.json({ error: "not_ready" }, 409);
+      return c.json({ playback_url: deps.stream.signPlaybackUrl(info.streamHls, info.streamUid) }, 200);
+    }
+    return c.json({ playback_url: info.playbackUrl }, 200);
   });
 
   // POST /series : create a series. A malformed or missing JSON body becomes a 400 here rather than an
